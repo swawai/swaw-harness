@@ -1,0 +1,14 @@
+[package]
+name = "swaw-harness-helloworld"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "swaw_harness_helloworld"
+path = "src/lib.rs"
+
+[[bin]]
+name = "swaw-harness-helloworld"
+path = "src/main.rs"
