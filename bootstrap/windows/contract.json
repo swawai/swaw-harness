@@ -1,0 +1,30 @@
+{
+  "schema": "swaw.harness.bootstrap.windows/v2",
+  "targetId": "x86_64-pc-windows-msvc",
+  "rust": {
+    "toolchain": "1.97.1",
+    "profile": "minimal",
+    "rustupInit": {
+      "version": "1.29.0",
+      "url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-msvc/rustup-init.exe",
+      "length": 12814336,
+      "sha256": "86478e53f769379d7f0ebfa7c9aa97cb76ca92233f79aa2cc0dbee2efaac73c7"
+    }
+  },
+  "msvc": {
+    "productLine": "vs2026",
+    "license": {
+      "url": "https://go.microsoft.com/fwlink/?LinkId=2327714",
+      "acceptance": "by-bootstrap-invocation"
+    },
+    "manifest": {
+      "url": "https://download.visualstudio.microsoft.com/download/pr/7834fc97-5a8c-4392-a2a9-ed4b98f77180/60e03cd8f1548ff020dd929c645125996ae82bd8c6e7ad6ec7d34d9e8367f0e9/VisualStudio.vsman",
+      "length": 18346719,
+      "sha256": "4601ae053061fc499a60adf0247f700285519b6ccd1bd6e491ce6589bb923253"
+    }
+  },
+  "product": {
+    "package": "swaw-harness-helloworld",
+    "binary": "swaw-harness-helloworld.exe"
+  }
+}

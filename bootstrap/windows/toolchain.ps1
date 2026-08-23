@@ -1,0 +1,65 @@
+[CmdletBinding(PositionalBinding = $false)]
+param(
+    [string]$VarRoot = '',
+    [Parameter(Mandatory = $true, Position = 0)]
+    [ValidateSet('cargo', 'rustc', 'rustdoc', 'cl', 'link', 'lib', 'rc')]
+    [string]$Tool,
+    [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
+    [AllowEmptyCollection()]
+    [string[]]$ToolArguments = @()
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version 2.0
+
+. (Join-Path $PSScriptRoot '_lib\context.ps1')
+. (Join-Path $PSScriptRoot '_lib\contract.ps1')
+. (Join-Path $PSScriptRoot '_lib\toolchain\lifecycle.ps1')
+. (Join-Path $PSScriptRoot '_lib\toolchain\environment.ps1')
+. (Join-Path $PSScriptRoot '_lib\process.ps1')
+
+if ([string]::IsNullOrWhiteSpace($VarRoot)) {
+    $VarRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+}
+$Contract = Read-SwawHarnessWindowsBootstrapContract `
+    -Path (Join-Path $PSScriptRoot 'contract.json')
+$Context = New-SwawHarnessWindowsBootstrapContext -VarRoot $VarRoot
+$InstallRoot = Get-SwawHarnessToolchainTargetPath `
+    -Context $Context `
+    -Contract $Contract
+$Toolchain = Get-SwawHarnessValidToolchain `
+    -Context $Context `
+    -Contract $Contract `
+    -InstallRoot $InstallRoot
+if ($null -eq $Toolchain) {
+    throw (
+        'The Contract toolchain is not installed or is invalid. Run ' +
+        "'$PSScriptRoot\toolchain-setup.ps1' first."
+    )
+}
+$Plan = Get-SwawHarnessToolchainEnvironment `
+    -Context $Context `
+    -Contract $Contract `
+    -Toolchain $Toolchain
+$Executables = [ordered]@{
+    cargo = [string]$Plan.CargoPath
+    rustc = [string]$Plan.RustcPath
+    rustdoc = [string]$Plan.RustdocPath
+    cl = [string]$Plan.CompilerPath
+    link = [string]$Plan.LinkerPath
+    lib = [string]$Plan.LibrarianPath
+    rc = [string]$Plan.ResourceCompilerPath
+}
+$Location = Get-Location
+if ($null -eq $Location.Provider -or
+    [string]$Location.Provider.Name -cne 'FileSystem') {
+    throw 'Toolchain commands require a filesystem working directory.'
+}
+$ExitCode = Invoke-SwawHarnessInheritedProcess `
+    -Executable ([string]$Executables[$Tool]) `
+    -Arguments $ToolArguments `
+    -WorkingDirectory ([IO.Path]::GetFullPath($Location.Path)) `
+    -EnvironmentVariables $Plan.EnvironmentVariables `
+    -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables `
+    -TimeoutSeconds 1800
+exit $ExitCode
