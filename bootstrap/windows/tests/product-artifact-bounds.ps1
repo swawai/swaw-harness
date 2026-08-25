@@ -54,6 +54,7 @@ $Contract = [pscustomobject][ordered]@{
 $Context = [pscustomobject][ordered]@{
     DataRoot = $TestRoot
     BootstrapWindowsRoot = $BootstrapWindowsRoot
+    BootstrapWindowsCacheRoot = $BootstrapWindowsCacheRoot
     LockRoot = $LockRoot
 }
 
@@ -149,6 +150,48 @@ try {
     Assert-ProductArtifactBoundsTest `
         -Condition $ReleasePublisherRejected `
         -Message 'Release staging accepted product maximum + 1 byte'
+
+    $ActualSizeRejected = Test-ProductArtifactBoundsRejection {
+        $DeclaredWithinLimit = [pscustomobject][ordered]@{
+            TargetId = $Contract.TargetId
+            Name = $Contract.ProductBinary
+            ArtifactPath = $SourcePath
+            Length = $MaximumBytes
+            Sha256 = $Sha256
+        }
+        [void](Publish-SwawHarnessRelease `
+            -Context $Context `
+            -Contract $Contract `
+            -Candidate $DeclaredWithinLimit `
+            -ReleasesRoot $ReleasesRoot `
+            -LockName 'bounds-test.lock')
+    }
+    Assert-ProductArtifactBoundsTest `
+        -Condition $ActualSizeRejected `
+        -Message 'Release staging trusted a bounded declared length over the file'
+
+    $MismatchedSourcePath = Join-Path $BuildRoot 'mismatched-source.exe'
+    [IO.File]::WriteAllBytes($MismatchedSourcePath, [byte[]](1, 2))
+    $MismatchedSha256 = Get-SwawHarnessFileSha256 `
+        -Path $MismatchedSourcePath
+    $ActualLengthRejected = Test-ProductArtifactBoundsRejection {
+        $MismatchedCandidate = [pscustomobject][ordered]@{
+            TargetId = $Contract.TargetId
+            Name = $Contract.ProductBinary
+            ArtifactPath = $MismatchedSourcePath
+            Length = 1
+            Sha256 = $MismatchedSha256
+        }
+        [void](Publish-SwawHarnessRelease `
+            -Context $Context `
+            -Contract $Contract `
+            -Candidate $MismatchedCandidate `
+            -ReleasesRoot $ReleasesRoot `
+            -LockName 'bounds-test.lock')
+    }
+    Assert-ProductArtifactBoundsTest `
+        -Condition $ActualLengthRejected `
+        -Message 'Release staging accepted a mismatched actual artifact length'
 
     $ReleaseId = Get-SwawHarnessReleaseId `
         -TargetId $Contract.TargetId `

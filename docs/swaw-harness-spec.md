@@ -83,6 +83,8 @@
 
 ## Open
 
+- **PUBLICATION-ATOMICITY-001 — 三产品崩溃一致性。** 当前 target-scoped 锁只串行化协作发布者，三个 selector 仍是依次更新，进程崩溃不能保证三者形成原子 cohort；在消费者要求跨产品版本一致性前，必须决定采用单一 cohort selector 还是可恢复的发布 journal。
+
 - **ENTRY-CORE-001 — Entry selector 的引用形态。** `EntryRoot/releases` 应保存 Core Release 完整副本、硬链接，还是对 `DataRoot/core.release` 的受校验引用，尚未决议；选择必须同时满足 Entry 可搬移性、磁盘去重、原子更新与损坏隔离。
 
 - **LIFE-001 — 本地 descriptor。** 若采用 Materialized Resource Space，当前建议 v1 要求每个可寻址 Resource 拥有本地 descriptor，但不要求 payload 本地化；未 mount/import 的远端搜索结果仍是 Projection 值。

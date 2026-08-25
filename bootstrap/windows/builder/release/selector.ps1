@@ -2,6 +2,46 @@ Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot 'release.ps1')
 
+function Read-SwawHarnessReleaseSelectorBytes {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $Path = Get-SwawHarnessFullPath -Path $Path
+    $Item = Get-Item `
+        -LiteralPath $Path `
+        -Force `
+        -ErrorAction SilentlyContinue
+    if ($null -eq $Item -or $Item.PSIsContainer -or
+        ($Item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "Release selector is missing or unsafe: $Path"
+    }
+    $Stream = [IO.File]::Open(
+        $Path,
+        [IO.FileMode]::Open,
+        [IO.FileAccess]::Read,
+        [IO.FileShare]::Read
+    )
+    try {
+        if ($Stream.Length -ne 65) {
+            throw "Release selector has invalid framing: $Path"
+        }
+        [byte[]]$Bytes = [byte[]]::new(65)
+        $Offset = 0
+        while ($Offset -lt $Bytes.Length) {
+            $Read = $Stream.Read($Bytes, $Offset, $Bytes.Length - $Offset)
+            if ($Read -le 0) {
+                break
+            }
+            $Offset += $Read
+        }
+        if ($Offset -ne $Bytes.Length -or $Stream.ReadByte() -ne -1) {
+            throw "Release selector has invalid framing: $Path"
+        }
+        return ,$Bytes
+    } finally {
+        $Stream.Dispose()
+    }
+}
+
 function Read-SwawHarnessSelectedRelease {
     param(
         [Parameter(Mandatory = $true)][string]$ReleasesRoot,
@@ -11,18 +51,8 @@ function Read-SwawHarnessSelectedRelease {
     $SelectorPath = Join-Path `
         $ReleasesRoot `
         "current.$($Contract.TargetId)"
-    $Item = Get-Item `
-        -LiteralPath $SelectorPath `
-        -Force `
-        -ErrorAction SilentlyContinue
-    if ($null -eq $Item -or $Item.PSIsContainer -or
-        ($Item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-        throw "Release selector is missing or unsafe: $SelectorPath"
-    }
-    if ([long]$Item.Length -ne 65) {
-        throw "Release selector has invalid framing: $SelectorPath"
-    }
-    [byte[]]$Bytes = [IO.File]::ReadAllBytes($SelectorPath)
+    [byte[]]$Bytes = Read-SwawHarnessReleaseSelectorBytes `
+        -Path $SelectorPath
     if ($Bytes.Count -ne 65 -or $Bytes[64] -ne 10) {
         throw "Release selector has invalid framing: $SelectorPath"
     }
@@ -52,17 +82,14 @@ function Publish-SwawHarnessReleaseSelector {
     }
     $SelectorPath = Join-Path $ReleasesRoot "current.$TargetId"
     $Content = "$ReleaseId`n"
-    $SelectorItem = Get-Item `
-        -LiteralPath $SelectorPath `
-        -Force `
-        -ErrorAction SilentlyContinue
-    if ($null -ne $SelectorItem -and
-        -not $SelectorItem.PSIsContainer -and
-        ($SelectorItem.Attributes -band
-            [IO.FileAttributes]::ReparsePoint) -eq 0 -and
-        [long]$SelectorItem.Length -eq 65 -and
-        [IO.File]::ReadAllText($SelectorPath, [Text.Encoding]::UTF8) -ceq
-            $Content) {
+    $MatchesCurrent = $false
+    try {
+        [byte[]]$ExistingBytes = Read-SwawHarnessReleaseSelectorBytes `
+            -Path $SelectorPath
+        $MatchesCurrent = [Text.Encoding]::ASCII.GetString($ExistingBytes) -ceq
+            $Content
+    } catch {}
+    if ($MatchesCurrent) {
         return $SelectorPath
     }
     Write-SwawHarnessTextAtomic `

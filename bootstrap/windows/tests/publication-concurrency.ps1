@@ -4,11 +4,11 @@ param([string]$DataRoot = '')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
-function Assert-MainConcurrencyTest {
+function Assert-PublicationConcurrencyTest {
     param([bool]$Condition, [string]$Message)
 
     if (-not $Condition) {
-        throw "Main concurrency test failed: $Message"
+        throw "Publication concurrency test failed: $Message"
     }
 }
 
@@ -216,15 +216,23 @@ try {
     }).Count -gt 0 -and [DateTime]::UtcNow -lt $ReadyDeadline) {
         [Threading.Thread]::Sleep(50)
     }
-    Assert-MainConcurrencyTest `
+    Assert-PublicationConcurrencyTest `
         -Condition (@($Processes | Where-Object {
             [IO.File]::Exists([string]$_.ReadyPath)
         }).Count -eq 2) `
         -Message 'concurrent publication processes did not become ready'
-    [Threading.Thread]::Sleep(1000)
-    Assert-MainConcurrencyTest `
+    [Threading.Thread]::Sleep(2000)
+    Assert-PublicationConcurrencyTest `
         -Condition (@($Processes | Where-Object { $_.HasExited }).Count -eq 0) `
         -Message 'a publication bypassed the target-scoped publication lock'
+    Assert-PublicationConcurrencyTest `
+        -Condition (@(
+            $Context.CoreReleaseRoot,
+            $Context.EntryReleaseRoot,
+            $Context.EntryManagerReleaseRoot |
+                Where-Object { Test-SwawHarnessPathExists -Path $_ }
+        ).Count -eq 0) `
+        -Message 'publication advanced a Release store while its gate was held'
     $Gate.Dispose()
     $Gate = $null
 
@@ -243,7 +251,7 @@ try {
             ).Trim()
         }
         $Result = Import-Clixml -LiteralPath ([string]$Process.ResultPath)
-        Assert-MainConcurrencyTest `
+        Assert-PublicationConcurrencyTest `
             -Condition (
                 [string]$Result.CoreRelease.ReleaseId -cmatch
                     '^[a-f0-9]{64}$' -and
@@ -255,7 +263,7 @@ try {
             -Message 'a concurrent publication returned an incomplete set'
         $Results.Add($Result)
     }
-    Assert-MainConcurrencyTest `
+    Assert-PublicationConcurrencyTest `
         -Condition (-not (Test-PublicationTupleEquals `
             -Left $Results[0] `
             -Right $Results[1])) `
@@ -272,7 +280,7 @@ try {
             -ReleasesRoot $Context.EntryManagerReleaseRoot `
             -Contract $EntryManagerContract
     }
-    Assert-MainConcurrencyTest `
+    Assert-PublicationConcurrencyTest `
         -Condition (
             (Test-PublicationTupleEquals -Left $Selected -Right $Results[0]) -or
             (Test-PublicationTupleEquals -Left $Selected -Right $Results[1])
@@ -290,15 +298,22 @@ try {
     } catch {
         $Rejected = $true
     }
-    Assert-MainConcurrencyTest `
+    Assert-PublicationConcurrencyTest `
         -Condition $Rejected `
         -Message 'invalid publication fixture was not rejected'
+    $Probe = Enter-SwawHarnessFileLock `
+        -Path (Join-Path $Context.LockRoot (
+            "publish-harness-$($PlatformContract.TargetId).lock"
+        )) `
+        -ControlledRoot $Context.BootstrapWindowsRoot `
+        -TimeoutSeconds 2
+    $Probe.Dispose()
     $AfterFailure = @(Publish-SwawHarnessWindowsProducts `
         -DataRoot $PublicationDataRoot `
         -CoreCandidatePath $CandidateSets['B']['core'] `
         -EntryCandidatePath $CandidateSets['B']['entry'] `
         -EntryManagerCandidatePath $CandidateSets['B']['entry.manager'])
-    Assert-MainConcurrencyTest `
+    Assert-PublicationConcurrencyTest `
         -Condition ($AfterFailure.Count -eq 1 -and
             (Test-PublicationTupleEquals `
                 -Left $AfterFailure[0] `

@@ -49,7 +49,15 @@ Assert-MainTest `
     ) `
     -Message 'main did not publish all three products to their Release stores'
 
-$SecondResults = @(& (Join-Path $WindowsRoot 'main.ps1') -DataRoot $DataRoot)
+$SecondInvocation = @(
+    & (Join-Path $WindowsRoot 'main.ps1') -DataRoot $DataRoot 6>&1
+)
+$SecondResults = @($SecondInvocation | Where-Object {
+    $_ -isnot [Management.Automation.InformationRecord]
+})
+$SecondMessages = @($SecondInvocation | Where-Object {
+    $_ -is [Management.Automation.InformationRecord]
+} | ForEach-Object { [string]$_.MessageData })
 Assert-MainTest `
     -Condition ($SecondResults.Count -eq 1) `
     -Message 'second invocation did not return exactly one build result'
@@ -64,6 +72,12 @@ Assert-MainTest `
         [string]$Second.EntryRelease.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
         [string]$Second.EntryManagerRelease.ReleaseId -cmatch
             '^[a-f0-9]{64}$' -and
+        @($SecondMessages | Where-Object {
+            $_ -cmatch '^\[BUILT\] '
+        }).Count -eq 3 -and
+        @($SecondMessages | Where-Object {
+            $_ -cmatch '^\[PUBLISHED\] '
+        }).Count -eq 3 -and
         (Split-Path -Path ([string]$Second.CoreRelease.Root) -Parent).
             Equals(
                 $ExpectedCoreReleaseRoot,
