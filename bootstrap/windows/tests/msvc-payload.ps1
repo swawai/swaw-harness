@@ -5,8 +5,8 @@ Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
-. (Join-Path $WindowsRoot '_lib\filesystem.ps1')
-. (Join-Path $WindowsRoot '_lib\toolchain\msvc\payload.ps1')
+. (Join-Path $WindowsRoot 'builder\filesystem.ps1')
+. (Join-Path $WindowsRoot 'toolchain\msvc\payload.ps1')
 
 function Assert-MsvcPayloadTest {
     param(
@@ -59,7 +59,7 @@ function New-MsvcPayloadZip {
 }
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$TestBase = Join-Path $RepositoryRoot 'var_cache\_test'
+$TestBase = Join-Path $RepositoryRoot 'data\bootstrap.windows.cache\_test'
 [void][IO.Directory]::CreateDirectory($TestBase)
 $TestRoot = Join-Path $TestBase (
     "msvc-payload-$([Guid]::NewGuid().ToString('N'))"

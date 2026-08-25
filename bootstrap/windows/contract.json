@@ -1,5 +1,5 @@
 {
-  "schema": "swaw.harness.bootstrap.windows/v2",
+  "schema": "swaw.harness.bootstrap.windows/v3",
   "targetId": "x86_64-pc-windows-msvc",
   "rust": {
     "toolchain": "1.97.1",
@@ -22,9 +22,5 @@
       "length": 18346719,
       "sha256": "4601ae053061fc499a60adf0247f700285519b6ccd1bd6e491ce6589bb923253"
     }
-  },
-  "product": {
-    "package": "swaw-harness-helloworld",
-    "binary": "swaw-harness-helloworld.exe"
   }
 }

@@ -1,6 +1,6 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [string]$VarRoot = '',
+    [string]$DataRoot = '',
     [Parameter(Mandatory = $true, Position = 0)]
     [ValidateSet('cargo', 'rustc', 'rustdoc', 'cl', 'link', 'lib', 'rc')]
     [string]$Tool,
@@ -12,18 +12,18 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
-. (Join-Path $PSScriptRoot '_lib\context.ps1')
-. (Join-Path $PSScriptRoot '_lib\contract.ps1')
-. (Join-Path $PSScriptRoot '_lib\toolchain\lifecycle.ps1')
-. (Join-Path $PSScriptRoot '_lib\toolchain\environment.ps1')
-. (Join-Path $PSScriptRoot '_lib\process.ps1')
+. (Join-Path $PSScriptRoot 'builder\context.ps1')
+. (Join-Path $PSScriptRoot 'builder\contract.ps1')
+. (Join-Path $PSScriptRoot 'toolchain\lifecycle.ps1')
+. (Join-Path $PSScriptRoot 'toolchain\environment.ps1')
+. (Join-Path $PSScriptRoot 'builder\process.ps1')
 
-if ([string]::IsNullOrWhiteSpace($VarRoot)) {
-    $VarRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+if ([string]::IsNullOrWhiteSpace($DataRoot)) {
+    $DataRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\data'))
 }
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot 'contract.json')
-$Context = New-SwawHarnessWindowsBootstrapContext -VarRoot $VarRoot
+$Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
 $InstallRoot = Get-SwawHarnessToolchainTargetPath `
     -Context $Context `
     -Contract $Contract

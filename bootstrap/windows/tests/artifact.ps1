@@ -12,22 +12,25 @@ function Assert-ArtifactTest {
 }
 
 $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-. (Join-Path $WindowsRoot '_lib\toolchain\download-cache.ps1')
+. (Join-Path $WindowsRoot 'toolchain\download-cache.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $TestRoot = Join-Path $RepositoryRoot (
-    "var_cache\_test\artifact-$([Guid]::NewGuid().ToString('N'))"
+    "data\bootstrap.windows.cache\_test\artifact-$([Guid]::NewGuid().ToString('N'))"
 )
-$CacheRoot = Join-Path $TestRoot 'controlled'
+$OwnerRoot = Join-Path $TestRoot 'bootstrap.windows'
+$CacheRoot = Join-Path $TestRoot 'bootstrap.windows.cache'
 $SourceRoot = Join-Path $TestRoot 'source'
 $JunctionPath = ''
 
 try {
+    [void][IO.Directory]::CreateDirectory($OwnerRoot)
     [void][IO.Directory]::CreateDirectory($CacheRoot)
     [void][IO.Directory]::CreateDirectory($SourceRoot)
     $Context = [pscustomobject]@{
-        CacheRoot = $CacheRoot
+        BootstrapWindowsRoot = $OwnerRoot
+        BootstrapWindowsCacheRoot = $CacheRoot
         DownloadRoot = Join-Path $CacheRoot 'downloads'
-        LockRoot = Join-Path $CacheRoot 'locks'
+        LockRoot = Join-Path $OwnerRoot 'locks'
     }
     [byte[]]$OversizedBytes = [byte[]]::new(33)
     $BoundedStream = [IO.MemoryStream]::new($OversizedBytes)

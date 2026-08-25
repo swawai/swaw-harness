@@ -1,0 +1,14 @@
+[package]
+name = "swaw-harness-entry-manager"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+publish = false
+
+[lib]
+name = "swaw_harness_entry_manager"
+path = "src/lib.rs"
+
+[[bin]]
+name = "swaw-harness-entry-manager"
+path = "src/main.rs"

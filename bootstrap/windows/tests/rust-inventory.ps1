@@ -23,11 +23,11 @@ function Write-RustInventoryFixtureFile {
 }
 
 $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-. (Join-Path $WindowsRoot '_lib\contract.ps1')
-. (Join-Path $WindowsRoot '_lib\toolchain\rust\inventory.ps1')
+. (Join-Path $WindowsRoot 'builder\contract.ps1')
+. (Join-Path $WindowsRoot 'toolchain\rust\inventory.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $TestRoot = Join-Path $RepositoryRoot (
-    "var_cache\_test\rust-inventory-$([Guid]::NewGuid().ToString('N'))"
+    "data\bootstrap.windows.cache\_test\rust-inventory-$([Guid]::NewGuid().ToString('N'))"
 )
 $ControlledRoot = Join-Path $TestRoot 'controlled'
 $RustRoot = Join-Path $ControlledRoot 'rust'

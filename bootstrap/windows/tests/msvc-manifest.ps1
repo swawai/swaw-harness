@@ -2,8 +2,8 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
-. (Join-Path $WindowsRoot '_lib\contract.ps1')
-. (Join-Path $WindowsRoot '_lib\toolchain\msvc\manifest.ps1')
+. (Join-Path $WindowsRoot 'builder\contract.ps1')
+. (Join-Path $WindowsRoot 'toolchain\msvc\manifest.ps1')
 
 function Assert-MsvcManifestTest {
     param(

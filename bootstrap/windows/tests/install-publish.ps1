@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
-. (Join-Path $WindowsRoot '_lib\toolchain\install-store.ps1')
+. (Join-Path $WindowsRoot 'toolchain\install-store.ps1')
 
 function Assert-InstallPublishTest {
     param([bool]$Condition, [string]$Message)
@@ -25,7 +25,7 @@ function New-InstallPublishFixture {
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $TestRoot = Join-Path $RepositoryRoot (
-    "var_cache\_test\install-publish-$([Guid]::NewGuid().ToString('N'))"
+    "data\bootstrap.windows.cache\_test\install-publish-$([Guid]::NewGuid().ToString('N'))"
 )
 [void][IO.Directory]::CreateDirectory($TestRoot)
 try {

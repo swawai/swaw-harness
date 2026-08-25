@@ -2,10 +2,10 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
-. (Join-Path $WindowsRoot '_lib\context.ps1')
-. (Join-Path $WindowsRoot '_lib\contract.ps1')
-. (Join-Path $WindowsRoot '_lib\toolchain\lifecycle.ps1')
-. (Join-Path $WindowsRoot '_lib\toolchain\environment.ps1')
+. (Join-Path $WindowsRoot 'builder\context.ps1')
+. (Join-Path $WindowsRoot 'builder\contract.ps1')
+. (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
+. (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 
 function Assert-ToolchainTest {
     param([bool]$Condition, [string]$Message)
@@ -31,23 +31,55 @@ function Write-ToolchainFixtureFile {
 }
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$VarRoot = Join-Path $RepositoryRoot (
-    "var_cache\_test\toolchain-$([Guid]::NewGuid().ToString('N'))"
+$DataRoot = Join-Path $RepositoryRoot (
+    "data\bootstrap.windows.cache\_test\toolchain-$([Guid]::NewGuid().ToString('N'))"
 )
-[void][IO.Directory]::CreateDirectory($VarRoot)
+[void][IO.Directory]::CreateDirectory($DataRoot)
 $PreviousRustFlags = [Environment]::GetEnvironmentVariable('RUSTFLAGS', 'Process')
 try {
-    $Context = New-SwawHarnessWindowsBootstrapContext -VarRoot $VarRoot
+    $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
+    $ExpectedOwnerRoot = [IO.Path]::GetFullPath(
+        (Join-Path $DataRoot 'bootstrap.windows')
+    )
+    $ExpectedCacheRoot = [IO.Path]::GetFullPath(
+        (Join-Path $DataRoot 'bootstrap.windows.cache')
+    )
+    Assert-ToolchainTest `
+        -Condition (
+            [string]$Context.BootstrapWindowsRoot -ceq $ExpectedOwnerRoot -and
+            [string]$Context.BootstrapWindowsCacheRoot -ceq
+                $ExpectedCacheRoot -and
+            [string]$Context.ToolchainRoot -ceq
+                (Join-Path $ExpectedOwnerRoot 'toolchains') -and
+            [string]$Context.WorkRoot -ceq
+                (Join-Path $ExpectedOwnerRoot 'work') -and
+            [string]$Context.LockRoot -ceq
+                (Join-Path $ExpectedOwnerRoot 'locks') -and
+            [string]$Context.LogRoot -ceq
+                (Join-Path $ExpectedOwnerRoot 'logs') -and
+            [string]$Context.DownloadRoot -ceq
+                (Join-Path $ExpectedCacheRoot 'downloads') -and
+            [string]$Context.CargoHome -ceq
+                (Join-Path $ExpectedCacheRoot 'cargo') -and
+            [string]$Context.CoreReleaseRoot -ceq
+                (Join-Path $DataRoot 'core.release') -and
+            [string]$Context.EntryReleaseRoot -ceq
+                (Join-Path $DataRoot 'entry.release') -and
+            [string]$Context.EntryManagerReleaseRoot -ceq
+                (Join-Path $DataRoot 'entry.manager.release') -and
+            -not (Test-Path -LiteralPath (Join-Path $DataRoot 'cache'))
+        ) `
+        -Message 'Bootstrap state and cache roots were not kept distinct'
     $Contract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $PathBudgetRejected = $false
     try {
         [void](Get-SwawHarnessBootstrapToolchain `
-            -Context ([pscustomobject]@{ VarRoot = ('x' * 41) }) `
+            -Context ([pscustomobject]@{ DataRoot = ('x' * 51) }) `
             -Contract $Contract)
     } catch {
         $PathBudgetRejected = $_.Exception.Message -like (
-            'Windows Bootstrap v2 requires a VarRoot path no longer than*'
+            'Windows Bootstrap v3 requires a DataRoot path no longer than*'
         )
     }
     Assert-ToolchainTest `
@@ -92,7 +124,7 @@ try {
         -Contract $Contract `
         -Probe $Probe `
         -RustRoot $RustRoot `
-        -ControlledRoot $Context.CacheRoot
+        -ControlledRoot $Context.BootstrapWindowsRoot
 
     $ToolVersion = '14.51.36231'
     $SdkVersion = '10.0.28000.0'
@@ -136,7 +168,7 @@ try {
         }) `
         -UsedPayloads @($MsvcPayload) `
         -MsvcRoot $MsvcRoot `
-        -ControlledRoot $Context.CacheRoot
+        -ControlledRoot $Context.BootstrapWindowsRoot
     $Metadata = [ordered]@{
         schema = 'swaw.harness.bootstrap.toolchain/v2'
         toolchainId = Get-SwawHarnessToolchainId -Contract $Contract
@@ -220,7 +252,7 @@ try {
         $PreviousRustFlags,
         'Process'
     )
-    if ([IO.Directory]::Exists($VarRoot)) {
-        [IO.Directory]::Delete($VarRoot, $true)
+    if ([IO.Directory]::Exists($DataRoot)) {
+        [IO.Directory]::Delete($DataRoot, $true)
     }
 }

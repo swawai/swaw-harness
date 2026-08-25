@@ -1,0 +1,7 @@
+{
+  "schema": "swaw.harness.core-build/v1",
+  "package": "swaw-harness-helloworld",
+  "artifact": "swaw-harness-helloworld.exe",
+  "staticCrt": true,
+  "maximumBytes": 16777216
+}

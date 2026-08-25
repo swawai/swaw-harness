@@ -1,0 +1,7 @@
+{
+  "schema": "swaw.harness.entry-manager-build/v1",
+  "package": "swaw-harness-entry-manager",
+  "artifact": "swaw-harness-entry-manager.exe",
+  "staticCrt": true,
+  "maximumBytes": 16777216
+}

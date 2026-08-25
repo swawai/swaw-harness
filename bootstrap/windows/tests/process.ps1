@@ -12,10 +12,10 @@ function Assert-ProcessTest {
 }
 
 $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-. (Join-Path $WindowsRoot '_lib\process.ps1')
+. (Join-Path $WindowsRoot 'builder\process.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $TestRoot = Join-Path $RepositoryRoot (
-    "var_cache\_test\process-$([Guid]::NewGuid().ToString('N'))"
+    "data\bootstrap.windows.cache\_test\process-$([Guid]::NewGuid().ToString('N'))"
 )
 
 try {

@@ -1,19 +1,19 @@
 [CmdletBinding()]
-param([string]$VarRoot = '')
+param([string]$DataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
-. (Join-Path $PSScriptRoot '_lib\context.ps1')
-. (Join-Path $PSScriptRoot '_lib\contract.ps1')
-. (Join-Path $PSScriptRoot '_lib\toolchain\lifecycle.ps1')
+. (Join-Path $PSScriptRoot 'builder\context.ps1')
+. (Join-Path $PSScriptRoot 'builder\contract.ps1')
+. (Join-Path $PSScriptRoot 'toolchain\lifecycle.ps1')
 
-if ([string]::IsNullOrWhiteSpace($VarRoot)) {
-    $VarRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+if ([string]::IsNullOrWhiteSpace($DataRoot)) {
+    $DataRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\data'))
 }
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot 'contract.json')
-$Context = New-SwawHarnessWindowsBootstrapContext -VarRoot $VarRoot
+$Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
 Write-Output (Get-SwawHarnessBootstrapToolchain `
     -Context $Context `
     -Contract $Contract)

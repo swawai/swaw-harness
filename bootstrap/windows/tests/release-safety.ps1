@@ -20,7 +20,7 @@ function New-ReleaseSafetyCandidate {
         [Parameter(Mandatory = $true)][string]$SourcePath,
         [Parameter(Mandatory = $true)][string]$BuildRoot,
         [Parameter(Mandatory = $true)][object]$Contract,
-        [Parameter(Mandatory = $true)][string]$CacheRoot
+        [Parameter(Mandatory = $true)][string]$BootstrapWindowsCacheRoot
     )
 
     $Item = Get-Item -LiteralPath $SourcePath
@@ -53,58 +53,60 @@ function New-ReleaseSafetyCandidate {
     Write-SwawHarnessTextAtomic `
         -Path $CandidatePath `
         -Content (ConvertTo-SwawHarnessJsonText -Value $Candidate) `
-        -ControlledRoot $CacheRoot
+        -ControlledRoot $BootstrapWindowsCacheRoot
     return $CandidatePath
 }
 
 function Invoke-ReleaseSafetyPublish {
     param(
         [Parameter(Mandatory = $true)][string]$WindowsRoot,
-        [Parameter(Mandatory = $true)][string]$VarRoot,
-        [Parameter(Mandatory = $true)][string]$EntryRoot,
+        [Parameter(Mandatory = $true)][string]$DataRoot,
         [Parameter(Mandatory = $true)][string]$CandidatePath
     )
 
-    return & (Join-Path $WindowsRoot 'publish.ps1') `
-        -VarRoot $VarRoot `
-        -EntryRoot $EntryRoot `
+    return & (Join-Path $WindowsRoot 'core\publish.ps1') `
+        -DataRoot $DataRoot `
         -CandidatePath $CandidatePath |
         Select-Object -Last 1
 }
 
 $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-. (Join-Path $WindowsRoot '_lib\contract.ps1')
-. (Join-Path $WindowsRoot '_lib\build\candidate.ps1')
-. (Join-Path $WindowsRoot '_lib\release\release.ps1')
-. (Join-Path $WindowsRoot '_lib\release\selector.ps1')
+. (Join-Path $WindowsRoot 'builder\contract.ps1')
+. (Join-Path $WindowsRoot 'builder\build\candidate.ps1')
+. (Join-Path $WindowsRoot 'builder\release\release.ps1')
+. (Join-Path $WindowsRoot 'builder\release\selector.ps1')
+. (Join-Path $WindowsRoot 'core\contract.ps1')
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $TestRoot = Join-Path $RepositoryRoot (
-    "var_cache\_test\release-safety-$([Guid]::NewGuid().ToString('N'))"
+    "data\_test\release-safety-$([Guid]::NewGuid().ToString('N'))"
 )
-$CacheRoot = Join-Path $TestRoot 'var_cache'
-$BuildRoot = Join-Path $CacheRoot (
-    'bootstrap\windows\build\x86_64-pc-windows-msvc'
+$BootstrapWindowsCacheRoot = Join-Path $TestRoot 'bootstrap.windows.cache'
+$BuildRoot = Join-Path $BootstrapWindowsCacheRoot (
+    'build\core\x86_64-pc-windows-msvc'
 )
-$EntryRoot = Join-Path $TestRoot 'var_entry\hello'
+$CoreReleaseRoot = Join-Path $TestRoot 'core.release'
 $JunctionPath = ''
 $Running = $null
 $LockedSelector = $null
 
 try {
-    foreach ($Directory in @($BuildRoot, $EntryRoot)) {
+    foreach ($Directory in @($BuildRoot, $CoreReleaseRoot)) {
         [void][IO.Directory]::CreateDirectory($Directory)
     }
-    $Contract = Read-SwawHarnessWindowsBootstrapContract `
+    $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
+    $Contract = Read-SwawHarnessWindowsCoreContract `
+        -Path (Join-Path $WindowsRoot 'core\contract.json') `
+        -TargetId $PlatformContract.TargetId
 
     $CandidatePath = New-ReleaseSafetyCandidate `
         -SourcePath (Join-Path $env:SystemRoot 'System32\cmd.exe') `
         -BuildRoot $BuildRoot `
         -Contract $Contract `
-        -CacheRoot $CacheRoot
+        -BootstrapWindowsCacheRoot $BootstrapWindowsCacheRoot
     $InterruptedStage = Join-Path `
-        (Join-Path $EntryRoot 'releases') `
+        $CoreReleaseRoot `
         '.publish-11111111111111111111111111111111.tmp'
     [void][IO.Directory]::CreateDirectory($InterruptedStage)
     [IO.File]::WriteAllText(
@@ -113,8 +115,7 @@ try {
     )
     $First = Invoke-ReleaseSafetyPublish `
         -WindowsRoot $WindowsRoot `
-        -VarRoot $TestRoot `
-        -EntryRoot $EntryRoot `
+        -DataRoot $TestRoot `
         -CandidatePath $CandidatePath
     Assert-ReleaseSafetyTest `
         -Condition (-not [IO.Directory]::Exists($InterruptedStage)) `
@@ -123,8 +124,7 @@ try {
     $FirstCreated = (Get-Item -LiteralPath $First.ReleaseRoot).CreationTimeUtc
     $FirstAgain = Invoke-ReleaseSafetyPublish `
         -WindowsRoot $WindowsRoot `
-        -VarRoot $TestRoot `
-        -EntryRoot $EntryRoot `
+        -DataRoot $TestRoot `
         -CandidatePath $CandidatePath
     Assert-ReleaseSafetyTest `
         -Condition (
@@ -148,12 +148,11 @@ try {
         -SourcePath (Join-Path $env:SystemRoot 'System32\where.exe') `
         -BuildRoot $BuildRoot `
         -Contract $Contract `
-        -CacheRoot $CacheRoot
+        -BootstrapWindowsCacheRoot $BootstrapWindowsCacheRoot
     $SecondCandidatePath = $CandidatePath
     $Second = Invoke-ReleaseSafetyPublish `
         -WindowsRoot $WindowsRoot `
-        -VarRoot $TestRoot `
-        -EntryRoot $EntryRoot `
+        -DataRoot $TestRoot `
         -CandidatePath $CandidatePath
     Assert-ReleaseSafetyTest `
         -Condition (
@@ -164,17 +163,17 @@ try {
         -Message 'a new Release was not selected beside the running old Release'
 
     $ReleaseRoot = [string]$Second.ReleaseRoot
-    $ReleasesRoot = Split-Path -Path $ReleaseRoot -Parent
+    $CoreReleaseRoot = Split-Path -Path $ReleaseRoot -Parent
     [IO.File]::WriteAllBytes(
         [string]$Second.SelectorPath,
         [byte[]]::new(0)
     )
     [void](Publish-SwawHarnessReleaseSelector `
-        -ReleasesRoot $ReleasesRoot `
+        -ReleasesRoot $CoreReleaseRoot `
         -TargetId $Contract.TargetId `
         -ReleaseId $Second.ReleaseId)
     $SelectedAfterEmptySelector = Read-SwawHarnessSelectedRelease `
-        -EntryRoot $EntryRoot `
+        -ReleasesRoot $CoreReleaseRoot `
         -Contract $Contract
     Assert-ReleaseSafetyTest `
         -Condition (
@@ -182,13 +181,33 @@ try {
                 [string]$Second.ReleaseId
         ) `
         -Message 'Publish did not repair an empty Release selector'
+    [IO.File]::WriteAllBytes(
+        [string]$Second.SelectorPath,
+        [byte[]]::new(66)
+    )
+    $OversizedSelectorRejected = $false
+    try {
+        [void](Read-SwawHarnessSelectedRelease `
+            -ReleasesRoot $CoreReleaseRoot `
+            -Contract $Contract)
+    } catch {
+        $OversizedSelectorRejected =
+            $_.Exception.Message -like '*invalid framing*'
+    }
+    Assert-ReleaseSafetyTest `
+        -Condition $OversizedSelectorRejected `
+        -Message 'an oversized Release selector passed framing validation'
+    [void](Publish-SwawHarnessReleaseSelector `
+        -ReleasesRoot $CoreReleaseRoot `
+        -TargetId $Contract.TargetId `
+        -ReleaseId $Second.ReleaseId)
     $SelectorBeforeFailure = [IO.File]::ReadAllText(
         [string]$Second.SelectorPath,
         [Text.Encoding]::UTF8
     )
     Assert-ReleaseSafetyTest `
         -Condition (@(
-            Get-ChildItem -LiteralPath $ReleasesRoot -Force |
+            Get-ChildItem -LiteralPath $CoreReleaseRoot -Force |
                 Where-Object {
                     $_.Name -like '.publish-*.tmp' -or
                     $_.Name -like '.current.*.tmp' -or
@@ -197,77 +216,15 @@ try {
         ).Count -eq 0) `
         -Message 'successful publication left temporary files behind'
 
-    $OversizedArtifact = Join-Path $BuildRoot 'oversized.exe'
-    $OversizedStream = [IO.File]::Open(
-        $OversizedArtifact,
-        [IO.FileMode]::CreateNew,
-        [IO.FileAccess]::Write,
-        [IO.FileShare]::None
-    )
-    try {
-        $OversizedStream.SetLength(512MB + 1)
-    } finally {
-        $OversizedStream.Dispose()
-    }
-    $OversizedSha256 = '0' * 64
-    $OversizedCandidateId = Get-SwawHarnessCandidateId `
-        -ContractRevision ([string]$Contract.Revision) `
-        -TargetId ([string]$Contract.TargetId) `
-        -Name ([string]$Contract.ProductBinary) `
-        -Length (512MB + 1) `
-        -Sha256 $OversizedSha256
-    $OversizedRoot = Join-Path $BuildRoot (
-        "candidates\$OversizedCandidateId"
-    )
-    [void][IO.Directory]::CreateDirectory($OversizedRoot)
-    [IO.File]::Move(
-        $OversizedArtifact,
-        (Join-Path $OversizedRoot $Contract.ProductBinary)
-    )
-    $CandidatePath = Join-Path $OversizedRoot 'candidate.json'
-    $OversizedCandidate = [ordered]@{
-        schema = $script:SwawHarnessCandidateSchema
-        candidateId = $OversizedCandidateId
-        contractRevision = [string]$Contract.Revision
-        targetId = [string]$Contract.TargetId
-        artifact = [ordered]@{
-            name = [string]$Contract.ProductBinary
-            length = 512MB + 1
-            sha256 = $OversizedSha256
-        }
-    }
-    Write-SwawHarnessTextAtomic `
-        -Path $CandidatePath `
-        -Content (ConvertTo-SwawHarnessJsonText -Value $OversizedCandidate) `
-        -ControlledRoot $CacheRoot
-    $OversizedRejected = $false
-    try {
-        [void](Invoke-ReleaseSafetyPublish `
-            -WindowsRoot $WindowsRoot `
-            -VarRoot $TestRoot `
-            -EntryRoot $EntryRoot `
-            -CandidatePath $CandidatePath)
-    } catch {
-        $OversizedRejected = $true
-    }
-    Assert-ReleaseSafetyTest `
-        -Condition ($OversizedRejected -and
-            [IO.File]::ReadAllText(
-                [string]$Second.SelectorPath,
-                [Text.Encoding]::UTF8
-            ) -ceq $SelectorBeforeFailure) `
-        -Message 'an oversized candidate passed or changed the selector'
-    [IO.Directory]::Delete($OversizedRoot, $true)
-
-    $JunctionEntryRoot = Join-Path $TestRoot 'var_entry\junction-entry'
+    $JunctionReleaseParent = Join-Path $TestRoot 'junction-release-parent'
     $ExternalReleases = Join-Path $TestRoot 'external-releases'
-    [void][IO.Directory]::CreateDirectory($JunctionEntryRoot)
+    [void][IO.Directory]::CreateDirectory($JunctionReleaseParent)
     [void][IO.Directory]::CreateDirectory($ExternalReleases)
     Copy-Item `
         -LiteralPath $ReleaseRoot `
         -Destination (Join-Path $ExternalReleases $Second.ReleaseId) `
         -Recurse
-    $JunctionPath = Join-Path $JunctionEntryRoot 'releases'
+    $JunctionPath = Join-Path $JunctionReleaseParent 'releases'
     [void](New-Item `
         -ItemType Junction `
         -Path $JunctionPath `
@@ -293,7 +250,7 @@ try {
     $UnexpectedRejected = $false
     try {
         [void](Read-SwawHarnessSelectedRelease `
-            -EntryRoot $EntryRoot `
+            -ReleasesRoot $CoreReleaseRoot `
             -Contract $Contract)
     } catch {
         $UnexpectedRejected = $_.Exception.Message -like '*membership*'
@@ -305,7 +262,7 @@ try {
         -Message 'a Release with an unexpected member passed validation'
 
     $OversizedManifestId = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
-    $OversizedManifestRoot = Join-Path $ReleasesRoot $OversizedManifestId
+    $OversizedManifestRoot = Join-Path $CoreReleaseRoot $OversizedManifestId
     Copy-Item -LiteralPath $ReleaseRoot -Destination $OversizedManifestRoot -Recurse
     $ManifestStream = [IO.File]::Open(
         (Join-Path $OversizedManifestRoot 'manifest.json'),
@@ -324,7 +281,7 @@ try {
             -ReleaseRoot $OversizedManifestRoot `
             -ReleaseId $OversizedManifestId `
             -Contract $Contract `
-            -ReleasesRoot $ReleasesRoot)
+            -ReleasesRoot $CoreReleaseRoot)
     } catch {
         $ManifestRejected = $true
     } finally {
@@ -343,7 +300,7 @@ try {
     $AtomicFailureReported = $false
     try {
         [void](Publish-SwawHarnessReleaseSelector `
-            -ReleasesRoot $ReleasesRoot `
+            -ReleasesRoot $CoreReleaseRoot `
             -TargetId $Contract.TargetId `
             -ReleaseId ('a' * 64))
     } catch {
@@ -353,7 +310,7 @@ try {
         $LockedSelector = $null
     }
     $RecoveryFiles = @(
-        Get-ChildItem -LiteralPath $ReleasesRoot -File -Force |
+        Get-ChildItem -LiteralPath $CoreReleaseRoot -File -Force |
             Where-Object {
                 $_.Name -like '.current.*.tmp' -or
                 $_.Name -like '.current.*.backup'
@@ -391,7 +348,7 @@ try {
     $StaleIdentityRejected = $false
     try {
         [void](Read-SwawHarnessSelectedRelease `
-            -EntryRoot $EntryRoot `
+            -ReleasesRoot $CoreReleaseRoot `
             -Contract $Contract)
     } catch {
         $StaleIdentityRejected = $_.Exception.Message -like '*identity*'
@@ -401,11 +358,10 @@ try {
         -Message 'coherent tampering passed under a stale content identity'
     $Repaired = Invoke-ReleaseSafetyPublish `
         -WindowsRoot $WindowsRoot `
-        -VarRoot $TestRoot `
-        -EntryRoot $EntryRoot `
+        -DataRoot $TestRoot `
         -CandidatePath $SecondCandidatePath
     $SelectedAfterRepair = Read-SwawHarnessSelectedRelease `
-        -EntryRoot $EntryRoot `
+        -ReleasesRoot $CoreReleaseRoot `
         -Contract $Contract
     Assert-ReleaseSafetyTest `
         -Condition (

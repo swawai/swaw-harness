@@ -2,8 +2,8 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
-. (Join-Path $WindowsRoot '_lib\filesystem.ps1')
-. (Join-Path $WindowsRoot '_lib\toolchain\msvc\assembly.ps1')
+. (Join-Path $WindowsRoot 'builder\filesystem.ps1')
+. (Join-Path $WindowsRoot 'toolchain\msvc\assembly.ps1')
 
 function Assert-MsvcAssemblyTest {
     param(
@@ -17,7 +17,7 @@ function Assert-MsvcAssemblyTest {
 }
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$TestBase = Join-Path $RepositoryRoot 'var_cache\_test'
+$TestBase = Join-Path $RepositoryRoot 'data\bootstrap.windows.cache\_test'
 [void][IO.Directory]::CreateDirectory($TestBase)
 $TestRoot = Join-Path $TestBase (
     "msvc-assembly-$([Guid]::NewGuid().ToString('N'))"
@@ -53,7 +53,9 @@ try {
         'telemetry',
         [Text.UTF8Encoding]::new($false)
     )
-    $Context = [pscustomobject]@{ CacheRoot = $TestBase }
+    $Context = [pscustomobject]@{
+        BootstrapWindowsRoot = $TestBase
+    }
     $Versions = Complete-SwawHarnessMsvcAssembly `
         -Context $Context `
         -InstallRoot $TestRoot

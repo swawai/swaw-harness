@@ -13,9 +13,9 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
-. (Join-Path $WindowsRoot '_lib\contract.ps1')
-. (Join-Path $WindowsRoot '_lib\toolchain\rust\inventory.ps1')
-. (Join-Path $WindowsRoot '_lib\toolchain\msvc\inventory.ps1')
+. (Join-Path $WindowsRoot 'builder\contract.ps1')
+. (Join-Path $WindowsRoot 'toolchain\rust\inventory.ps1')
+. (Join-Path $WindowsRoot 'toolchain\msvc\inventory.ps1')
 
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')

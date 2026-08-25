@@ -2,9 +2,9 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
-. (Join-Path $WindowsRoot '_lib\contract.ps1')
-. (Join-Path $WindowsRoot '_lib\filesystem.ps1')
-. (Join-Path $WindowsRoot '_lib\toolchain\msvc\inventory.ps1')
+. (Join-Path $WindowsRoot 'builder\contract.ps1')
+. (Join-Path $WindowsRoot 'builder\filesystem.ps1')
+. (Join-Path $WindowsRoot 'toolchain\msvc\inventory.ps1')
 
 function Assert-MsvcInventoryTest {
     param(
@@ -20,7 +20,7 @@ function Assert-MsvcInventoryTest {
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$TestBase = Join-Path $RepositoryRoot 'var_cache\_test'
+$TestBase = Join-Path $RepositoryRoot 'data\bootstrap.windows.cache\_test'
 [void][IO.Directory]::CreateDirectory($TestBase)
 $TestRoot = Join-Path $TestBase (
     "msvc-inventory-$([Guid]::NewGuid().ToString('N'))"

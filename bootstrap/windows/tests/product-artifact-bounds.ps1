@@ -1,0 +1,204 @@
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version 2.0
+
+function Assert-ProductArtifactBoundsTest {
+    param(
+        [Parameter(Mandatory = $true)][bool]$Condition,
+        [Parameter(Mandatory = $true)][string]$Message
+    )
+
+    if (-not $Condition) {
+        throw "Product artifact bounds test failed: $Message"
+    }
+}
+
+function Test-ProductArtifactBoundsRejection {
+    param([Parameter(Mandatory = $true)][scriptblock]$Action)
+
+    try {
+        & $Action
+        return $false
+    } catch {
+        return (
+            $_.Exception.Message -like '*bounded regular file*' -or
+            $_.Exception.Message -like
+                '*does not satisfy the product Release contract*'
+        )
+    }
+}
+
+$WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+. (Join-Path $WindowsRoot 'builder\build\candidate.ps1')
+. (Join-Path $WindowsRoot 'builder\release\publication.ps1')
+
+$RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
+$TestRoot = Join-Path $RepositoryRoot (
+    "data\_test\product-artifact-bounds-$([Guid]::NewGuid().ToString('N'))"
+)
+$BootstrapWindowsRoot = Join-Path $TestRoot 'bootstrap.windows'
+$BootstrapWindowsCacheRoot = Join-Path $TestRoot 'bootstrap.windows.cache'
+$BuildRoot = Join-Path $BootstrapWindowsCacheRoot 'build\bounds-test'
+$LockRoot = Join-Path $BootstrapWindowsRoot 'locks'
+$ReleasesRoot = Join-Path $TestRoot 'bounds-test.release'
+$MaximumBytes = 64KB
+$OversizedLength = $MaximumBytes + 1
+$Contract = [pscustomobject][ordered]@{
+    Revision = '1' * 64
+    TargetId = 'x86_64-pc-windows-msvc'
+    ProductBinary = 'bounds-test.exe'
+    MaximumBytes = $MaximumBytes
+}
+$Context = [pscustomobject][ordered]@{
+    DataRoot = $TestRoot
+    BootstrapWindowsRoot = $BootstrapWindowsRoot
+    LockRoot = $LockRoot
+}
+
+try {
+    foreach ($Directory in @(
+        $BuildRoot,
+        $LockRoot,
+        $ReleasesRoot
+    )) {
+        [void][IO.Directory]::CreateDirectory($Directory)
+    }
+
+    $SourcePath = Join-Path $BuildRoot 'oversized-source.exe'
+    $SourceStream = [IO.File]::Open(
+        $SourcePath,
+        [IO.FileMode]::CreateNew,
+        [IO.FileAccess]::Write,
+        [IO.FileShare]::None
+    )
+    try {
+        $SourceStream.SetLength($OversizedLength)
+    } finally {
+        $SourceStream.Dispose()
+    }
+    $Sha256 = Get-SwawHarnessFileSha256 -Path $SourcePath
+
+    $CandidatePublisherRejected = Test-ProductArtifactBoundsRejection {
+        [void](Publish-SwawHarnessBootstrapCandidate `
+            -ArtifactPath $SourcePath `
+            -Contract $Contract `
+            -BuildRoot $BuildRoot `
+            -ControlledRoot $BootstrapWindowsCacheRoot)
+    }
+    Assert-ProductArtifactBoundsTest `
+        -Condition $CandidatePublisherRejected `
+        -Message 'Candidate publication accepted product maximum + 1 byte'
+
+    $CandidateId = Get-SwawHarnessCandidateId `
+        -ContractRevision $Contract.Revision `
+        -TargetId $Contract.TargetId `
+        -Name $Contract.ProductBinary `
+        -Length $OversizedLength `
+        -Sha256 $Sha256
+    $CandidateRoot = Join-Path $BuildRoot "candidates\$CandidateId"
+    [void][IO.Directory]::CreateDirectory($CandidateRoot)
+    [IO.File]::Copy(
+        $SourcePath,
+        (Join-Path $CandidateRoot $Contract.ProductBinary),
+        $false
+    )
+    $CandidatePath = Join-Path $CandidateRoot 'candidate.json'
+    $CandidateManifest = [ordered]@{
+        schema = $script:SwawHarnessCandidateSchema
+        candidateId = $CandidateId
+        contractRevision = $Contract.Revision
+        targetId = $Contract.TargetId
+        artifact = [ordered]@{
+            name = $Contract.ProductBinary
+            length = $OversizedLength
+            sha256 = $Sha256
+        }
+    }
+    [IO.File]::WriteAllText(
+        $CandidatePath,
+        (ConvertTo-SwawHarnessJsonText -Value $CandidateManifest),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $CandidateReaderRejected = Test-ProductArtifactBoundsRejection {
+        [void](Read-SwawHarnessBootstrapCandidate `
+            -Path $CandidatePath `
+            -Contract $Contract `
+            -BuildRoot $BuildRoot)
+    }
+    Assert-ProductArtifactBoundsTest `
+        -Condition $CandidateReaderRejected `
+        -Message 'Candidate reader accepted product maximum + 1 byte'
+
+    $Candidate = [pscustomobject][ordered]@{
+        TargetId = $Contract.TargetId
+        Name = $Contract.ProductBinary
+        ArtifactPath = $SourcePath
+        Length = $OversizedLength
+        Sha256 = $Sha256
+    }
+    $ReleasePublisherRejected = Test-ProductArtifactBoundsRejection {
+        [void](Publish-SwawHarnessRelease `
+            -Context $Context `
+            -Contract $Contract `
+            -Candidate $Candidate `
+            -ReleasesRoot $ReleasesRoot `
+            -LockName 'bounds-test.lock')
+    }
+    Assert-ProductArtifactBoundsTest `
+        -Condition $ReleasePublisherRejected `
+        -Message 'Release staging accepted product maximum + 1 byte'
+
+    $ReleaseId = Get-SwawHarnessReleaseId `
+        -TargetId $Contract.TargetId `
+        -Name $Contract.ProductBinary `
+        -Length $OversizedLength `
+        -Sha256 $Sha256
+    $ReleaseRoot = Join-Path $ReleasesRoot $ReleaseId
+    [void][IO.Directory]::CreateDirectory($ReleaseRoot)
+    [IO.File]::Copy(
+        $SourcePath,
+        (Join-Path $ReleaseRoot $Contract.ProductBinary),
+        $false
+    )
+    $ReleaseManifest = [ordered]@{
+        schema = $script:SwawHarnessReleaseSchema
+        releaseId = $ReleaseId
+        targetId = $Contract.TargetId
+        artifacts = @([ordered]@{
+            name = $Contract.ProductBinary
+            length = $OversizedLength
+            sha256 = $Sha256
+        })
+    }
+    [IO.File]::WriteAllText(
+        (Join-Path $ReleaseRoot 'manifest.json'),
+        (ConvertTo-SwawHarnessJsonText -Value $ReleaseManifest),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $ReleaseReaderRejected = Test-ProductArtifactBoundsRejection {
+        [void](Read-SwawHarnessRelease `
+            -ReleaseRoot $ReleaseRoot `
+            -ReleaseId $ReleaseId `
+            -Contract $Contract `
+            -ReleasesRoot $ReleasesRoot)
+    }
+    Assert-ProductArtifactBoundsTest `
+        -Condition $ReleaseReaderRejected `
+        -Message 'Release reader accepted product maximum + 1 byte'
+
+    Assert-ProductArtifactBoundsTest `
+        -Condition (
+            (Get-Item -LiteralPath $SourcePath).Length -eq
+                $OversizedLength -and
+            $OversizedLength -lt 1MB
+        ) `
+        -Message 'test artifact is not the intended small boundary case'
+} finally {
+    if ([IO.Directory]::Exists($TestRoot)) {
+        [IO.Directory]::Delete($TestRoot, $true)
+    }
+}
+
+Write-Host '[PASS] Windows product artifact bounds' -ForegroundColor Green

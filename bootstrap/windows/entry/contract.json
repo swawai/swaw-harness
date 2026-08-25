@@ -1,0 +1,39 @@
+{
+  "schema": "swaw.harness.entry-build/v1",
+  "artifact": "swaw-harness-entry.exe",
+  "source": "entry.c",
+  "compilerArguments": [
+    "/nologo",
+    "/c",
+    "/Brepro",
+    "/W4",
+    "/WX",
+    "/TC",
+    "/O1",
+    "/Os",
+    "/Oi",
+    "/Gy",
+    "/Gw",
+    "/Zl",
+    "/GS-"
+  ],
+  "linkerArguments": [
+    "/nologo",
+    "/Brepro",
+    "/machine:x64",
+    "/subsystem:console",
+    "/entry:swaw_entry_main",
+    "/nodefaultlib",
+    "/opt:ref",
+    "/opt:icf",
+    "/incremental:no",
+    "/dynamicbase",
+    "/nxcompat",
+    "/highentropyva",
+    "/manifest:no"
+  ],
+  "libraries": [
+    "kernel32.lib"
+  ],
+  "maximumBytes": 65536
+}
