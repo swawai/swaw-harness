@@ -16,7 +16,7 @@
 
 12. 一个 commit 只承载一个语义目标和一个独立回退理由；实现、使该行为成立的测试与规范更新应一起提交，无关清理必须拆开。
 13. 每个 commit 应保持仓库可构建、可验证；纯重命名、格式化、生成文件等机械变化应尽量与行为变化分开。
-14. commit 标题采用英文 `type(scope): imperative summary`；允许的基础类型为 `feat`、`fix`、`refactor`、`test`、`docs`、`build`、`chore`；`scope` 只使用小写 ASCII 字母、数字、点、下划线或连字符并以字母或数字开头，summary 以小写 ASCII 字母或数字开头。
+14. commit 标题采用英文 `type(scope): imperative summary`；允许的基础类型为 `feat`、`fix`、`refactor`、`test`、`docs`、`build`、`ci`、`chore`；`scope` 只使用小写 ASCII 字母、数字、点、下划线或连字符并以字母或数字开头，summary 以小写 ASCII 字母或数字开头。
 15. `scope` 使用稳定的实体或领域名，而不是临时文件名；没有明确主归属时省略，不得使用 `misc`、`other` 等模糊词。
 16. 标题应描述结果，不得超过 72 个字符且不加句号；架构、协议、恢复、安全、兼容性或非显然取舍必须在正文解释原因与影响，不得只复述文件清单。
 17. commit 有关联记录时使用 `Refs: #<issue-id>` 和 `Spec: <rule-id>`；`Closes #<issue-id>` 只写在完整解决该 Issue 的 PR 正文中，破坏性变化使用 `BREAKING CHANGE:`。
