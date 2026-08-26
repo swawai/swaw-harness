@@ -1,0 +1,283 @@
+name: Validate change policy
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - edited
+      - labeled
+      - reopened
+      - synchronize
+      - unlabeled
+      - ready_for_review
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: change-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: Change policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the trusted base policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Validate branch, Issue, PR, and commits
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          Import-Module `
+              ./.agents/skills/govern-repository-change/scripts/governance.psm1 `
+              -Force
+          $event = Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json
+          $errors = [System.Collections.Generic.List[string]]::new()
+
+          function Test-ChangeHeader {
+              param(
+                  [string] $Header,
+                  [string] $Owner
+              )
+
+              $pattern = '^(feat|fix|refactor|test|docs|build|chore)(\([a-z0-9][a-z0-9._-]*\))?: [a-z0-9].+$'
+              if ($Header -cnotmatch $pattern) {
+                  [void]$script:errors.Add("$Owner must match 'type(scope): imperative summary'.")
+              }
+              if ($Header.Length -gt 72) {
+                  [void]$script:errors.Add("$Owner exceeds 72 characters.")
+              }
+              if ($Header.EndsWith('.')) {
+                  [void]$script:errors.Add("$Owner must not end with a period.")
+              }
+          }
+
+          function Test-CompletedChecklist {
+              param(
+                  [string] $Content,
+                  [string[]] $Items,
+                  [string] $Owner
+              )
+
+              foreach ($item in $Items) {
+                  $itemPattern = '(?im)^\s*-\s*\[[xX]\]\s+' +
+                      [regex]::Escape($item) + '\s*$'
+                  if ($Content -notmatch $itemPattern) {
+                      [void]$script:errors.Add("$Owner item is missing or incomplete: $item")
+                  }
+              }
+              if ($Content -match '(?im)^\s*-\s*\[\s\]\s+') {
+                  [void]$script:errors.Add("$Owner contains an incomplete item.")
+              }
+          }
+
+          $pullRequest = $event.pull_request
+          $body = [string] $pullRequest.body
+          $headRef = [string] $pullRequest.head.ref
+          $headers = @{
+              Accept = 'application/vnd.github+json'
+              Authorization = "Bearer $env:GH_TOKEN"
+              'X-GitHub-Api-Version' = '2026-03-10'
+          }
+          $changedPaths = [System.Collections.Generic.List[string]]::new()
+          $returnedFileCount = 0
+          $filePage = 1
+          do {
+              $filesUri = "https://api.github.com/repos/$($event.repository.full_name)/pulls/$($event.number)/files?per_page=100&page=$filePage"
+              try {
+                  $files = @(Invoke-RestMethod -Uri $filesUri -Headers $headers)
+                  $returnedFileCount += $files.Count
+                  foreach ($path in @(Get-GovernanceChangedPaths -Files $files)) {
+                      [void]$changedPaths.Add($path)
+                  }
+                  $filePage++
+              }
+              catch {
+                  [void]$errors.Add("Cannot read PR files: $($_.Exception.Message)")
+                  break
+              }
+          } while ($files.Count -eq 100)
+          if ($returnedFileCount -ne [int] $pullRequest.changed_files) {
+              [void]$errors.Add(
+                  'GitHub did not return the complete PR file list ' +
+                  "($returnedFileCount/$($pullRequest.changed_files))."
+              )
+          }
+
+          $trustRootChanges = @(
+              $changedPaths |
+                  Where-Object { Test-GovernanceTrustRootPath -Path $_ } |
+                  Select-Object -Unique
+          )
+          $migrationLabel = 'governance-migration'
+          $hasMigrationLabel = @(
+              $pullRequest.labels | ForEach-Object { [string] $_.name }
+          ) -ccontains $migrationLabel
+          $isOwnerAuthored = [string]::Equals(
+              [string] $pullRequest.user.login,
+              [string] $event.repository.owner.login,
+              [StringComparison]::OrdinalIgnoreCase
+          )
+          if ($trustRootChanges.Count -gt 0 -and
+              (-not $hasMigrationLabel -or -not $isOwnerAuthored)) {
+              [void]$errors.Add(
+                  'Trust-root changes require an owner-authored PR and the ' +
+                  "owner-applied '$migrationLabel' label: " +
+                  ($trustRootChanges -join ', ')
+              )
+          }
+          elseif ($hasMigrationLabel -and $trustRootChanges.Count -eq 0) {
+              [void]$errors.Add(
+                  "Remove stale '$migrationLabel'; this PR has no trust-root changes."
+              )
+          }
+
+          $branchMatch = [regex]::Match(
+              $headRef,
+              '^[a-z][a-z0-9-]*/(?<issue>[1-9][0-9]*)-[a-z0-9]+(?:-[a-z0-9]+)*$'
+          )
+
+          if (-not $branchMatch.Success) {
+              [void]$errors.Add("Branch '$headRef' must match '<actor>/<issue-id>-<slug>'.")
+          }
+
+          Test-ChangeHeader -Header ([string] $pullRequest.title) -Owner 'PR title'
+
+          $requiredSections = @(
+              'Outcome',
+              'Changes',
+              'Verification',
+              'Deviations from Issue',
+              'Review focus',
+              'Author checklist'
+          )
+          foreach ($heading in $requiredSections) {
+              $content = Get-GovernanceMarkdownSection `
+                  -Body $body `
+                  -Heading $heading `
+                  -Level 2
+              if ([string]::IsNullOrWhiteSpace($content)) {
+                  [void]$errors.Add("PR section '$heading' is missing or empty.")
+              }
+          }
+
+          $authorChecklist = Get-GovernanceMarkdownSection `
+              -Body $body `
+              -Heading 'Author checklist' `
+              -Level 2
+          Test-CompletedChecklist `
+              -Content ([string] $authorChecklist) `
+              -Owner 'Author checklist' `
+              -Items @(
+                  "The diff satisfies the linked Issue's outcome and acceptance criteria.",
+                  'The diff contains no unrelated cleanup or hidden scope expansion.',
+                  'Applicable `AGENTS.md` files were read and followed.',
+                  'Current specs and tests were updated with behavior or contract changes.',
+                  'Every commit follows the repository commit contract.',
+                  'Verification evidence above is complete and accurate.'
+              )
+
+          if ($branchMatch.Success) {
+              $issueNumber = $branchMatch.Groups['issue'].Value
+              if (-not (Test-GovernanceClosingReference `
+                  -Body $body `
+                  -IssueNumber ([int]$issueNumber))) {
+                  [void]$errors.Add("PR body must contain a standalone 'Closes #$issueNumber'.")
+              }
+
+              $issueUri = "https://api.github.com/repos/$($event.repository.full_name)/issues/$issueNumber"
+              try {
+                  $issue = Invoke-RestMethod -Uri $issueUri -Headers $headers
+                  if ($null -ne $issue.pull_request) {
+                      [void]$errors.Add("#$issueNumber is a pull request, not an Issue.")
+                  }
+                  elseif ($issue.state -ne 'open') {
+                      [void]$errors.Add("Linked Issue #$issueNumber must be open before merge.")
+                  }
+
+                  foreach ($contractError in @(Test-GovernanceIssueContract `
+                      -Body ([string] $issue.body))) {
+                      [void]$errors.Add("Linked $contractError")
+                  }
+
+                  $linkedOutput = @(& gh issue develop `
+                      --list `
+                      $issueNumber `
+                      --repo $event.repository.full_name 2>&1)
+                  if ($LASTEXITCODE -ne 0) {
+                      $detail = ($linkedOutput -join "`n").Trim()
+                      [void]$errors.Add("Cannot read linked branches for Issue #${issueNumber}: $detail")
+                  }
+                  else {
+                      $headRepository = [string] $pullRequest.head.repo.full_name
+                      $linked = Test-GovernanceLinkedBranch `
+                          -Output $linkedOutput `
+                          -Repository $headRepository `
+                          -Branch $headRef
+                      if (-not $linked) {
+                          [void]$errors.Add("Branch '$headRef' is not linked to Issue #$issueNumber.")
+                      }
+                  }
+              }
+              catch {
+                  [void]$errors.Add("Cannot read linked Issue #${issueNumber}: $($_.Exception.Message)")
+              }
+          }
+          $page = 1
+          $validatedCommitCount = 0
+          do {
+              $commitsUri = "https://api.github.com/repos/$($event.repository.full_name)/pulls/$($event.number)/commits?per_page=100&page=$page"
+              try {
+                  $commits = @(Invoke-RestMethod -Uri $commitsUri -Headers $headers)
+                  if ($page -eq 1 -and $commits.Count -eq 0) {
+                      [void]$errors.Add('GitHub did not return any PR commits for validation.')
+                      break
+                  }
+                  foreach ($commit in $commits) {
+                      $validatedCommitCount++
+                      $message = [string] $commit.commit.message
+                      $header = ($message -split "`r?`n", 2)[0]
+                      $shortSha = ([string] $commit.sha).Substring(0, 7)
+                      Test-ChangeHeader -Header $header -Owner "Commit $shortSha"
+                      if (@($commit.parents).Count -ne 1) {
+                          [void]$errors.Add("Commit $shortSha must not be a merge or orphan commit.")
+                      }
+                      if ($branchMatch.Success -and
+                          $message -cnotmatch "(?m)^Refs:\s+#$issueNumber\s*$") {
+                          [void]$errors.Add("Commit $shortSha must contain 'Refs: #$issueNumber'.")
+                      }
+                  }
+                  $page++
+              }
+              catch {
+                  [void]$errors.Add("Cannot read PR commits: $($_.Exception.Message)")
+                  break
+              }
+          } while ($commits.Count -eq 100)
+          if ($validatedCommitCount -ne [int] $pullRequest.commits) {
+              [void]$errors.Add(
+                  'GitHub did not return the complete PR commit list ' +
+                  "($validatedCommitCount/$($pullRequest.commits))."
+              )
+          }
+
+          if ($errors.Count -gt 0) {
+              foreach ($message in $errors) {
+                  Write-Host "::error::$message"
+              }
+              exit 1
+          }
+
+          Write-Host 'Branch, linked Issue, PR contract, and commit headers are valid.'
