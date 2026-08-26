@@ -124,6 +124,13 @@ if ($CommandArgs[0] -ceq 'issue' -and $CommandArgs[1] -ceq 'view') {
     elseif ($scenario -ceq 'lowercase-heading') {
         $body = $body.Replace('### Outcome', '### outcome')
     }
+    elseif ($scenario -ceq 'indented-readiness') {
+        $body = [regex]::Replace(
+            $body,
+            '(?m)^(- \[[xX]\] (?:The outcome|Unknowns|Version-controlled).*)$',
+            '    $1'
+        )
+    }
     $state = if ($scenario -ceq 'closed') { 'CLOSED' } else { 'OPEN' }
     [pscustomobject]@{
         number = 42

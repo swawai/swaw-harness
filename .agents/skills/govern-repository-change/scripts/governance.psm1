@@ -270,6 +270,29 @@ function Remove-GovernanceMarkdownNonSemanticContent {
     return $semanticLines.ToArray() -join "`n"
 }
 
+function Get-GovernanceChecklistErrors {
+    param(
+        [AllowNull()][string]$Content,
+        [Parameter(Mandatory = $true)][string[]]$Items,
+        [Parameter(Mandatory = $true)][string]$Owner
+    )
+
+    $errors = [Collections.Generic.List[string]]::new()
+    $semanticContent = Remove-GovernanceMarkdownNonSemanticContent `
+        -Body $Content
+    foreach ($item in $Items) {
+        $pattern = '(?im)^[ ]{0,3}-[ `t]*\[[xX]\][ `t]+' +
+            [regex]::Escape($item) + '[ `t]*$'
+        if ($semanticContent -notmatch $pattern) {
+            [void]$errors.Add("$Owner item is missing or incomplete: $item")
+        }
+    }
+    if ($semanticContent -match '(?im)^[ ]{0,3}-[ `t]*\[[ `t]\][ `t]+') {
+        [void]$errors.Add("$Owner contains an incomplete item.")
+    }
+    return $errors.ToArray()
+}
+
 function Test-GovernanceClosingReference {
     param(
         [AllowNull()][string]$Body,
@@ -384,19 +407,16 @@ function Test-GovernanceIssueContract {
     $readiness = Get-GovernanceMarkdownSection `
         -Body $Body `
         -Heading 'Readiness'
-    foreach ($item in @(
+    $readinessItems = @(
         'The outcome is bounded enough for one branch and one PR.',
         'Unknowns and assumptions are explicit; implementation will not silently decide them.',
         'Version-controlled changes will begin only after an Issue-linked branch exists.'
-    )) {
-        $pattern = '(?im)^\s*-\s*\[[xX]\]\s+' +
-            [regex]::Escape($item) + '\s*$'
-        if ([string]$readiness -notmatch $pattern) {
-            [void]$errors.Add("Issue Readiness item is incomplete: $item")
-        }
-    }
-    if ([string]$readiness -match '(?im)^\s*-\s*\[\s\]\s+') {
-        [void]$errors.Add('Issue Readiness contains an incomplete item.')
+    )
+    foreach ($checklistError in @(Get-GovernanceChecklistErrors `
+        -Content ([string]$readiness) `
+        -Items $readinessItems `
+        -Owner 'Issue Readiness')) {
+        [void]$errors.Add($checklistError)
     }
 
     return $errors.ToArray()
@@ -437,6 +457,7 @@ function Test-GovernanceLinkedBranch {
 
 Export-ModuleMember -Function @(
     'Get-GovernanceChangedPaths',
+    'Get-GovernanceChecklistErrors',
     'Get-GovernanceMarkdownSection',
     'Get-GovernanceBranchTracking',
     'Get-GovernanceNormalizedPath',
