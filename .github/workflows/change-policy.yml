@@ -106,16 +106,30 @@ jobs:
           $hasMigrationLabel = @(
               $pullRequest.labels | ForEach-Object { [string] $_.name }
           ) -ccontains $migrationLabel
+          $eventLabel = ''
+          if ($null -ne $event.PSObject.Properties['label']) {
+              $eventLabel = [string] $event.label.name
+          }
+          $hasFreshMigrationAuthorization = Test-GovernanceMigrationAuthorization `
+              -Action ([string] $event.action) `
+              -EventLabel $eventLabel `
+              -Actor ([string] $event.sender.login) `
+              -Owner ([string] $event.repository.owner.login) `
+              -RunAttempt ([int] $env:GITHUB_RUN_ATTEMPT) `
+              -RequiredLabel $migrationLabel
           $isOwnerAuthored = [string]::Equals(
               [string] $pullRequest.user.login,
               [string] $event.repository.owner.login,
               [StringComparison]::OrdinalIgnoreCase
           )
           if ($trustRootChanges.Count -gt 0 -and
-              (-not $hasMigrationLabel -or -not $isOwnerAuthored)) {
+              (-not $hasMigrationLabel -or
+               -not $hasFreshMigrationAuthorization -or
+               -not $isOwnerAuthored)) {
               [void]$errors.Add(
                   'Trust-root changes require an owner-authored PR and the ' +
-                  "owner-applied '$migrationLabel' label: " +
+                  "owner to remove and reapply '$migrationLabel' after " +
+                  'reviewing the current HEAD: ' +
                   ($trustRootChanges -join ', ')
               )
           }

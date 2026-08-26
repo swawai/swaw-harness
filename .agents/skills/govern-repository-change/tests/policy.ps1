@@ -158,10 +158,15 @@ foreach ($contract in @(
     'Get-GovernanceChecklistErrors',
     'Get-GovernanceChangedPaths',
     'Test-GovernanceClosingReference',
+    'Test-GovernanceMigrationAuthorization',
     'Test-GovernanceTrustRootPath',
     'governance-migration',
     'pullRequest.user.login',
-    'event.repository.owner.login'
+    'event.repository.owner.login',
+    'event.sender.login',
+    'event.action',
+    'event.label.name',
+    'GITHUB_RUN_ATTEMPT'
 )) {
     if (-not $policyWorkflow.Contains($contract)) {
         throw "Change policy is missing trust-root contract '$contract'."
@@ -232,6 +237,37 @@ if ($renamePaths -cnotcontains '.github/workflows/change-policy.yml' -or
 }
 if (@(Get-GovernanceChangedPaths -Files @()).Count -ne 0) {
     throw 'An empty final pagination page must produce no changed paths.'
+}
+
+$migrationArguments = @{
+    Action = 'labeled'
+    EventLabel = 'governance-migration'
+    Actor = 'RepositoryOwner'
+    Owner = 'repositoryowner'
+    RunAttempt = 1
+    RequiredLabel = 'governance-migration'
+}
+if (-not (Test-GovernanceMigrationAuthorization @migrationArguments)) {
+    throw 'A fresh owner-applied migration label must authorize current HEAD.'
+}
+foreach ($staleAuthorization in @(
+    @{ Action = 'synchronize' },
+    @{ Action = 'edited' },
+    @{ Action = 'unlabeled' },
+    @{ EventLabel = '' },
+    @{ EventLabel = 'unrelated-label' },
+    @{ Actor = 'contributor' },
+    @{ Actor = '' },
+    @{ Owner = '' },
+    @{ RunAttempt = 2 }
+)) {
+    $arguments = @{} + $migrationArguments
+    foreach ($key in $staleAuthorization.Keys) {
+        $arguments[$key] = $staleAuthorization[$key]
+    }
+    if (Test-GovernanceMigrationAuthorization @arguments) {
+        throw 'Migration authorization must be fresh, exact, and owner-applied.'
+    }
 }
 
 $windowsBlock = Get-WorkflowJobBlock `

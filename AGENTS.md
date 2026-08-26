@@ -36,4 +36,4 @@
 31. 任何将新增、修改或删除预期进入版本控制内容的任务，Agent 必须在变更前使用 `.agents/skills/govern-repository-change/SKILL.md` 创建或恢复受治理的变更上下文；只读分析、解释和诊断不触发该 Skill。该 Skill 只执行本协议，不得放宽第 21、27、28 条的授权与合并边界。
 32. `.github/rulesets/protect-main.json` 是 `main` 保护规则的期望状态，必须通过 Skill 的 `scripts/ruleset.ps1` 显式核对和应用；`.github/workflows/change-policy.yml` 从受信 base 校验变更协议，`.github/workflows/validate.yml` 验证候选产品代码，二者都不会自动把检查设为 required。宣称治理已强制生效或 PR 可合并前，远端 ruleset 必须与该文件一致；缺失或漂移必须报告为治理阻塞，不得把仓库内软约束冒充 GitHub 硬约束。
 33. 首次安装受信 `pull_request_target` 检查时，该检查必须先进入默认分支才能保护后续 PR；因此 active ruleset 只能在其合入后启用。若 ruleset 已提前启用，仓库负责人必须把临时放宽限定在这一个引导 PR，保留 Issue、产品验证和人工评审记录，并在合入后立即恢复期望 ruleset、核对 `in_sync`；该引导例外不得复用于后续变更。
-34. `.github/workflows/**` 与 policy 实际加载的 `governance.psm1` 是 required checks 的信任根；修改它们必须使用仓库负责人创建的 PR，并由负责人在审阅 diff 后手动添加 `governance-migration` 标签。Agent 不得自行添加、移除或请求自动添加该标签；无信任根变更时该标签也不得保留。
+34. `.github/workflows/**` 与 policy 实际加载的 `governance.psm1` 是 required checks 的信任根；修改它们必须使用仓库负责人创建的 PR，并由负责人在审阅当前 HEAD 后最后手动重新添加 `governance-migration` 标签。任何后续 commit 或 PR 正文修改都会使这次授权失效，负责人必须复审新的当前 HEAD 并再次移除、添加该标签。Agent 不得自行添加、移除或请求自动添加该标签；无信任根变更时该标签也不得保留。

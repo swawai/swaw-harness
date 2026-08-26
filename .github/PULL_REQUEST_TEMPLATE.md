@@ -18,7 +18,7 @@ Closes #<!-- issue-number -->
 
 ## Review focus
 
-<!-- Identify the highest-risk decisions, invariants, and files for the reviewer. Trust-root migrations must record the owner's diff review and manual governance-migration label. -->
+<!-- Identify the highest-risk decisions, invariants, and files for the reviewer. For a trust-root migration, the owner reviews current HEAD and then removes and reapplies governance-migration as the final PR mutation. -->
 
 ## Author checklist
 
