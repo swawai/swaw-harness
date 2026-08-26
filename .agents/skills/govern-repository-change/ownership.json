@@ -20,6 +20,7 @@
       ".agents/skills/govern-repository-change/tests/fixtures/valid-issue.md",
       ".agents/skills/govern-repository-change/tests/lifecycle-model.ps1",
       ".agents/skills/govern-repository-change/tests/lifecycle.ps1",
+      ".agents/skills/govern-repository-change/tests/policy-runtime.ps1",
       ".agents/skills/govern-repository-change/tests/policy.ps1",
       ".agents/skills/govern-repository-change/tests/ruleset-migration.ps1",
       ".agents/skills/govern-repository-change/tests/workflow.ps1"
