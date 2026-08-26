@@ -399,7 +399,7 @@ try {
     }
     elseif ($openPullRequest.Count -gt 0 -and
         $null -ne $aheadOfUpstream -and $aheadOfUpstream -gt 0) {
-        $nextAction = 'Await explicit authorization before pushing updates to the open PR.'
+        $nextAction = 'Push the verified commits to update the open PR; never force-push.'
     }
     elseif ($openPullRequest.Count -gt 0) {
         $nextAction = 'Inspect the open PR and its required checks; never merge as Agent.'
@@ -408,10 +408,10 @@ try {
         $nextAction = 'Continue the bounded implementation and verification.'
     }
     elseif ($null -ne $aheadOfUpstream -and $aheadOfUpstream -gt 0) {
-        $nextAction = 'Await explicit authorization before pushing local commits.'
+        $nextAction = 'Push the verified commits to the Issue-linked branch without force.'
     }
     elseif ($null -ne $ahead -and $ahead -gt 0) {
-        $nextAction = 'Await explicit authorization before publishing or opening a PR.'
+        $nextAction = 'Open a Draft PR for the published Issue-linked branch.'
     }
     else {
         $nextAction = 'No uncommitted or unmerged change is visible locally.'

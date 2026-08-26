@@ -23,7 +23,7 @@
 18. AI 的一次对话、一次执行或一次交接不是 commit 边界；commit message 必须依据 staged diff 编写，默认不记录 prompt、模型名或工具宣传信息。
 19. 普通 commit 以不超过 300 行手写变更和 10 个语义文件为目标；超过 500 行或 15 个语义文件时必须拆分，或在正文说明其为何不可分割，机械迁移与生成内容不计入该预算。
 20. 提交前必须检查 worktree、staged diff 并执行与变更相称的验证；只暂存本任务拥有的路径，不得混入用户或其它任务的修改。
-21. Agent 只有在任务明确授权提交时才可创建 commit；未经明确授权不得 amend、rebase、重写历史或 push。
+21. 用户授权实施一项拟进入版本控制的变更后，即授权 Agent 建立或恢复对应 Issue 与关联分支；Issue 达到就绪条件后，同一授权覆盖在该受治理分支内按语义边界创建普通 commit、向同名远端分支执行非强制的 fast-forward push，以及创建 Draft PR 或更新同一 PR，这些动作无需逐次请求授权。该常驻授权不包括 amend、rebase、历史重写、force-push、其它分支或标签、将 PR 标记为 ready、Ruleset 等控制平面变更及 merge。
 22. 本协议合入后，任何预期进入版本控制的新增、修改或删除开始前，必须先建立 GitHub Issue，再从最新 `main` 建立关联工作分支；禁止直接在 `main` 上开发或提交。
 23. Issue 必须明确 Outcome、Reason、Scope、Non-goals、Invariants 与 Acceptance criteria；发现目标、边界或验收条件变化时，必须先更新 Issue 再继续实现。
 24. 工作分支使用 `<actor>/<issue-id>-<slug>`，例如 `codex/12-govern-change-workflow`；`actor` 以小写字母开头并只使用小写字母、数字和连字符，`slug` 由单个连字符分隔的小写字母或数字片段组成；一个分支只服务一个主 Issue，分支名中的 Issue 编号必须与 PR 正文独立一行的 `Closes #<issue-id>` 一致。

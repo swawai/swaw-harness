@@ -14,9 +14,12 @@ standard operational entry point; it does not replace or relax that policy.
   Issue or branch. Use `scripts/status.ps1` only when repository workflow state
   is relevant.
 - A user request to implement, build, fix, refactor, test, document, or otherwise
-  change content intended for version control authorizes creation of the required
-  Issue and linked branch. It does not authorize commit, rebase, push, PR
-  creation, or merge.
+  change version-controlled content authorizes establishing the required Issue
+  and linked branch. Once the Issue is ready, the same authorization covers
+  ordinary commits, non-force fast-forward pushes to that exact branch, and
+  creating a Draft PR or updating the same PR. It does not authorize amend,
+  rebase, history rewriting, force-push, other branches or tags, marking a PR
+  ready, repository control-plane mutations, or merge.
 - Before changing files, run `scripts/status.ps1`. Resume an existing valid
   Issue-linked branch instead of creating duplicate work.
 - If the requested outcome, scope, non-goals, invariants, or acceptance criteria
@@ -53,12 +56,22 @@ anything automatically. Report the output and inspect GitHub before recovery.
   follow the commit boundaries and message contract in root `AGENTS.md`.
 - If scope or acceptance changes materially, obtain direction and update the
   Issue before continuing.
-- Stage and commit only after the user explicitly authorizes a commit. Rebase,
-  push, and PR creation each remain subject to the authorization boundary in
-  root `AGENTS.md`.
+- After proportionate verification, inspect the worktree and staged diff, then
+  create coherent commits without requesting another authorization prompt.
+- Immediately before a push, rerun `scripts/status.ps1`. Proceed only when the
+  governed context is valid, the worktree is clean, the branch tracks its exact
+  `origin` counterpart, it is not behind or diverged, and GitHub's branch OID
+  still matches the local remote-tracking OID. Push only `HEAD` to that same
+  branch without force, then rerun status to verify the remote result.
+- A verified branch may be published and represented by a Draft PR without a
+  separate authorization prompt. Leave ready-for-review state, acceptance,
+  trust-root migration labels, and merge to the repository owner.
 - Prefer repository Skill scripts over handcrafted GitHub mutation commands.
-  Direct `ghswaw` use is allowed for read-only inspection or a reported recovery
-  step when no script covers it.
+  Direct `ghswaw` use is allowed for read-only inspection, a reported recovery
+  step, or the Draft PR creation or same-PR update authorized above when no
+  script covers it. Before a PR mutation, verify the repository, `main` base,
+  exact Issue-linked head branch, and absence of a conflicting open PR; never
+  use this allowance to mark a PR ready or merge it.
 - A workflow file creates checks but does not make them required. Before calling
   governance enforced or a PR merge-eligible, verify the active remote `main`
   ruleset required by root `AGENTS.md`. Use `scripts/ruleset.ps1 status` to compare
