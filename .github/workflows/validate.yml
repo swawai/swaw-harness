@@ -82,18 +82,33 @@ jobs:
           & .\.agents\skills\govern-repository-change\tests\ruleset.ps1
           & .\.agents\skills\govern-repository-change\tests\policy.ps1
 
-      - name: Build and publish all Windows products twice
+      - name: Exercise repository change governance under PowerShell 7
+        shell: pwsh
+        run: |
+          & .\.agents\skills\govern-repository-change\tests\workflow.ps1
+          & .\.agents\skills\govern-repository-change\tests\ruleset.ps1
+          & .\.agents\skills\govern-repository-change\tests\policy.ps1
+
+      - name: Exercise the root build and repeated Windows publication
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $dataRoot = Join-Path $env:RUNNER_TEMP 'swaw-harness-data'
+          $dataRoot = Join-Path $PWD 'data'
+          & .\bootstrap\windows\tests\root-build.ps1
           & .\bootstrap\windows\tests\main.ps1 -DataRoot $dataRoot
+
+      - name: Test the Core Rust workspace with the controlled toolchain
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dataRoot = Join-Path $PWD 'data'
+          & .\bootstrap\windows\tests\core-rust.ps1 -DataRoot $dataRoot
 
       - name: Verify Core, Entry executable, and Entry Manager releases
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $dataRoot = Join-Path $env:RUNNER_TEMP 'swaw-harness-data'
+          $dataRoot = Join-Path $PWD 'data'
           & .\bootstrap\windows\tests\core-release.ps1 -DataRoot $dataRoot
           & .\bootstrap\windows\tests\entry.ps1 -DataRoot $dataRoot
           & .\bootstrap\windows\tests\entry-manager.ps1 -DataRoot $dataRoot
