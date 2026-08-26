@@ -175,4 +175,4 @@ declared by `ownership.json`. It never manages `protect-main`.
   `../../../.github/rulesets/tests/protect-main.ps1`
 - Governance verification: `tests/workflow.ps1`,
   `tests/ruleset-migration.ps1`, `tests/lifecycle-model.ps1`,
-  `tests/lifecycle.ps1`, and `tests/policy.ps1`
+  `tests/lifecycle.ps1`, `tests/policy-runtime.ps1`, and `tests/policy.ps1`
