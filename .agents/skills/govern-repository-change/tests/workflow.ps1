@@ -10,6 +10,7 @@ $statusScript = Join-Path $skillRoot 'scripts\status.ps1'
 $fakeGhswawSource = Join-Path `
     $PSScriptRoot `
     'fixtures\fake-governance-ghswaw.ps1'
+$validIssueBodySource = Join-Path $PSScriptRoot 'fixtures\valid-issue.md'
 $git = Get-Command git -CommandType Application -ErrorAction Stop |
     Select-Object -First 1
 $assertionCount = 0
@@ -108,40 +109,6 @@ function Assert-CallCount {
     Assert-Equal $Expected $actual "call count for $Call"
 }
 
-function Get-ValidIssueBody {
-    return @'
-### Outcome
-
-Exercise the offline workflow.
-
-### Reason
-
-Protect change-governance boundaries.
-
-### Scope
-
-The temporary fixture only.
-
-### Non-goals
-
-Real GitHub access.
-
-### Invariants
-
-No external state changes.
-
-### Acceptance criteria
-
-- [ ] The status is valid.
-
-### Readiness
-
-- [x] The outcome is bounded enough for one branch and one PR.
-- [x] Unknowns and assumptions are explicit; implementation will not silently decide them.
-- [x] Version-controlled changes will begin only after an Issue-linked branch exists.
-'@
-}
-
 function Initialize-StatusFixture {
     param([string]$Name, [string]$Scenario)
     $fixture = New-TestFixture $Name
@@ -153,7 +120,10 @@ function Initialize-StatusFixture {
         'branch', '--set-upstream-to=origin/codex/42-test-change',
         'codex/42-test-change'
     ))
-    @{ body = Get-ValidIssueBody } | ConvertTo-Json |
+    @{ body = [IO.File]::ReadAllText(
+        $script:validIssueBodySource,
+        [Text.Encoding]::UTF8
+    ) } | ConvertTo-Json |
         Set-Content -LiteralPath $fixture.Payload -Encoding UTF8
     Set-FakeContext $fixture $Scenario
     return $fixture
@@ -286,6 +256,22 @@ try {
     Assert-CallCount $whatIf 'api-create' 0
     Assert-CallCount $whatIf 'issue-develop-create' 0
     Assert-Equal $false ([IO.File]::Exists($whatIf.Payload)) 'WhatIf payload write'
+
+    foreach ($case in @(
+        @{ Name = 'unclosed-comment'; Outcome = '<!--' },
+        @{ Name = 'unclosed-fence'; Outcome = '```text' }
+    )) {
+        $malformed = New-TestFixture $case.Name
+        Set-FakeContext $malformed
+        $malformedArguments = @{} + $startArguments
+        $malformedArguments.RepositoryRoot = $malformed.Root
+        $malformedArguments.Outcome = $case.Outcome
+        [void](Assert-Throws {
+            & $startScript @malformedArguments -WhatIf
+        } @('Generated Issue does not satisfy', 'Issue section') $case.Name)
+        Assert-CallCount $malformed 'api-create' 0
+        Assert-CallCount $malformed 'issue-develop-create' 0
+    }
 
     $dirty = New-TestFixture 'dirty'
     [IO.File]::WriteAllText((Join-Path $dirty.Root 'dirty.txt'), 'dirty')
