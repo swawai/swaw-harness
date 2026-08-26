@@ -334,6 +334,9 @@ if ($productBlock -cnotmatch 'needs\.windows-bootstrap\.result') {
     throw 'Product validation must inspect the Windows Bootstrap result.'
 }
 
+& (Join-Path $PSScriptRoot 'policy-runtime.ps1') `
+    -RepositoryRoot $RepositoryRoot
+
 Write-Output (
     "PASS: $($contexts.Count) required checks map to workflow jobs; " +
     'policy is base-trusted and product aggregation is fail-closed.'

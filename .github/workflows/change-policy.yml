@@ -78,7 +78,10 @@ jobs:
           do {
               $filesUri = "https://api.github.com/repos/$($event.repository.full_name)/pulls/$($event.number)/files?per_page=100&page=$filePage"
               try {
-                  $files = @(Invoke-RestMethod -Uri $filesUri -Headers $headers)
+                  $fileResponse = Invoke-RestMethod `
+                      -Uri $filesUri `
+                      -Headers $headers
+                  $files = @($fileResponse | ForEach-Object { $_ })
                   $returnedFileCount += $files.Count
                   foreach ($path in @(Get-GovernanceChangedPaths -Files $files)) {
                       [void]$changedPaths.Add($path)
@@ -198,7 +201,7 @@ jobs:
               $issueUri = "https://api.github.com/repos/$($event.repository.full_name)/issues/$issueNumber"
               try {
                   $issue = Invoke-RestMethod -Uri $issueUri -Headers $headers
-                  if ($null -ne $issue.pull_request) {
+                  if ($null -ne $issue.PSObject.Properties['pull_request']) {
                       [void]$errors.Add("#$issueNumber is a pull request, not an Issue.")
                   }
                   elseif ($issue.state -ne 'open') {
@@ -219,7 +222,10 @@ jobs:
           do {
               $commitsUri = "https://api.github.com/repos/$($event.repository.full_name)/pulls/$($event.number)/commits?per_page=100&page=$page"
               try {
-                  $commits = @(Invoke-RestMethod -Uri $commitsUri -Headers $headers)
+                  $commitResponse = Invoke-RestMethod `
+                      -Uri $commitsUri `
+                      -Headers $headers
+                  $commits = @($commitResponse | ForEach-Object { $_ })
                   if ($page -eq 1 -and $commits.Count -eq 0) {
                       [void]$errors.Add('GitHub did not return any PR commits for validation.')
                       break
