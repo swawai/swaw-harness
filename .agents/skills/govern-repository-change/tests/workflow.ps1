@@ -303,6 +303,10 @@ try {
     Assert-FailClosedStatus 'fenced' 'fenced-contract' 'change contract'
     Assert-FailClosedStatus 'higher-heading' 'higher-heading-boundary' 'change contract'
     Assert-FailClosedStatus 'lowercase-heading' 'lowercase-heading' 'change contract'
+    Assert-FailClosedStatus `
+        'indented-readiness' `
+        'indented-readiness' `
+        'change contract'
     Assert-FailClosedStatus 'unlinked' 'unlinked' 'Issue-linked branch'
     Assert-FailClosedStatus `
         'open-pr-unlinked' `

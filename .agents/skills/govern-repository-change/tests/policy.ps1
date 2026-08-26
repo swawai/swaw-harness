@@ -140,6 +140,12 @@ if ($policyBlock -cmatch (
 )) {
     throw 'Change policy must never check out the proposed head revision.'
 }
+if ($policyBlock.Contains('gh issue develop')) {
+    throw (
+        'Change policy must use the durable PR closing reference after GitHub ' +
+        'replaces the transient linked-branch relation.'
+    )
+}
 if ($policyBlock -cnotmatch '(?m)^          persist-credentials:\s*false\s*$') {
     throw 'Change policy checkout must not persist credentials.'
 }
@@ -149,6 +155,7 @@ foreach ($eventType in @('labeled', 'unlabeled')) {
     }
 }
 foreach ($contract in @(
+    'Get-GovernanceChecklistErrors',
     'Get-GovernanceChangedPaths',
     'Test-GovernanceClosingReference',
     'Test-GovernanceTrustRootPath',
@@ -186,6 +193,27 @@ foreach ($nonSemanticBody in $nonSemanticBodies) {
         -Body $nonSemanticBody `
         -IssueNumber 17) {
         throw 'A non-semantic closing reference must be rejected.'
+    }
+}
+
+$checklistItem = 'The reviewer confirmed the semantic checklist.'
+if (@(Get-GovernanceChecklistErrors `
+    -Content "   - [x] $checklistItem" `
+    -Items @($checklistItem) `
+    -Owner 'Test checklist').Count -ne 0) {
+    throw 'A semantic checklist item indented by at most three spaces must pass.'
+}
+foreach ($nonSemanticChecklist in @(
+    "    - [x] $checklistItem",
+    (@('```text', "- [x] $checklistItem", '```') -join "`n"),
+    "<!-- - [x] $checklistItem -->",
+    "- [ ] $checklistItem"
+)) {
+    if (@(Get-GovernanceChecklistErrors `
+        -Content $nonSemanticChecklist `
+        -Items @($checklistItem) `
+        -Owner 'Test checklist').Count -eq 0) {
+        throw 'Non-semantic or incomplete checklist content must fail.'
     }
 }
 
