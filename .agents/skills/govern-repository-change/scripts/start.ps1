@@ -175,6 +175,14 @@ $($References.Trim())
 - [x] Unknowns and assumptions are explicit; implementation will not silently decide them.
 - [x] Version-controlled changes will begin only after an Issue-linked branch exists.
 "@
+    $issueBody = $issueBody.Trim() + "`n"
+    $contractErrors = @(Test-GovernanceIssueContract -Body $issueBody)
+    if ($contractErrors.Count -gt 0) {
+        throw (
+            'Generated Issue does not satisfy the governance contract: ' +
+            ($contractErrors -join ' ')
+        )
+    }
 
     if (-not $PSCmdlet.ShouldProcess(
         $repository,
@@ -194,7 +202,7 @@ $($References.Trim())
     try {
         $payload = [ordered]@{
             title = $Title.Trim()
-            body = $issueBody.Trim() + "`n"
+            body = $issueBody
         } | ConvertTo-Json -Depth 3
         [IO.File]::WriteAllText(
             $payloadPath,
