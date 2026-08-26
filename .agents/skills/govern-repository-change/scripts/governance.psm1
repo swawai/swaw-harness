@@ -281,13 +281,13 @@ function Get-GovernanceChecklistErrors {
     $semanticContent = Remove-GovernanceMarkdownNonSemanticContent `
         -Body $Content
     foreach ($item in $Items) {
-        $pattern = '(?im)^[ ]{0,3}-[ `t]*\[[xX]\][ `t]+' +
-            [regex]::Escape($item) + '[ `t]*$'
+        $pattern = '(?im)^[ ]{0,3}-[ \t]*\[[xX]\][ \t]+' +
+            [regex]::Escape($item) + '[ \t]*$'
         if ($semanticContent -notmatch $pattern) {
             [void]$errors.Add("$Owner item is missing or incomplete: $item")
         }
     }
-    if ($semanticContent -match '(?im)^[ ]{0,3}-[ `t]*\[[ `t]\][ `t]+') {
+    if ($semanticContent -match '(?im)^[ ]{0,3}-[ \t]*\[[ \t]\][ \t]+') {
         [void]$errors.Add("$Owner contains an incomplete item.")
     }
     return $errors.ToArray()
@@ -300,8 +300,8 @@ function Test-GovernanceClosingReference {
     )
 
     $semanticBody = Remove-GovernanceMarkdownNonSemanticContent -Body $Body
-    $pattern = '(?im)^[ ]{0,3}Closes[ `t]+#' +
-        [regex]::Escape([string]$IssueNumber) + '[ `t]*$'
+    $pattern = '(?im)^[ ]{0,3}Closes[ \t]+#' +
+        [regex]::Escape([string]$IssueNumber) + '[ \t]*$'
     return $semanticBody -match $pattern
 }
 
@@ -373,7 +373,7 @@ function Get-GovernanceMarkdownSection {
     )
 
     $semanticBody = Remove-GovernanceMarkdownNonSemanticContent -Body $Body
-    $headingPattern = '^(?<marks>#{1,6})[ `t]+(?<title>.*?)[ `t]*$'
+    $headingPattern = '^(?<marks>#{1,6})[ \t]+(?<title>.*?)[ \t]*$'
     $content = [Collections.Generic.List[string]]::new()
     $insideSection = $false
     foreach ($line in @($semanticBody -split "`n")) {
