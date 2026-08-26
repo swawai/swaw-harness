@@ -103,6 +103,11 @@ if ($contexts -cnotcontains 'Change policy' -or
 $policyBlock = Get-WorkflowJobBlock `
     -Workflow $policyWorkflow `
     -JobId 'policy'
+if (-not $policyBlock.Contains(
+    '^(feat|fix|refactor|test|docs|build|ci|chore)'
+)) {
+    throw "Change policy must accept the repository's declared commit types."
+}
 if ($policyWorkflow -cnotmatch '(?m)^  pull_request_target:\s*$') {
     throw 'Change policy must run from the trusted pull_request_target context.'
 }
