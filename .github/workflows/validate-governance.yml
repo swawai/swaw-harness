@@ -1,0 +1,67 @@
+name: Validate governance
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-governance-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  governance-suite:
+    name: Governance suite
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the proposed change
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Exercise governance under Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\.agents\skills\govern-repository-change\tests\workflow.ps1
+          & .\.agents\skills\govern-repository-change\tests\ruleset-migration.ps1
+          & .\.agents\skills\govern-repository-change\tests\lifecycle-model.ps1
+          & .\.agents\skills\govern-repository-change\tests\lifecycle.ps1
+          & .\.agents\skills\govern-repository-change\tests\policy.ps1
+
+      - name: Exercise governance under PowerShell 7
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\.agents\skills\govern-repository-change\tests\workflow.ps1
+          & .\.agents\skills\govern-repository-change\tests\ruleset-migration.ps1
+          & .\.agents\skills\govern-repository-change\tests\lifecycle-model.ps1
+          & .\.agents\skills\govern-repository-change\tests\lifecycle.ps1
+          & .\.agents\skills\govern-repository-change\tests\policy.ps1
+
+  governance-validation:
+    name: Governance validation
+    if: ${{ always() }}
+    needs:
+      - governance-suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful governance checks
+        shell: bash
+        env:
+          GOVERNANCE_SUITE_RESULT: ${{ needs.governance-suite.result }}
+        run: |
+          if [[ "$GOVERNANCE_SUITE_RESULT" != "success" ]]; then
+            echo "::error::Governance suite concluded '$GOVERNANCE_SUITE_RESULT'."
+            exit 1
+          fi
+          echo 'All required governance checks passed.'

@@ -23,6 +23,7 @@
 18. AI 的一次对话、一次执行或一次交接不是 commit 边界；commit message 必须依据 staged diff 编写，默认不记录 prompt、模型名或工具宣传信息。
 19. 普通 commit 以不超过 300 行手写变更和 10 个语义文件为目标；超过 500 行或 15 个语义文件时必须拆分，或在正文说明其为何不可分割，机械迁移与生成内容不计入该预算。
 20. 提交前必须检查 worktree、staged diff 并执行与变更相称的验证；只暂存本任务拥有的路径，不得混入用户或其它任务的修改。
+<!-- swaw.repository-change-governance:begin -->
 21. 用户授权实施一项拟进入版本控制的变更后，即授权 Agent 建立或恢复对应 Issue 与关联分支；Issue 达到就绪条件后，同一授权覆盖在该受治理分支内按语义边界创建普通 commit、向同名远端分支执行非强制的 fast-forward push，以及创建 Draft PR 或更新同一 PR，这些动作无需逐次请求授权。该常驻授权不包括 amend、rebase、历史重写、force-push、其它分支或标签、将 PR 标记为 ready、Ruleset 等控制平面变更及 merge。
 22. 本协议合入后，任何预期进入版本控制的新增、修改或删除开始前，必须先建立 GitHub Issue，再从最新 `main` 建立关联工作分支；禁止直接在 `main` 上开发或提交。
 23. Issue 必须明确 Outcome、Reason、Scope、Non-goals、Invariants 与 Acceptance criteria；发现目标、边界或验收条件变化时，必须先更新 Issue 再继续实现。
@@ -34,6 +35,8 @@
 29. 工作分支保持线性，不得把 `main` 或其它分支 merge 进来；确需同步 `main` 时由仓库负责人显式授权 rebase，`main` 只接受保持线性历史的合并方式。
 30. 关联 Issue 在 `Change policy` 通过后若被编辑、关闭或重开，必须通过编辑 PR 正文或推送新 commit 触发该检查重跑；不得沿用旧快照合并。
 31. 任何将新增、修改或删除预期进入版本控制内容的任务，Agent 必须在变更前使用 `.agents/skills/govern-repository-change/SKILL.md` 创建或恢复受治理的变更上下文；只读分析、解释和诊断不触发该 Skill。该 Skill 只执行本协议，不得放宽第 21、27、28 条的授权与合并边界。
-32. `.github/rulesets/protect-main.json` 是 `main` 保护规则的期望状态，必须通过 Skill 的 `scripts/ruleset.ps1` 显式核对和应用；`.github/workflows/change-policy.yml` 从受信 base 校验变更协议，`.github/workflows/validate.yml` 验证候选产品代码，二者都不会自动把检查设为 required。宣称治理已强制生效或 PR 可合并前，远端 ruleset 必须与该文件一致；缺失或漂移必须报告为治理阻塞，不得把仓库内软约束冒充 GitHub 硬约束。
-33. 首次安装受信 `pull_request_target` 检查时，该检查必须先进入默认分支才能保护后续 PR；因此 active ruleset 只能在其合入后启用。若 ruleset 已提前启用，仓库负责人必须把临时放宽限定在这一个引导 PR，保留 Issue、产品验证和人工评审记录，并在合入后立即恢复期望 ruleset、核对 `in_sync`；该引导例外不得复用于后续变更。
-34. `.github/workflows/**` 与 policy 实际加载的 `governance.psm1` 是 required checks 的信任根；修改它们必须使用仓库负责人创建的 PR，并由负责人在审阅当前 HEAD 后最后手动重新添加 `governance-migration` 标签。任何后续 commit 或 PR 正文修改都会使这次授权失效，负责人必须复审新的当前 HEAD 并再次移除、添加该标签。Agent 不得自行添加、移除或请求自动添加该标签；无信任根变更时该标签也不得保留。
+32. `.github/rulesets/protect-main.json` 是产品与通用主干保护的期望状态，不属于治理生命周期；`.github/rulesets/swaw-change-governance.json` 只承载治理 required checks，并由 Skill 的 `scripts/lifecycle.ps1` 管理。`.github/workflows/validate.yml` 只验证候选产品代码，`.github/workflows/change-policy.yml` 从受信 base 校验变更协议，`.github/workflows/validate-governance.yml` 验证候选治理代码。宣称任一保护已生效或 PR 可合并前，必须显式核对对应远端 ruleset；缺失或漂移必须报告，不得把仓库内声明冒充 GitHub 硬约束。
+33. 首次安装治理时，受信 policy workflow 与治理候选验证必须先进入默认分支，之后才能激活治理专属 ruleset；停用或卸载只能操作治理专属 ruleset，不得停用、删除或接管 `protect-main`。若激活顺序错误，仓库负责人必须把临时放宽限定在一个引导 PR，保留 Issue、产品验证和人工评审记录，并在合入后立即恢复期望状态；该例外不得复用。
+34. `.github/workflows/**`、policy 实际加载的 `governance.psm1` 及其传递加载的 `.github/rulesets/scripts/repository.psm1` 是 required checks 的信任根；修改它们必须使用仓库负责人创建的 PR，并由负责人在审阅当前 HEAD 后最后手动重新添加 `governance-migration` 标签。任何后续 commit 或 PR 正文修改都会使这次授权失效，负责人必须复审新的当前 HEAD 并再次移除、添加该标签。Agent 不得自行添加、移除或请求自动添加该标签；无信任根变更时该标签也不得保留。
+35. 卸载治理时，必须先在治理仍 active 时把远端 `protect-main` 迁移并验证为不再包含治理 checks，再创建并完成源码移除 Draft PR 的 diff 与审查，然后将 PR 标为 Ready 并等待该事件完成；待 HEAD、正文、checks 与 conversations 最终确定后，由仓库负责人最后移除并重新添加 `governance-migration` 标签。随后从同步且干净的 `main` 另获授权执行 disable、uninstall 并回读远端确认为 absent，最后在不再修改 PR 的前提下立即由仓库负责人合并。禁止在 `protect-main` 仍引用治理 checks 或治理专属 Ruleset 仍 active 时先合并源码移除。
+<!-- swaw.repository-change-governance:end -->

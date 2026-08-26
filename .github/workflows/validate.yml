@@ -6,10 +6,8 @@ on:
       - main
     types:
       - opened
-      - edited
       - reopened
       - synchronize
-      - ready_for_review
 
 permissions:
   contents: read
@@ -48,7 +46,16 @@ jobs:
           }
 
           $syntaxErrors = [System.Collections.Generic.List[string]]::new()
-          foreach ($path in @(git ls-files -- '*.ps1' '*.psm1')) {
+          $productPowerShell = @(git ls-files -- `
+              'bootstrap/**/*.ps1' `
+              'bootstrap/**/*.psm1' `
+              '.github/rulesets/scripts/*.ps1' `
+              '.github/rulesets/scripts/*.psm1' `
+              '.github/rulesets/tests/*.ps1' `
+              '.github/rulesets/tests/*.psm1' `
+              '.github/rulesets/tests/**/*.ps1' `
+              '.github/rulesets/tests/**/*.psm1')
+          foreach ($path in $productPowerShell) {
               $tokens = $null
               $errors = $null
               [void][Management.Automation.Language.Parser]::ParseFile(
@@ -60,7 +67,10 @@ jobs:
                   [void]$syntaxErrors.Add("${path}: $($errorRecord.Message)")
               }
           }
-          foreach ($path in @(git ls-files -- '*.json')) {
+          $productJson = @(git ls-files -- `
+              'bootstrap/**/*.json' `
+              '.github/rulesets/protect-main.json')
+          foreach ($path in $productJson) {
               try {
                   [void](Get-Content -LiteralPath $path -Raw | ConvertFrom-Json)
               }
@@ -75,19 +85,17 @@ jobs:
               exit 1
           }
 
-      - name: Exercise repository change governance offline
+      - name: Exercise retained Ruleset manager under Windows PowerShell 5.1
         shell: powershell
         run: |
-          & .\.agents\skills\govern-repository-change\tests\workflow.ps1
-          & .\.agents\skills\govern-repository-change\tests\ruleset.ps1
-          & .\.agents\skills\govern-repository-change\tests\policy.ps1
+          $ErrorActionPreference = 'Stop'
+          & .\.github\rulesets\tests\protect-main.ps1
 
-      - name: Exercise repository change governance under PowerShell 7
+      - name: Exercise retained Ruleset manager under PowerShell 7
         shell: pwsh
         run: |
-          & .\.agents\skills\govern-repository-change\tests\workflow.ps1
-          & .\.agents\skills\govern-repository-change\tests\ruleset.ps1
-          & .\.agents\skills\govern-repository-change\tests\policy.ps1
+          $ErrorActionPreference = 'Stop'
+          & .\.github\rulesets\tests\protect-main.ps1
 
       - name: Exercise the root build and repeated Windows publication
         shell: powershell
