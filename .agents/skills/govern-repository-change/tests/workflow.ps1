@@ -304,6 +304,10 @@ try {
     Assert-FailClosedStatus 'higher-heading' 'higher-heading-boundary' 'change contract'
     Assert-FailClosedStatus 'lowercase-heading' 'lowercase-heading' 'change contract'
     Assert-FailClosedStatus 'unlinked' 'unlinked' 'Issue-linked branch'
+    Assert-FailClosedStatus `
+        'open-pr-unlinked' `
+        'open-pr-unlinked' `
+        'standalone Closes #42'
     Assert-FailClosedStatus 'wrong-link' 'wrong-linked-repo' 'Issue-linked branch'
     Assert-FailClosedStatus 'pr-failure' 'pr-failure' 'pull request state'
     Assert-FailClosedStatus 'wrong-pr-repo' 'wrong-pr-repo' 'pull request state'
@@ -323,6 +327,12 @@ try {
     $openPullRequestStatus = & $statusScript -RepositoryRoot $openPullRequest.Root
     Assert-Equal $true $openPullRequestStatus.GovernedContextValid `
         'matching open PR status'
+    Assert-Equal $false $openPullRequestStatus.LinkedBranchVerified `
+        'matching PR replaces the transient linked-branch relation'
+    Assert-Equal $true $openPullRequestStatus.PullRequestIssueLinkVerified `
+        'matching PR closing reference'
+    Assert-Equal $true $openPullRequestStatus.IssueChangeLinkVerified `
+        'matching PR preserves the durable Issue relation'
     Assert-Equal 1 @($openPullRequestStatus.PullRequests).Count `
         'matching open PR discovery'
     Assert-Contains $openPullRequestStatus.NextAction `

@@ -169,6 +169,8 @@ try {
     $issueContractErrors = @()
     $linkedBranchVerified = $false
     $linkedBranchError = $null
+    $pullRequestIssueLinkVerified = $false
+    $issueChangeLinkVerified = $false
     $remoteBranchOid = $null
     $remoteBranchError = $null
     $remoteBranchMatchesTracking = $false
@@ -262,7 +264,6 @@ try {
                         $linkedBranchError = (@($linkedOutput | ForEach-Object {
                             [string]$_
                         }) -join "`n").Trim()
-                        $githubError = $linkedBranchError
                     }
                 }
                 else {
@@ -284,7 +285,7 @@ try {
                     '--json',
                     ('number,title,state,isDraft,url,mergeStateStatus,' +
                         'statusCheckRollup,headRefName,headRepository,' +
-                        'headRepositoryOwner,baseRefName')
+                        'headRepositoryOwner,baseRefName,body')
                 )
             $prOutput = @($prResult.Output)
             if ($prResult.ExitCode -eq 0) {
@@ -333,13 +334,21 @@ try {
     $openPullRequest = @($pullRequests | Where-Object {
         [string]$_.state -eq 'OPEN'
     } | Select-Object -First 1)
+    if ($null -ne $issueNumber -and $openPullRequest.Count -eq 1) {
+        $pullRequestIssueLinkVerified = Test-GovernanceClosingReference `
+            -Body ([string]$openPullRequest[0].body) `
+            -IssueNumber $issueNumber
+    }
+    $issueChangeLinkVerified = (
+        $linkedBranchVerified -or $pullRequestIssueLinkVerified
+    )
     $issueIsOpen = $null -ne $issue -and [string]$issue.state -ceq 'OPEN'
     $governedContextValid = (
         $branchMatch.Success -and
         $githubAuthorized -and
         $issueIsOpen -and
         $issueContractErrors.Count -eq 0 -and
-        $linkedBranchVerified -and
+        $issueChangeLinkVerified -and
         $remoteBranchMatchesTracking -and
         $upstreamReady -and
         $pullRequestQueryVerified
@@ -367,10 +376,18 @@ try {
     elseif ($issueContractErrors.Count -gt 0) {
         $nextAction = 'Stop: the branch Issue does not satisfy the change contract.'
     }
-    elseif (-not [string]::IsNullOrWhiteSpace($linkedBranchError)) {
+    elseif (-not $issueChangeLinkVerified -and
+        $openPullRequest.Count -eq 1) {
+        $nextAction = (
+            "Stop: the open PR must contain a standalone Closes #$issueNumber " +
+            'reference.'
+        )
+    }
+    elseif (-not $issueChangeLinkVerified -and
+        -not [string]::IsNullOrWhiteSpace($linkedBranchError)) {
         $nextAction = 'Stop: the Issue-linked branch relation could not be verified.'
     }
-    elseif (-not $linkedBranchVerified) {
+    elseif (-not $issueChangeLinkVerified) {
         $nextAction = 'Stop: GitHub does not identify this as an Issue-linked branch.'
     }
     elseif (-not [string]::IsNullOrWhiteSpace($remoteBranchError)) {
@@ -445,6 +462,8 @@ try {
         IssueContractErrors = $issueContractErrors
         LinkedBranchVerified = $linkedBranchVerified
         LinkedBranchError = $linkedBranchError
+        PullRequestIssueLinkVerified = $pullRequestIssueLinkVerified
+        IssueChangeLinkVerified = $issueChangeLinkVerified
         PullRequestQueryVerified = $pullRequestQueryVerified
         GovernedContextValid = $governedContextValid
         PullRequests = $pullRequests
