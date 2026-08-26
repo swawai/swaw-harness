@@ -1,0 +1,117 @@
+name: Validate product
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-product-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  windows-bootstrap:
+    name: Windows Bootstrap
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out the proposed change
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate changed text and tracked syntax
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+
+          $event = Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw |
+              ConvertFrom-Json
+          $revisionRange = '{0}...{1}' -f @(
+              [string] $event.pull_request.base.sha,
+              [string] $event.pull_request.head.sha
+          )
+          & git diff --check $revisionRange
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Changed text contains Git whitespace errors.'
+          }
+
+          $syntaxErrors = [System.Collections.Generic.List[string]]::new()
+          foreach ($path in @(git ls-files -- '*.ps1' '*.psm1')) {
+              $tokens = $null
+              $errors = $null
+              [void][Management.Automation.Language.Parser]::ParseFile(
+                  (Join-Path $PWD $path),
+                  [ref] $tokens,
+                  [ref] $errors
+              )
+              foreach ($errorRecord in $errors) {
+                  [void]$syntaxErrors.Add("${path}: $($errorRecord.Message)")
+              }
+          }
+          foreach ($path in @(git ls-files -- '*.json')) {
+              try {
+                  [void](Get-Content -LiteralPath $path -Raw | ConvertFrom-Json)
+              }
+              catch {
+                  [void]$syntaxErrors.Add("${path}: $($_.Exception.Message)")
+              }
+          }
+          if ($syntaxErrors.Count -gt 0) {
+              foreach ($message in $syntaxErrors) {
+                  Write-Host "::error::$message"
+              }
+              exit 1
+          }
+
+      - name: Exercise repository change governance offline
+        shell: powershell
+        run: |
+          & .\.agents\skills\govern-repository-change\tests\workflow.ps1
+          & .\.agents\skills\govern-repository-change\tests\ruleset.ps1
+          & .\.agents\skills\govern-repository-change\tests\policy.ps1
+
+      - name: Build and publish all Windows products twice
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dataRoot = Join-Path $env:RUNNER_TEMP 'swaw-harness-data'
+          & .\bootstrap\windows\tests\main.ps1 -DataRoot $dataRoot
+
+      - name: Verify Core, Entry executable, and Entry Manager releases
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dataRoot = Join-Path $env:RUNNER_TEMP 'swaw-harness-data'
+          & .\bootstrap\windows\tests\core-release.ps1 -DataRoot $dataRoot
+          & .\bootstrap\windows\tests\entry.ps1 -DataRoot $dataRoot
+          & .\bootstrap\windows\tests\entry-manager.ps1 -DataRoot $dataRoot
+
+  product-validation:
+    name: Product validation
+    if: ${{ always() }}
+    needs:
+      - windows-bootstrap
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful product checks
+        shell: bash
+        env:
+          WINDOWS_BOOTSTRAP_RESULT: ${{ needs.windows-bootstrap.result }}
+        run: |
+          if [[ "$WINDOWS_BOOTSTRAP_RESULT" != "success" ]]; then
+            echo "::error::Windows Bootstrap concluded '$WINDOWS_BOOTSTRAP_RESULT'."
+            exit 1
+          fi
+          echo 'All required product checks passed.'
