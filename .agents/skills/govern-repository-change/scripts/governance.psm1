@@ -343,6 +343,28 @@ function Test-GovernanceTrustRootPath {
     )
 }
 
+function Test-GovernanceMigrationAuthorization {
+    param(
+        [AllowNull()][string]$Action,
+        [AllowNull()][string]$EventLabel,
+        [AllowNull()][string]$Actor,
+        [AllowNull()][string]$Owner,
+        [Parameter(Mandatory = $true)][int]$RunAttempt,
+        [Parameter(Mandatory = $true)][string]$RequiredLabel
+    )
+
+    return $RunAttempt -eq 1 -and
+        $Action -ceq 'labeled' -and
+        $EventLabel -ceq $RequiredLabel -and
+        -not [string]::IsNullOrWhiteSpace($Actor) -and
+        -not [string]::IsNullOrWhiteSpace($Owner) -and
+        [string]::Equals(
+            $Actor,
+            $Owner,
+            [StringComparison]::OrdinalIgnoreCase
+        )
+}
+
 function Get-GovernanceMarkdownSection {
     param(
         [string]$Body,
@@ -468,5 +490,6 @@ Export-ModuleMember -Function @(
     'Test-GovernanceClosingReference',
     'Test-GovernanceIssueContract',
     'Test-GovernanceLinkedBranch',
+    'Test-GovernanceMigrationAuthorization',
     'Test-GovernanceTrustRootPath'
 )

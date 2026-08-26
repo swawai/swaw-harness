@@ -87,8 +87,10 @@ anything automatically. Report the output and inspect GitHub before recovery.
   make the PR eligible for the repository owner to merge.
 - Treat `.github/workflows/**` and the policy-loaded `governance.psm1` as trust
   roots. Their migration requires an owner-authored PR and the repository owner
-  to apply `governance-migration` after reviewing the diff; never add, remove, or
-  automate that label as Agent.
+  to remove and reapply `governance-migration` after reviewing the current HEAD.
+  Make that the final PR mutation: every later commit or PR-body edit invalidates
+  the authorization and requires another owner review and label cycle. Never add,
+  remove, or automate that label as Agent.
 
 ## Sources of truth
 
