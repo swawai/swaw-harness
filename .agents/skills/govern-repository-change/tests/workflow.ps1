@@ -328,6 +328,49 @@ try {
     Assert-Contains $openPullRequestStatus.NextAction `
         'Inspect the open PR' `
         'matching open PR next action'
+    [IO.File]::WriteAllText(
+        (Join-Path $openPullRequest.Root 'review-fix.txt'),
+        'review fix'
+    )
+    [void](Invoke-TestGit $openPullRequest.Root @('add', 'review-fix.txt'))
+    [void](Invoke-TestGit $openPullRequest.Root @(
+        'commit', '-m', 'test: prepare PR update'
+    ))
+    $openPullRequestUpdate = & $statusScript -RepositoryRoot $openPullRequest.Root
+    Assert-Contains $openPullRequestUpdate.NextAction `
+        'Push the verified commits' `
+        'open PR update next action'
+
+    $automaticPush = Initialize-StatusFixture 'automatic-push' 'happy'
+    [IO.File]::WriteAllText((Join-Path $automaticPush.Root 'change.txt'), 'change')
+    [void](Invoke-TestGit $automaticPush.Root @('add', 'change.txt'))
+    [void](Invoke-TestGit $automaticPush.Root @(
+        'commit', '-m', 'test: prepare automatic push'
+    ))
+    $automaticPushStatus = & $statusScript -RepositoryRoot $automaticPush.Root
+    Assert-Equal $true $automaticPushStatus.GovernedContextValid `
+        'automatic push status validity'
+    Assert-Contains $automaticPushStatus.NextAction `
+        'Push the verified commits' `
+        'automatic push next action'
+
+    $published = Initialize-StatusFixture 'published' 'happy'
+    [IO.File]::WriteAllText((Join-Path $published.Root 'published.txt'), 'published')
+    [void](Invoke-TestGit $published.Root @('add', 'published.txt'))
+    [void](Invoke-TestGit $published.Root @(
+        'commit', '-m', 'test: publish fixture change'
+    ))
+    [void](Invoke-TestGit $published.Root @(
+        'update-ref',
+        'refs/remotes/origin/codex/42-test-change',
+        'HEAD'
+    ))
+    $publishedStatus = & $statusScript -RepositoryRoot $published.Root
+    Assert-Equal $true $publishedStatus.GovernedContextValid `
+        'published status validity'
+    Assert-Contains $publishedStatus.NextAction `
+        'Open a Draft PR' `
+        'published branch next action'
 
     $noUpstream = Initialize-StatusFixture 'no-upstream' 'happy'
     [void](Invoke-TestGit $noUpstream.Root @('branch', '--unset-upstream'))
