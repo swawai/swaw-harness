@@ -3,15 +3,14 @@ param()
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
-$skillRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $skillRoot '..\..\..'))
-$rulesetScript = Join-Path $skillRoot 'scripts\ruleset.ps1'
-$desiredSource = Join-Path `
+$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
+$rulesetScript = Join-Path `
     $repositoryRoot `
-    '.github\rulesets\protect-main.json'
+    '.github\rulesets\scripts\protect-main.ps1'
 $fakeGhswawSource = Join-Path $PSScriptRoot 'fixtures\fake-ghswaw.ps1'
-$git = Get-Command git -CommandType Application -ErrorAction Stop |
-    Select-Object -First 1
+Import-Module `
+    (Join-Path $PSScriptRoot 'fixtures\protect-main-fixture.psm1') `
+    -Force
 $assertionCount = 0
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -47,76 +46,6 @@ function Assert-Throws {
     }
     throw "Assertion failed: $Message (no exception was thrown)"
 }
-function Invoke-TestGit {
-    param([string]$Root, [string[]]$Arguments)
-    $oldPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    $output = @(& $script:git.Source -C $Root @Arguments 2>&1)
-    $exitCode = $LASTEXITCODE
-    $ErrorActionPreference = $oldPreference
-    if ($exitCode -ne 0) {
-        throw "Fixture git failed: $($output -join [Environment]::NewLine)"
-    }
-    return $output
-}
-function New-TestFixture {
-    param([string]$Name)
-
-    $root = Join-Path $script:testRoot $Name
-    $stateRoot = Join-Path $script:testRoot "state-$Name"
-    $rulesetRoot = Join-Path $root '.github\rulesets'
-    [void][IO.Directory]::CreateDirectory($rulesetRoot)
-    [void][IO.Directory]::CreateDirectory($stateRoot)
-    [void](Invoke-TestGit $root @('init', '--initial-branch=main'))
-    [void](Invoke-TestGit $root @('config', 'user.name', 'Offline Test'))
-    [void](Invoke-TestGit $root @(
-        'config', 'user.email', 'offline@example.invalid'
-    ))
-    [IO.File]::Copy(
-        $script:desiredSource,
-        (Join-Path $rulesetRoot 'protect-main.json'),
-        $true
-    )
-    [IO.File]::WriteAllText((Join-Path $root 'seed.txt'), 'seed')
-    [void](Invoke-TestGit $root @('add', '.'))
-    [void](Invoke-TestGit $root @('commit', '-m', 'test: seed fixture'))
-    [void](Invoke-TestGit $root @(
-        'remote', 'add', 'origin',
-        'https://github.com/swawai/offline-fixture.git'
-    ))
-    return [pscustomobject]@{
-        Root = $root
-        Log = Join-Path $stateRoot 'fake-ghswaw.log'
-        State = Join-Path $stateRoot 'remote-ruleset.json'
-        Ruleset = Join-Path $rulesetRoot 'protect-main.json'
-    }
-}
-function Set-FakeContext {
-    param($Fixture, [string]$Scenario = 'happy')
-    $env:RULESET_FAKE_SCENARIO = $Scenario
-    $env:RULESET_FAKE_LOG = $Fixture.Log
-    $env:RULESET_FAKE_STATE = $Fixture.State
-}
-function Set-RemoteRuleset {
-    param($Fixture, [scriptblock]$Transform)
-
-    $document = Get-Content -LiteralPath $Fixture.Ruleset -Raw |
-        ConvertFrom-Json
-    if ($null -ne $Transform) {
-        & $Transform $document
-    }
-    [IO.File]::WriteAllText(
-        $Fixture.State,
-        ($document | ConvertTo-Json -Depth 100),
-        [Text.UTF8Encoding]::new($false)
-    )
-}
-function Get-FakeCalls {
-    param($Fixture)
-    if (-not [IO.File]::Exists($Fixture.Log)) { return @() }
-    return @([IO.File]::ReadAllLines($Fixture.Log) | Where-Object { $_ })
-}
-
 function Assert-CallCount {
     param($Fixture, [string]$Prefix, [int]$Expected)
     $actual = @(Get-FakeCalls $Fixture | Where-Object {
@@ -130,7 +59,11 @@ $savedEnvironment = @{}
 foreach ($name in @(
     'RULESET_FAKE_SCENARIO',
     'RULESET_FAKE_LOG',
-    'RULESET_FAKE_STATE'
+    'RULESET_FAKE_STATE',
+    'RULESET_FAKE_OTHER_STATE',
+    'RULESET_FAKE_PRODUCT_STATE',
+    'RULESET_FAKE_NAME',
+    'RULESET_FAKE_MAIN_OID'
 )) {
     $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable(
         $name,
@@ -141,6 +74,7 @@ $tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
 $testRoot = Join-Path `
     $tempParent `
     ('swaw-ruleset-tests-' + [guid]::NewGuid().ToString('N'))
+Initialize-ProtectMainFixture -TestRoot $testRoot
 
 try {
     [void][IO.Directory]::CreateDirectory($testRoot)
@@ -159,25 +93,25 @@ try {
 
     $absent = New-TestFixture 'absent'
     Set-FakeContext $absent
-    $status = & $rulesetScript status -RepositoryRoot $absent.Root
+    $status = & $absent.Script status -RepositoryRoot $absent.Root
     Assert-Equal 'absent' $status.State 'absent status'
     Assert-Equal 'observed' $status.Outcome 'status outcome'
     Assert-CallCount $absent 'mutate:' 0
-    $plan = & $rulesetScript plan -RepositoryRoot $absent.Root
+    $plan = & $absent.Script plan -RepositoryRoot $absent.Root
     Assert-Equal 'create' $plan.Outcome 'absent plan'
     Assert-CallCount $absent 'mutate:' 0
 
-    $mixedStatus = & $rulesetScript Status -RepositoryRoot $absent.Root
+    $mixedStatus = & $absent.Script Status -RepositoryRoot $absent.Root
     Assert-Equal 'status' $mixedStatus.Mode 'mixed-case status normalization'
-    $mixedPlan = & $rulesetScript PLAN -RepositoryRoot $absent.Root
+    $mixedPlan = & $absent.Script PLAN -RepositoryRoot $absent.Root
     Assert-Equal 'plan' $mixedPlan.Mode 'mixed-case plan normalization'
     Assert-CallCount $absent 'mutate:' 0
 
-    $created = & $rulesetScript apply -RepositoryRoot $absent.Root
+    $created = & $absent.Script apply -RepositoryRoot $absent.Root
     Assert-Equal 'create' $created.Outcome 'create outcome'
     Assert-Equal 'in_sync' $created.State 'create verification'
     Assert-CallCount $absent 'mutate:POST' 1
-    $unchanged = & $rulesetScript apply -RepositoryRoot $absent.Root
+    $unchanged = & $absent.Script apply -RepositoryRoot $absent.Root
     Assert-Equal 'none' $unchanged.Outcome 'idempotent apply'
     Assert-CallCount $absent 'mutate:' 1
 
@@ -192,6 +126,30 @@ try {
     Assert-Equal 'update' $updated.Outcome 'update outcome'
     Assert-Equal 'in_sync' $updated.State 'update verification'
     Assert-CallCount $drift 'mutate:PUT' 1
+
+    $postUninstall = New-TestFixture 'post-uninstall stale governance check'
+    Set-RemoteRuleset $postUninstall {
+        param($document)
+        $statusRule = @($document.rules | Where-Object {
+            $_.type -ceq 'required_status_checks'
+        })[0]
+        $statusRule.parameters.required_status_checks = @(
+            @($statusRule.parameters.required_status_checks) + @(
+                [pscustomobject]@{
+                    context = 'Change policy'
+                    integration_id = 15368
+                }
+            )
+        )
+    }
+    Set-FakeContext $postUninstall
+    $recoveredBaseline = & $rulesetScript apply `
+        -RepositoryRoot $postUninstall.Root
+    Assert-Equal 'update' $recoveredBaseline.Outcome `
+        'post-uninstall recovery update'
+    Assert-Equal 'in_sync' $recoveredBaseline.State `
+        'post-uninstall recovery verification'
+    Assert-CallCount $postUninstall 'mutate:PUT' 1
 
     $reordered = New-TestFixture 'reordered'
     Set-RemoteRuleset $reordered {
@@ -217,6 +175,36 @@ try {
     Assert-Equal 'create' $whatIfResult.Outcome 'WhatIf outcome'
     Assert-Equal $false ([IO.File]::Exists($whatIf.State)) 'WhatIf remote state'
     Assert-CallCount $whatIf 'mutate:' 0
+
+    $nonMain = New-TestFixture 'non-main mutation'
+    [void](Invoke-TestGit $nonMain.Root @(
+        'checkout', '-b', 'feature/control-plane-guard'
+    ))
+    Set-FakeContext $nonMain
+    [void](Assert-Throws {
+        & $rulesetScript apply -RepositoryRoot $nonMain.Root
+    } @('Control-plane mutations must run from main.') `
+        'non-main control-plane mutation')
+    Assert-CallCount $nonMain 'mutate:' 0
+
+    $dirty = New-TestFixture 'dirty mutation'
+    [IO.File]::AppendAllText((Join-Path $dirty.Root 'seed.txt'), 'dirty')
+    Set-FakeContext $dirty
+    [void](Assert-Throws {
+        & $rulesetScript apply -RepositoryRoot $dirty.Root
+    } @('Control-plane mutations require a clean worktree.') `
+        'dirty control-plane mutation')
+    Assert-CallCount $dirty 'mutate:' 0
+
+    $staleMain = New-TestFixture 'stale GitHub main'
+    Set-FakeContext $staleMain
+    $env:RULESET_FAKE_MAIN_OID = 'ffffffffffffffffffffffffffffffffffffffff'
+    [void](Assert-Throws {
+        & $rulesetScript apply -RepositoryRoot $staleMain.Root
+    } @(
+        'main, origin/main, and the GitHub main ref must identify the same commit'
+    ) 'stale GitHub main control-plane mutation')
+    Assert-CallCount $staleMain 'mutate:' 0
 
     $duplicate = New-TestFixture 'duplicate'
     Set-FakeContext $duplicate 'duplicate'
@@ -256,6 +244,29 @@ try {
     ) 'Ruleset detail ownership')
     Assert-CallCount $wrongDetailOwner 'mutate:' 0
 
+    foreach ($identityScenario in @(
+        [pscustomobject]@{
+            Name = 'wrong-detail-id'
+            Fragment = 'received ''protect-main'' (#78)'
+        },
+        [pscustomobject]@{
+            Name = 'wrong-detail-name'
+            Fragment = 'received ''renamed-between-reads'' (#77)'
+        }
+    )) {
+        $identityRace = New-TestFixture $identityScenario.Name
+        Set-RemoteRuleset $identityRace $null
+        Set-FakeContext $identityRace $identityScenario.Name
+        [void](Assert-Throws {
+            & $rulesetScript apply -RepositoryRoot $identityRace.Root
+        } @(
+            'identity changed between list and detail reads',
+            [string]$identityScenario.Fragment,
+            'No mutation is safe'
+        ) "Ruleset $($identityScenario.Name) race")
+        Assert-CallCount $identityRace 'mutate:' 0
+    }
+
     $readFailure = New-TestFixture 'read-failure'
     Set-FakeContext $readFailure 'read-failure'
     [void](Assert-Throws {
@@ -270,7 +281,7 @@ try {
     } @(
         'result is unknown',
         'Do not retry automatically',
-        'ruleset.ps1 status'
+        'protect-main.ps1 status'
     ) 'uncertain mutation result')
     Assert-CallCount $uncertain 'mutate:POST' 1
 
@@ -281,7 +292,7 @@ try {
     } @(
         'verification result is unknown',
         'Do not retry automatically',
-        'ruleset.ps1 status'
+        'protect-main.ps1 status'
     ) 'post-write verification failure')
     Assert-CallCount $verificationFailure 'mutate:POST' 1
 
@@ -343,6 +354,33 @@ try {
         "must remain 'protect-main'"
     ) 'Ruleset identity rename guard')
     Assert-CallCount $renamed 'doctor' 0
+
+    $undeclared = New-TestFixture 'undeclared-file'
+    $undeclaredPath = Join-Path `
+        ([IO.Path]::GetDirectoryName($undeclared.Ruleset)) `
+        'protect-primary.json'
+    [IO.File]::Copy($undeclared.Ruleset, $undeclaredPath, $true)
+    Set-FakeContext $undeclared
+    [void](Assert-Throws {
+        & $rulesetScript plan `
+            -RepositoryRoot $undeclared.Root `
+            -RulesetPath $undeclaredPath
+    } @('not the product baseline') 'undeclared Ruleset filename')
+    Assert-CallCount $undeclared 'doctor' 0
+
+    $governanceBypass = New-TestFixture 'governance-bypass'
+    $governancePath = Join-Path `
+        ([IO.Path]::GetDirectoryName($governanceBypass.Ruleset)) `
+        'swaw-change-governance.json'
+    [IO.File]::Copy($governanceBypass.Ruleset, $governancePath, $true)
+    Set-FakeContext $governanceBypass
+    [void](Assert-Throws {
+        & $rulesetScript apply `
+            -RepositoryRoot $governanceBypass.Root `
+            -RulesetPath $governancePath
+    } @('Governance enforcement must use lifecycle.ps1') `
+        'generic Ruleset bypass')
+    Assert-CallCount $governanceBypass 'doctor' 0
 
     Write-Output (
         "PASS: $assertionCount assertions; all Ruleset behavior was " +

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "swaw.repository-change-governance",
+  "versioned": {
+    "exclusive_directories": [
+      ".agents/skills/govern-repository-change"
+    ],
+    "required_files": [
+      ".agents/skills/govern-repository-change/SKILL.md",
+      ".agents/skills/govern-repository-change/ownership.json",
+      ".agents/skills/govern-repository-change/scripts/governance.psm1",
+      ".agents/skills/govern-repository-change/scripts/lifecycle-plan.psm1",
+      ".agents/skills/govern-repository-change/scripts/lifecycle-remote.psm1",
+      ".agents/skills/govern-repository-change/scripts/lifecycle-state.psm1",
+      ".agents/skills/govern-repository-change/scripts/lifecycle.ps1",
+      ".agents/skills/govern-repository-change/scripts/start.ps1",
+      ".agents/skills/govern-repository-change/scripts/status.ps1",
+      ".agents/skills/govern-repository-change/tests/fixtures/fake-governance-ghswaw.ps1",
+      ".agents/skills/govern-repository-change/tests/fixtures/lifecycle-fixture.psm1",
+      ".agents/skills/govern-repository-change/tests/fixtures/valid-issue.md",
+      ".agents/skills/govern-repository-change/tests/lifecycle-model.ps1",
+      ".agents/skills/govern-repository-change/tests/lifecycle.ps1",
+      ".agents/skills/govern-repository-change/tests/policy.ps1",
+      ".agents/skills/govern-repository-change/tests/ruleset-migration.ps1",
+      ".agents/skills/govern-repository-change/tests/workflow.ps1"
+    ],
+    "retained_files": [
+      ".github/rulesets/scripts/control-plane.psm1",
+      ".github/rulesets/scripts/protect-main.ps1",
+      ".github/rulesets/scripts/repository.psm1",
+      ".github/rulesets/scripts/ruleset-client.psm1",
+      ".github/rulesets/scripts/ruleset-state.psm1",
+      ".github/rulesets/tests/fixtures/fake-ghswaw.ps1",
+      ".github/rulesets/tests/fixtures/protect-main-fixture.psm1",
+      ".github/rulesets/tests/protect-main.ps1"
+    ],
+    "removable_files": [
+      ".github/ISSUE_TEMPLATE/change.yml",
+      ".github/PULL_REQUEST_TEMPLATE.md",
+      ".github/rulesets/swaw-change-governance.json",
+      ".github/workflows/change-policy.yml",
+      ".github/workflows/validate-governance.yml"
+    ],
+    "managed_blocks": [
+      {
+        "path": "AGENTS.md",
+        "begin": "<!-- swaw.repository-change-governance:begin -->",
+        "end": "<!-- swaw.repository-change-governance:end -->"
+      },
+      {
+        "path": ".github/rulesets/AGENTS.md",
+        "begin": "<!-- swaw.repository-change-governance:rulesets:begin -->",
+        "end": "<!-- swaw.repository-change-governance:rulesets:end -->"
+      }
+    ]
+  },
+  "local_git": {
+    "settings": []
+  },
+  "github": {
+    "rulesets": [
+      {
+        "name": "swaw-change-governance",
+        "ownership_token": "550e9c2608e446d7a941be08314de163",
+        "desired_path": ".github/rulesets/swaw-change-governance.json"
+      }
+    ]
+  }
+}

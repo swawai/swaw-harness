@@ -49,6 +49,72 @@ The script performs preflight checks, creates one GitHub Issue, and then creates
 and checks out its linked branch. These operations are not atomic. If the Issue
 result is uncertain or branch creation fails, do not retry, close, or delete
 anything automatically. Report the output and inspect GitHub before recovery.
+For any later Issue-body edit, send the complete UTF-8 body through a payload or
+`--body-file`, read the Issue back, and revalidate its sections. Never pass a
+multiline body as an inline shell argument; quoting failures can silently truncate
+the contract.
+
+## Manage the governance lifecycle
+
+Treat versioned source and external enforcement as separate planes. Governance
+source is installed or removed only through an Issue-linked PR. The lifecycle
+script never deletes itself or other tracked files; it manages only the dedicated
+`swaw-change-governance` Ruleset and reports the exact source-removal boundaries
+declared by `ownership.json`. It never manages `protect-main`.
+
+```powershell
+& .\.agents\skills\govern-repository-change\scripts\lifecycle.ps1 status
+& .\.agents\skills\govern-repository-change\scripts\lifecycle.ps1 plan-install
+& .\.agents\skills\govern-repository-change\scripts\lifecycle.ps1 install
+& .\.agents\skills\govern-repository-change\scripts\lifecycle.ps1 plan-disable
+& .\.agents\skills\govern-repository-change\scripts\lifecycle.ps1 disable
+& .\.agents\skills\govern-repository-change\scripts\lifecycle.ps1 plan-uninstall
+& .\.agents\skills\govern-repository-change\scripts\lifecycle.ps1 uninstall
+```
+
+- Run `status` and the matching `plan-*` command before every lifecycle mutation.
+- `install` is valid only after the manifest and trusted workflows are present on
+  GitHub `main`. It creates an absent dedicated Ruleset or enables its exact
+  disabled projection; arbitrary drift is never reconciled. Any other Ruleset in
+  the reserved `swaw-change-governance--*` namespace is a blocking collision, not
+  an adoption candidate.
+- `disable` changes only the dedicated Ruleset's enforcement to `disabled`.
+- `uninstall` requires that disabled state, deletes only the exact dedicated
+  Ruleset, and reports `source_removal_pending` plus a structured source
+  disposition: directories, files, exact managed-block markers, and retained
+  shared files. Issues, PRs, commits, Actions history, product validation,
+  `protect-main`, and its retained manager are never removed.
+- Before `uninstall`, the remote `protect-main` must exactly match its retained
+  active declaration and contain no governance checks. Keep the dedicated
+  Ruleset active while applying that product-baseline migration; otherwise
+  `uninstall` fails closed to prevent orphaned required contexts.
+- Prepare and fully review the exact source-removal Draft PR while governance is
+  still active, then mark it ready and let that event finish. After its HEAD,
+  body, checks, and conversations are final, the owner must remove and reapply the
+  migration label as the last PR mutation. Separately authorize `disable` and
+  `uninstall` from a clean synchronized `main`, read back `absent`, and then merge
+  that unchanged PR immediately. Never merge source removal while the dedicated
+  Ruleset is active; its required contexts would outlive their workflow providers.
+- `source_removal_pending` is an immediate operation result, not stored lifecycle
+  memory. A later `status` with source present and Ruleset absent reports
+  `source_only`; the Issue and prepared Draft PR are the durable record of intent.
+- The 128-bit token is a low-collision installation identity, not proof of who
+  created a Ruleset. Keep it stable. To rotate it, first disable and uninstall the
+  old tokenized entity using the old manifest, then merge the synchronized
+  manifest/JSON change and install the new identity.
+- Partial or invalid source, remote drift, and namespace collisions fail closed.
+  There is no general `-Force`. Prefer a reviewed source repair. If the script can
+  no longer recover, the repository owner must record the exact tokenized name and
+  ID, disable that one Ruleset in GitHub Settings, read it back, and only then
+  delete it when uninstall is intended; unrelated sibling identities remain
+  untouched.
+- If stale governance contexts are manually reintroduced after a complete source
+  uninstall, the retained product manager permits an explicit recovery update
+  only after confirming the governance executable sources are absent on `main`.
+- These commands are idempotent, but a failed request has an unknown outcome.
+  Never retry automatically; run `status` and inspect GitHub first.
+- `install`, `disable`, and `uninstall` mutate the GitHub control plane and always
+  require separate explicit authorization under root policy.
 
 ## Continue and submit
 
@@ -73,20 +139,17 @@ anything automatically. Report the output and inspect GitHub before recovery.
   exact Issue-linked head branch, and absence of a conflicting open PR; never
   use this allowance to mark a PR ready or merge it.
 - A workflow file creates checks but does not make them required. Before calling
-  governance enforced or a PR merge-eligible, verify the active remote `main`
-  ruleset required by root `AGENTS.md`. Use `scripts/ruleset.ps1 status` to compare
-  GitHub with `.github/rulesets/protect-main.json`, `plan` to report the required
-  create or update, and `apply` only after explicit authorization to mutate the
-  repository control plane. On first installation, do not activate the Ruleset
-  until the trusted `pull_request_target` policy workflow exists on the default
-  branch; if activation happened out of order, report the one-time bootstrap
-  blocker defined by root policy instead of inventing a reusable bypass. Treat an
-  uncertain apply result as non-retryable until `status` and GitHub inspection
-  establish the actual state. Report missing or drifting enforcement as a blocker.
+  governance enforced or a PR merge-eligible, verify both remote layers: use
+  `.github/rulesets/scripts/protect-main.ps1 status` for the retained product
+  `protect-main` declaration and
+  `scripts/lifecycle.ps1 status` for governance. Apply either control-plane change
+  only after explicit authorization. Report missing, disabled, or drifting
+  required enforcement as a blocker.
 - Never merge or enable auto-merge. Report when required checks and review state
   make the PR eligible for the repository owner to merge.
-- Treat `.github/workflows/**` and the policy-loaded `governance.psm1` as trust
-  roots. Their migration requires an owner-authored PR and the repository owner
+- Treat `.github/workflows/**`, the policy-loaded `governance.psm1`, and its
+  retained `repository.psm1` dependency as trust roots. Their migration requires
+  an owner-authored PR and the repository owner
   to remove and reapply `governance-migration` after reviewing the current HEAD.
   Make that the final PR mutation: every later commit or PR-body edit invalidates
   the authorization and requires another owner review and label cycle. Never add,
@@ -95,10 +158,21 @@ anything automatically. Report the output and inspect GitHub before recovery.
 ## Sources of truth
 
 - Root maintenance and Git protocol: `../../../AGENTS.md`
+- Exact governance ownership: `ownership.json`
 - Issue input contract: `../../../.github/ISSUE_TEMPLATE/change.yml`
 - PR input contract: `../../../.github/PULL_REQUEST_TEMPLATE.md`
 - Trusted change-policy validation: `../../../.github/workflows/change-policy.yml`
+- Candidate governance validation:
+  `../../../.github/workflows/validate-governance.yml`
 - Candidate product validation: `../../../.github/workflows/validate.yml`
-- Desired `main` protection: `../../../.github/rulesets/protect-main.json`
-- Offline verification: `tests/workflow.ps1`, `tests/ruleset.ps1`, and
-  `tests/policy.ps1`
+- Desired governance enforcement:
+  `../../../.github/rulesets/swaw-change-governance.json`
+- Desired product and baseline protection:
+  `../../../.github/rulesets/protect-main.json`
+- Retained product Ruleset manager and shared dependencies:
+  `../../../.github/rulesets/scripts/`
+- Retained product Ruleset verification:
+  `../../../.github/rulesets/tests/protect-main.ps1`
+- Governance verification: `tests/workflow.ps1`,
+  `tests/ruleset-migration.ps1`, `tests/lifecycle-model.ps1`,
+  `tests/lifecycle.ps1`, and `tests/policy.ps1`
