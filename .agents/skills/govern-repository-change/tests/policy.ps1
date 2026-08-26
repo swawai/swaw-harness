@@ -38,6 +38,23 @@ function Get-WorkflowJobBlock {
     return $match.Groups['body'].Value
 }
 
+function Get-WorkflowStepBlock {
+    param(
+        [Parameter(Mandatory = $true)][string]$Job,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    $pattern = (
+        '(?ms)^      - name: {0}\s*\r?\n' +
+        '(?<body>.*?)(?=^      - name:\s|\z)'
+    ) -f @([regex]::Escape($Name))
+    $match = [regex]::Match($Job, $pattern)
+    if (-not $match.Success) {
+        throw "Workflow step '$Name' is missing."
+    }
+    return $match.Groups['body'].Value
+}
+
 $productWorkflow = [IO.File]::ReadAllText(
     $productWorkflowPath,
     [Text.Encoding]::UTF8
@@ -194,6 +211,51 @@ $windowsBlock = Get-WorkflowJobBlock `
     -JobId 'windows-bootstrap'
 if ($windowsBlock -cmatch '(?m)^    needs:\s*policy\s*$') {
     throw 'Product validation must not depend on a head-controlled policy job.'
+}
+foreach ($runtime in @(
+    [pscustomobject]@{
+        Name = 'Exercise repository change governance offline'
+        Shell = 'powershell'
+    },
+    [pscustomobject]@{
+        Name = 'Exercise repository change governance under PowerShell 7'
+        Shell = 'pwsh'
+    }
+)) {
+    $runtimeBlock = Get-WorkflowStepBlock `
+        -Job $windowsBlock `
+        -Name $runtime.Name
+    if ($runtimeBlock -cnotmatch (
+        "(?m)^        shell: $([regex]::Escape($runtime.Shell))\s*`$"
+    )) {
+        throw (
+            "Governance step '$($runtime.Name)' must use " +
+            "'$($runtime.Shell)'."
+        )
+    }
+    foreach ($governanceTest in @(
+        'tests\workflow.ps1',
+        'tests\ruleset.ps1',
+        'tests\policy.ps1'
+    )) {
+        if (-not $runtimeBlock.Contains($governanceTest)) {
+            throw (
+                "Governance step '$($runtime.Name)' must exercise " +
+                "'$governanceTest'."
+            )
+        }
+    }
+}
+foreach ($requiredProductTest in @(
+    'bootstrap\windows\tests\root-build.ps1',
+    'bootstrap\windows\tests\main.ps1',
+    'bootstrap\windows\tests\core-rust.ps1'
+)) {
+    if (-not $windowsBlock.Contains($requiredProductTest)) {
+        throw (
+            "Windows Bootstrap must exercise '$requiredProductTest'."
+        )
+    }
 }
 $productBlock = Get-WorkflowJobBlock `
     -Workflow $productWorkflow `
