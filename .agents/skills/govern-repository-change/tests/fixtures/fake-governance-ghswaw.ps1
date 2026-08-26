@@ -137,7 +137,7 @@ if ($CommandArgs[0] -ceq 'issue' -and $CommandArgs[1] -ceq 'view') {
 if ($CommandArgs[0] -ceq 'issue' -and $CommandArgs[1] -ceq 'develop') {
     if ($CommandArgs -contains '--list') {
         Write-Call 'issue-develop-list'
-        if ($scenario -cne 'unlinked') {
+        if ($scenario -notin @('unlinked', 'open-pr', 'open-pr-unlinked')) {
             $branch = (& git branch --show-current).Trim()
             $linkedRepo = if ($scenario -ceq 'wrong-linked-repo') {
                 'cli/cli'
@@ -199,7 +199,8 @@ if ($CommandArgs[0] -ceq 'pr' -and $CommandArgs[1] -ceq 'list') {
     $jsonIndex = [Array]::IndexOf($CommandArgs, '--json')
     if ($jsonIndex -lt 0 -or
         $CommandArgs[$jsonIndex + 1] -notmatch 'headRepository' -or
-        $CommandArgs[$jsonIndex + 1] -notmatch 'baseRefName') {
+        $CommandArgs[$jsonIndex + 1] -notmatch 'baseRefName' -or
+        $CommandArgs[$jsonIndex + 1] -notmatch 'body') {
         Stop-FakeCommand 'PR lookup must request repository identity fields'
     }
     if ($scenario -ceq 'pr-failure') {
@@ -207,6 +208,7 @@ if ($CommandArgs[0] -ceq 'pr' -and $CommandArgs[1] -ceq 'list') {
     }
     if ($scenario -in @(
         'open-pr',
+        'open-pr-unlinked',
         'wrong-pr-repo',
         'wrong-pr-base',
         'wrong-pr-head'
@@ -232,6 +234,12 @@ if ($CommandArgs[0] -ceq 'pr' -and $CommandArgs[1] -ceq 'list') {
             url = 'https://example.invalid/pull/7'
             mergeStateStatus = 'CLEAN'
             statusCheckRollup = @()
+            body = if ($scenario -ceq 'open-pr-unlinked') {
+                'Refs: #42'
+            }
+            else {
+                'Closes #42'
+            }
             headRefName = $headRef
             headRepository = [pscustomobject]@{
                 name = 'offline-fixture'
