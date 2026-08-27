@@ -1,8 +1,21 @@
-# Windows Bootstrap 维护规则
+# Windows Bootstrap
 
-1. `builder/` 保存 Windows Stage-0 的跨产品构建与发布基础机制；`toolchain/` 管理构建工具链，`core/`、`entry/` 与 `entry.manager/` 分别拥有各自的产品适配器。
-2. `builder/build/` 管理不可变 Candidate，`builder/release/` 管理不可变 Release 与 selector；不得建立 `common/`、`utils/`、总加载器或旧路径 shim。
-3. `toolchain/` 可依赖 `builder/` 的基础路径、文件和进程机制；产品适配器可依赖两者。`builder/build/` 不得依赖 `builder/release/`，两者只由产品适配器和 `main.ps1` 显式编排。
-4. PowerShell 文件必须自行 dot-source 足以加载所需函数的明确依赖链，不依赖调用者预先加载。
-5. `main.ps1` 是多产品总编排器：必须先完成 Core、Entry 与 Entry Manager 的所有 Candidate 构建，再推进任何产品 selector，并在返回前重新解析和核验本轮发布结果。
-6. `publication.ps1` 是 `main.ps1` 使用的 target-scoped 串行发布边界；各产品 `publish.ps1` 只是内部适配器，不单独承诺多产品 selector 一致性。
+## Scope
+
+本目录拥有 Windows Stage-0 的平台 Contract、根编排入口与数据路径边界；`builder/`、`toolchain/` 和三个产品目录拥有各自的稳定子领域。Rule ID 前缀为 `WIN-BOOT`。
+
+## Accepted
+
+- **WIN-BOOT-001 — 平台 Contract 就近归属。** Windows 工具链版本、host target、下载来源与校验事实由 `bootstrap/windows/contract.json` 唯一声明；第二个平台出现真实共同字段前，不建立跨平台 contract 合并或继承体系。
+- **WIN-BOOT-002 — Microsoft 许可非交互接受。** Windows Contract 必须固定 Microsoft Build Tools 许可地址与 `by-bootstrap-invocation` 接受方式；首次获取该工具链载荷前必须输出许可地址，调用 Bootstrap 即表示接受，不得弹出交互确认，MSI 必须显式禁止自动重启。
+- **WIN-BOOT-003 — Windows executable 运行时自包含。** Windows Bootstrap 发布的 Core、Entry executable 与 Entry Manager executable 均不得依赖用户另行安装的 C/C++ runtime；Windows 系统组件不属于该限制。
+- **WIN-BOOT-004 — Windows 便携工具链。** Windows Bootstrap 必须自动下载并设置便携 Rust 与 MSVC 编译环境，无需用户预装、配置或交互干预，即可编译出 Harness 核心。
+- **WIN-BOOT-005 — 构建环境只进入工具子进程。** `bootstrap/windows/toolchain/environment.ps1` 只生成环境计划，`bootstrap/windows/builder/process.ps1` 只把该计划注入实际工具子进程；不得修改后再恢复父 PowerShell 进程，也不得生成要求调用者 dot-source 的环境脚本，工具入口必须使用明确支持的 executable 路径。
+
+## Open
+
+当前无。
+
+## Maintainer Notes
+
+- 待办：消除 MSVC 链接时间等非确定性字节，使相同构建输入稳定产生相同 ReleaseId，避免创建和切换无实质内容变化的 Release；具体链接器与参数由真实原生依赖样例验证。
