@@ -263,7 +263,7 @@ try {
             (Test-PublicationReleaseEquals -Left $Selected -Right $Results[0]) -or
             (Test-PublicationReleaseEquals -Left $Selected -Right $Results[1])
         ) `
-        -Message 'final selectors combine different publication sets'
+        -Message 'final selector does not select either complete bundle'
 
     $Rejected = $false
     try {
