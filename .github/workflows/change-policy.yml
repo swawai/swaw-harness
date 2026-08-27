@@ -192,10 +192,18 @@ jobs:
 
           if ($branchMatch.Success) {
               $issueNumber = $branchMatch.Groups['issue'].Value
-              if (-not (Test-GovernanceClosingReference `
+              if (-not (Test-GovernanceIssueReference `
                   -Body $body `
                   -IssueNumber ([int]$issueNumber))) {
-                  [void]$errors.Add("PR body must contain a standalone 'Closes #$issueNumber'.")
+                  [void]$errors.Add("PR body must contain a standalone 'Refs: #$issueNumber'.")
+              }
+              if (Test-GovernanceClosingReference `
+                  -Body (([string]$pullRequest.title) + "`n" + $body) `
+                  -IssueNumber ([int]$issueNumber) `
+                  -Repository ([string]$event.repository.full_name)) {
+                  [void]$errors.Add(
+                      "PR title and body must not close, fix, or resolve primary Issue #$issueNumber."
+                  )
               }
 
               $issueUri = "https://api.github.com/repos/$($event.repository.full_name)/issues/$issueNumber"
@@ -240,8 +248,20 @@ jobs:
                           [void]$errors.Add("Commit $shortSha must not be a merge or orphan commit.")
                       }
                       if ($branchMatch.Success -and
-                          $message -cnotmatch "(?m)^Refs:\s+#$issueNumber\s*$") {
+                          -not (Test-GovernanceIssueReference `
+                              -Body $message `
+                              -IssueNumber ([int]$issueNumber))) {
                           [void]$errors.Add("Commit $shortSha must contain 'Refs: #$issueNumber'.")
+                      }
+                      if ($branchMatch.Success -and
+                          (Test-GovernanceClosingReference `
+                              -Body $message `
+                              -IssueNumber ([int]$issueNumber) `
+                              -Repository ([string]$event.repository.full_name))) {
+                          [void]$errors.Add(
+                              "Commit $shortSha must not close, fix, or resolve " +
+                              "primary Issue #$issueNumber."
+                          )
                       }
                   }
                   $page++

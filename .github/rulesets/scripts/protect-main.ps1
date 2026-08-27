@@ -98,16 +98,15 @@ function Assert-GovernanceMigrationReady {
             ) `
             -Operation 'Inspect governance source on main')
         if ($governanceSource.Count -eq 0) {
-            Write-Warning (
-                'Governance source is absent on main. Continuing the retained ' +
-                'product baseline recovery so stale governance checks cannot ' +
-                'lock the repository.'
+            throw (
+                'The dedicated governance Ruleset must be verifiably active ' +
+                'before removing any protect-main required context, but its ' +
+                'reviewed lifecycle source is absent on main.'
             )
-            return
         }
         throw (
-            'Governance lifecycle source is incomplete while retiring Change ' +
-            'policy from protect-main. Repair the reviewed governance source ' +
+            'Governance lifecycle source is incomplete while removing required ' +
+            'contexts from protect-main. Repair the reviewed governance source ' +
             'and activate its dedicated Ruleset before retrying. Found: ' +
             ($governanceSource -join ', ')
         )
@@ -148,7 +147,7 @@ function Assert-GovernanceMigrationReady {
     if ($governanceState -cne 'active') {
         throw (
             'Activate and verify the dedicated governance Ruleset before ' +
-            'removing Change policy from protect-main.'
+            'removing any required context from protect-main.'
         )
     }
 }
@@ -220,9 +219,8 @@ $actualContexts = if ($null -eq $state.Actual) {
     @()
 }
 else { @(Get-RulesetRequiredContexts $state.Actual) }
-$governanceContexts = @('Change policy', 'Governance validation')
 $requiresGovernanceActivation = @($actualContexts | Where-Object {
-    $governanceContexts -ccontains $_ -and $desiredContexts -cnotcontains $_
+    $desiredContexts -cnotcontains $_
 }).Count -gt 0
 
 if ($Action -ceq 'status') {

@@ -1,4 +1,4 @@
-Closes #<!-- issue-number -->
+Refs: #<!-- issue-number -->
 
 ## Outcome
 

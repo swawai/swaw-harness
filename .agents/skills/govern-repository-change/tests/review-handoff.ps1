@@ -7,6 +7,7 @@ Set-StrictMode -Version 2.0
 $skillRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $skillRoot '..\..\..'))
 $skillPath = Join-Path $skillRoot 'SKILL.md'
+$reviewReferencePath = Join-Path $skillRoot 'references\review-handoff.md'
 $rootAgentsPath = Join-Path $repositoryRoot 'AGENTS.md'
 $issueTemplatePath = Join-Path $repositoryRoot '.github\ISSUE_TEMPLATE\change.yml'
 $policySnapshotScript = Join-Path $skillRoot 'scripts\review-policy-snapshot.ps1'
@@ -44,6 +45,10 @@ function Assert-NotContains {
 }
 
 $skillText = [IO.File]::ReadAllText($skillPath, [Text.Encoding]::UTF8)
+$reviewReferenceText = [IO.File]::ReadAllText(
+    $reviewReferencePath,
+    [Text.Encoding]::UTF8
+)
 $rootAgentsText = [IO.File]::ReadAllText(
     $rootAgentsPath,
     [Text.Encoding]::UTF8
@@ -61,38 +66,49 @@ Assert-NotContains $rootAgentsText 'Custom review instructions' `
     'root policy must not depend on a nonexistent review option'
 Assert-NotContains $skillText 'Custom review instructions' `
     'handoff must not depend on a nonexistent review option'
+Assert-NotContains $reviewReferenceText 'Custom review instructions' `
+    'review reference must not depend on a nonexistent review option'
 Assert-Contains $rootAgentsText $protectedTrigger `
     'root policy names the protected review trigger'
-Assert-Contains $skillText $protectedTrigger `
-    'Skill names the protected review trigger'
-Assert-Contains $skillText 'scripts/review-policy-snapshot.ps1' `
+Assert-Contains $skillText 'references/review-handoff.md' `
+    'Skill routes review detail to the focused reference'
+Assert-Contains $rootAgentsText 'references/review-handoff.md' `
+    'root policy protects the review reference from self-authorization'
+Assert-Contains $reviewReferenceText $protectedTrigger `
+    'review reference names the protected review trigger'
+Assert-Contains $reviewReferenceText 'scripts/review-policy-snapshot.ps1' `
     'protected review enumerates policies from both revisions'
-Assert-Contains $skillText 'exact fetched-base version' `
+Assert-Contains $reviewReferenceText 'exact fetched-base' `
     'candidate policy enumerator cannot authorize itself'
-Assert-Contains $skillText 'review input, not authority' `
+Assert-Contains $reviewReferenceText 'review input, never bootstrap authority' `
     'bootstrap does not trust the candidate enumerator'
-Assert-Contains $skillText 'instructions may only add constraints' `
+Assert-Contains $reviewReferenceText 'candidate version as additive' `
     'candidate review rules remain additive'
-Assert-Contains $skillText "owner's reply authorizes exactly the displayed bootstrap minimum" `
+Assert-Contains $reviewReferenceText `
+    "owner's reply authorizes exactly the displayed minimum" `
     'bootstrap requires explicit owner authorization'
-Assert-Contains $skillText 'independent clone pinned' `
+Assert-Contains $reviewReferenceText 'independent clone pinned' `
     'protected review uses an isolated clone'
-Assert-Contains $skillText 'remove every remote' `
+Assert-Contains $reviewReferenceText 'remove every remote' `
     'isolated clone drops remote write paths'
-Assert-NotContains $skillText 'no remote or write credentials' `
+Assert-NotContains $reviewReferenceText 'no remote or write credentials' `
     'handoff must not overclaim credential isolation'
-Assert-Contains $skillText 'clone-local state' `
+Assert-Contains $reviewReferenceText 'clone-local state' `
     'handoff scopes its clone verification claim'
-Assert-Contains $skillText 'authenticated external tool' `
+Assert-Contains $reviewReferenceText 'authenticated external tool' `
     'same-user reviewer is forbidden from authenticated external tools'
-Assert-Contains $skillText 'Spawn a fresh reviewer subagent' `
+Assert-Contains $reviewReferenceText 'Spawn a fresh read-only reviewer subagent' `
     'protected review uses a fresh reviewer context'
-Assert-Contains $skillText 'fail closed' `
+Assert-Contains $reviewReferenceText 'fail closed' `
     'protected review cannot silently downgrade'
+Assert-Contains $reviewReferenceText 'revision''s `references/review-handoff.md`' `
+    'protected handoff reads base and candidate review references'
 Assert-True ((Get-Content -LiteralPath $workflowTestPath).Count -le 500) `
     'workflow test must remain within the repository file-size limit'
 Assert-True ((Get-Content -LiteralPath $PSCommandPath).Count -le 500) `
     'review handoff test must remain within the repository file-size limit'
+Assert-True ((Get-Content -LiteralPath $reviewReferencePath).Count -le 500) `
+    'review handoff reference must remain within the repository file-size limit'
 
 $formElementCount = [regex]::Matches(
     $issueTemplateText,

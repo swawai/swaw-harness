@@ -61,23 +61,12 @@ function Get-WorkflowStepBlock {
     return $match.Groups['body'].Value
 }
 
-function Get-RequiredChecks {
-    param(
-        [Parameter(Mandatory = $true)]$Ruleset,
-        [Parameter(Mandatory = $true)][string]$Owner
-    )
+function Get-StatusRules {
+    param([Parameter(Mandatory = $true)]$Ruleset)
 
-    $statusRules = @($Ruleset.rules | Where-Object {
+    return @($Ruleset.rules | Where-Object {
         $_.type -ceq 'required_status_checks'
     })
-    if ($statusRules.Count -ne 1) {
-        throw "$Owner must contain exactly one required_status_checks rule."
-    }
-    $checks = @($statusRules[0].parameters.required_status_checks)
-    if ($checks.Count -eq 0) {
-        throw "$Owner must require at least one status check."
-    }
-    return $checks
 }
 
 $productWorkflow = [IO.File]::ReadAllText(
@@ -104,15 +93,19 @@ $governanceRuleset = [IO.File]::ReadAllText(
     $governanceRulesetPath,
     [Text.Encoding]::UTF8
 ) | ConvertFrom-Json
-$productChecks = @(Get-RequiredChecks `
-    -Ruleset $productRuleset `
-    -Owner 'Product Ruleset')
-$governanceChecks = @(Get-RequiredChecks `
-    -Ruleset $governanceRuleset `
-    -Owner 'Governance Ruleset')
-$allChecks = @($productChecks) + @($governanceChecks)
-$contexts = @($allChecks | ForEach-Object { [string]$_.context })
-foreach ($requiredCheck in $allChecks) {
+$productStatusRules = @(Get-StatusRules -Ruleset $productRuleset)
+if ($productStatusRules.Count -ne 0) {
+    throw 'Product Ruleset must not require status checks.'
+}
+$governanceStatusRules = @(Get-StatusRules -Ruleset $governanceRuleset)
+if ($governanceStatusRules.Count -ne 1) {
+    throw 'Governance Ruleset must contain one required_status_checks rule.'
+}
+$governanceChecks = @(
+    $governanceStatusRules[0].parameters.required_status_checks
+)
+$contexts = @($governanceChecks | ForEach-Object { [string]$_.context })
+foreach ($requiredCheck in $governanceChecks) {
     if ([long]$requiredCheck.integration_id -ne 15368) {
         throw (
             "Required check '$($requiredCheck.context)' must be bound to " +
@@ -121,24 +114,8 @@ foreach ($requiredCheck in $allChecks) {
     }
 }
 
-$productContexts = @($productChecks | ForEach-Object { [string]$_.context })
-if ($productContexts.Count -ne 1 -or
-    $productContexts[0] -cne 'Product validation') {
-    throw "Product Ruleset must require only 'Product validation'."
-}
-$governanceContexts = @(
-    $governanceChecks | ForEach-Object { [string]$_.context }
-)
-if ($governanceContexts.Count -ne 2 -or
-    $governanceContexts -cnotcontains 'Change policy' -or
-    $governanceContexts -cnotcontains 'Governance validation') {
-    throw (
-        "Governance Ruleset must require 'Change policy' and " +
-        "'Governance validation'."
-    )
-}
-if (@($contexts | Sort-Object -Unique).Count -ne $contexts.Count) {
-    throw 'Each required status context must have exactly one owning Ruleset.'
+if ($contexts.Count -ne 1 -or $contexts[0] -cne 'Change policy') {
+    throw "Governance Ruleset must require only 'Change policy'."
 }
 
 $jobNames = @(
@@ -183,9 +160,13 @@ if ($policyBlock -cmatch (
 }
 if ($policyBlock.Contains('gh issue develop')) {
     throw (
-        'Change policy must use the durable PR closing reference after GitHub ' +
+        'Change policy must use the durable PR Issue reference after GitHub ' +
         'replaces the transient linked-branch relation.'
     )
+}
+if ($policyBlock -cnotmatch
+    '(?s)Test-GovernanceClosingReference.*?pullRequest\.title') {
+    throw 'Change policy must reject primary-Issue closing keywords in PR titles.'
 }
 if ($policyBlock -cnotmatch '(?m)^          persist-credentials:\s*false\s*$') {
     throw 'Change policy checkout must not persist credentials.'
@@ -199,6 +180,7 @@ foreach ($contract in @(
     'Get-GovernanceChecklistErrors',
     'Get-GovernanceChangedPaths',
     'Test-GovernanceClosingReference',
+    'Test-GovernanceIssueReference',
     'Test-GovernanceMigrationAuthorization',
     'Test-GovernanceTrustRootPath',
     'governance-migration',
@@ -224,23 +206,29 @@ foreach ($trustRoot in @(
     }
 }
 
-if (-not (Test-GovernanceClosingReference `
-    -Body "## Link`n`nCloses #17" `
+if (-not (Test-GovernanceIssueReference `
+    -Body "## Link`n`nRefs: #17" `
     -IssueNumber 17)) {
-    throw 'A semantic standalone closing reference must be accepted.'
+    throw 'A semantic standalone Issue reference must be accepted.'
 }
 $nonSemanticBodies = @(
-    (@('```text', 'Closes #17', '```') -join "`n"),
-    "<!--`nCloses #17`n-->",
-    "<!--`nCloses #17",
-    "    Closes #17"
+    (@('```text', 'Refs: #17', '```') -join "`n"),
+    "<!--`nRefs: #17`n-->",
+    "<!--`nRefs: #17",
+    "    Refs: #17"
 )
 foreach ($nonSemanticBody in $nonSemanticBodies) {
-    if (Test-GovernanceClosingReference `
+    if (Test-GovernanceIssueReference `
         -Body $nonSemanticBody `
         -IssueNumber 17) {
-        throw 'A non-semantic closing reference must be rejected.'
+        throw 'A non-semantic Issue reference must be rejected.'
     }
+}
+if (-not (Test-GovernanceClosingReference `
+    -Body 'Fixes swawai/swaw-harness#17' `
+    -IssueNumber 17 `
+    -Repository 'swawai/swaw-harness')) {
+    throw 'A semantic closing keyword for the primary Issue must be rejected.'
 }
 
 $checklistItem = 'The reviewer confirmed the semantic checklist.'
@@ -312,33 +300,122 @@ foreach ($staleAuthorization in @(
     }
 }
 
-$windowsBlock = Get-WorkflowJobBlock `
-    -Workflow $productWorkflow `
-    -JobId 'windows-bootstrap'
-if ($windowsBlock -cmatch '(?m)^    needs:\s*policy\s*$') {
-    throw 'Product validation must not depend on a head-controlled policy job.'
+$validationContracts = @(
+    [pscustomobject]@{
+        Workflow = $productWorkflow; TriggerPath = '.github/workflows/validate.yml'
+        RunnerId = 'windows-bootstrap'; AggregateId = 'product-validation'
+        RunnerResult = 'needs.windows-bootstrap.result'
+    },
+    [pscustomobject]@{
+        Workflow = $governanceWorkflow
+        TriggerPath = '.github/workflows/validate-governance.yml'
+        RunnerId = 'governance-suite'; AggregateId = 'governance-validation'
+        RunnerResult = 'needs.governance-suite.result'
+    }
+)
+foreach ($contract in $validationContracts) {
+    $workflow = $contract.Workflow
+    $trigger = [regex]::Match($workflow,
+        '(?ms)^  pull_request:\s*\r?\n(?<body>.*?)(?=^  workflow_dispatch:)'
+    )
+    $pathBlock = [regex]::Match(
+        $trigger.Groups['body'].Value,
+        '(?ms)^    paths:\s*\r?\n(?<body>(?:      - .+\r?\n?)+)'
+    )
+    $paths = @([regex]::Matches(
+        $pathBlock.Groups['body'].Value,
+        '(?m)^      - (?<path>[^\r\n]+)$'
+    ) | ForEach-Object { $_.Groups['path'].Value })
+    if (-not $trigger.Success -or $paths.Count -ne 1 -or
+        $paths[0] -cne $contract.TriggerPath) {
+        throw "Full validation PR self-test must target only '$($contract.TriggerPath)'."
+    }
+    $inputs = @([regex]::Matches($workflow,
+        '(?m)^      (?<name>pr_number|base_sha|head_sha):\s*$'
+    ) | ForEach-Object { $_.Groups['name'].Value })
+    if ($workflow -cnotmatch '(?m)^  workflow_dispatch:\s*$' -or
+        $inputs.Count -ne 3) {
+        throw 'Full validation must declare all immutable dispatch inputs.'
+    }
+    foreach ($inputName in @('pr_number', 'base_sha', 'head_sha')) {
+        $inputPattern = '(?ms)^      ' + $inputName +
+            ':\s*\r?\n(?:(?!^      \S).)*^        required:\s*true\s*$'
+        if ($workflow -cnotmatch $inputPattern) {
+            throw "Full validation input '$inputName' must be required."
+        }
+    }
+    foreach ($workflowContract in @('pull-requests: read',
+        'github.event.pull_request.number || inputs.pr_number'
+    )) {
+        if (-not $workflow.Contains($workflowContract)) {
+            throw "Full validation is missing '$workflowContract'."
+        }
+    }
+
+    $requestBlock = Get-WorkflowJobBlock $workflow 'validate-request'
+    foreach ($requestContract in @(
+        'github.actor', 'github.triggering_actor', 'github.repository_owner',
+        'github.ref', 'refs/heads/main', 'github.sha',
+        'inputs.pr_number', 'inputs.base_sha', 'inputs.head_sha',
+        'Invoke-RestMethod', 'pullRequest.base.repo.full_name',
+        'pullRequest.head.repo.full_name', 'pullRequest.base.sha',
+        'pullRequest.head.sha', 'GITHUB_OUTPUT', 'pr_number=',
+        'base_sha=', 'head_sha='
+    )) {
+        if (-not $requestBlock.Contains($requestContract)) {
+            throw "Validation request is missing '$requestContract'."
+        }
+    }
+
+    $runnerBlock = Get-WorkflowJobBlock $workflow $contract.RunnerId
+    if ($runnerBlock -cnotmatch '(?m)^      - validate-request\s*$') {
+        throw "Validation runner '$($contract.RunnerId)' must depend on its request."
+    }
+    $checkoutBlock = Get-WorkflowStepBlock $runnerBlock 'Check out the proposed change'
+    if (-not $checkoutBlock.Contains(
+        'ref: ${{ needs.validate-request.outputs.head_sha }}'
+    ) -or -not $checkoutBlock.Contains('persist-credentials: false')) {
+        throw 'Full validation must check out the exact credential-free PR head.'
+    }
+    $revisionBlock = Get-WorkflowStepBlock $runnerBlock `
+        'Verify the checked-out revision'
+    if (-not $revisionBlock.Contains('git rev-parse HEAD') -or
+        -not $revisionBlock.Contains(
+            'needs.validate-request.outputs.head_sha'
+        )) {
+        throw 'Full validation must verify the checked-out PR head.'
+    }
+
+    $aggregateBlock = Get-WorkflowJobBlock $workflow $contract.AggregateId
+    foreach ($aggregateContract in @(
+        'if: ${{ always() }}', '- validate-request',
+        "- $($contract.RunnerId)", 'needs.validate-request.result',
+        $contract.RunnerResult, 'needs.validate-request.outputs.pr_number',
+        'REQUEST_RESULT', 'success', 'Invoke-RestMethod',
+        'pullRequest.base.sha', 'pullRequest.head.sha',
+        'needs.validate-request.outputs.base_sha',
+        'needs.validate-request.outputs.head_sha'
+    )) {
+        if (-not $aggregateBlock.Contains($aggregateContract)) {
+            throw "Fail-closed validation aggregate is missing '$aggregateContract'."
+        }
+    }
 }
-$productSyntaxBlock = Get-WorkflowStepBlock `
-    -Job $windowsBlock `
-    -Name 'Validate changed text and tracked syntax'
+
+$windowsBlock = Get-WorkflowJobBlock $productWorkflow 'windows-bootstrap'
+$productSyntaxBlock = Get-WorkflowStepBlock $windowsBlock `
+    'Validate changed text and tracked syntax'
 $expectedProductPathspecs = @(
-    'bootstrap/**/*.ps1',
-    'bootstrap/**/*.psm1',
-    '.github/rulesets/scripts/*.ps1',
-    '.github/rulesets/scripts/*.psm1',
-    '.github/rulesets/tests/*.ps1',
-    '.github/rulesets/tests/*.psm1',
-    '.github/rulesets/tests/**/*.ps1',
-    '.github/rulesets/tests/**/*.psm1',
-    'bootstrap/**/*.json',
-    '.github/rulesets/protect-main.json'
+    'bootstrap/**/*.ps1', 'bootstrap/**/*.psm1',
+    '.github/rulesets/scripts/*.ps1', '.github/rulesets/scripts/*.psm1',
+    '.github/rulesets/tests/*.ps1', '.github/rulesets/tests/*.psm1',
+    '.github/rulesets/tests/**/*.ps1', '.github/rulesets/tests/**/*.psm1',
+    'bootstrap/**/*.json', '.github/rulesets/protect-main.json'
 )
-$actualProductPathspecs = @(
-    [regex]::Matches(
-        $productSyntaxBlock,
-        '[''"](?<path>[^''"\r\n]+\.(?:ps1|psm1|json))[''"]'
-    ) | ForEach-Object { $_.Groups['path'].Value }
-)
+$actualProductPathspecs = @([regex]::Matches(
+    $productSyntaxBlock,
+    '[''"](?<path>[^''"\r\n]+\.(?:ps1|psm1|json))[''"]'
+) | ForEach-Object { $_.Groups['path'].Value })
 if ([regex]::Matches($productSyntaxBlock, 'git ls-files --').Count -ne 2 -or
     $actualProductPathspecs.Count -ne $expectedProductPathspecs.Count) {
     throw 'Product syntax validation must use only its two declared inventories.'
@@ -356,109 +433,54 @@ foreach ($governanceReference in @(
         throw "Product validation references governance source '$governanceReference'."
     }
 }
+
 $governanceSuiteBlock = Get-WorkflowJobBlock `
-    -Workflow $governanceWorkflow `
-    -JobId 'governance-suite'
-foreach ($runtime in @(
+    $governanceWorkflow `
+    'governance-suite'
+$validationSuites = @(
     [pscustomobject]@{
-        Name = 'Exercise retained Ruleset manager under Windows PowerShell 5.1'
-        Shell = 'powershell'
+        Prefix = 'Exercise retained Ruleset manager under'
+        Job = $windowsBlock
+        Required = '.github\rulesets\tests\protect-main.ps1'
     },
     [pscustomobject]@{
-        Name = 'Exercise retained Ruleset manager under PowerShell 7'
-        Shell = 'pwsh'
+        Prefix = 'Exercise governance under'
+        Job = $governanceSuiteBlock
+        Required = 'tests\policy.ps1'
     }
-)) {
-    $runtimeBlock = Get-WorkflowStepBlock `
-        -Job $windowsBlock `
-        -Name $runtime.Name
-    if ($runtimeBlock -cnotmatch (
-        "(?m)^        shell: $([regex]::Escape($runtime.Shell))\s*`$"
-    ) -or -not $runtimeBlock.Contains(
-        '.github\rulesets\tests\protect-main.ps1'
-    ) -or -not $runtimeBlock.Contains('$ErrorActionPreference = ''Stop''')) {
-        throw "Product Ruleset step '$($runtime.Name)' is incomplete."
-    }
-}
-foreach ($runtime in @(
-    [pscustomobject]@{
-        Name = 'Exercise governance under Windows PowerShell 5.1'
-        Shell = 'powershell'
-    },
-    [pscustomobject]@{
-        Name = 'Exercise governance under PowerShell 7'
-        Shell = 'pwsh'
-    }
-)) {
-    $runtimeBlock = Get-WorkflowStepBlock `
-        -Job $governanceSuiteBlock `
-        -Name $runtime.Name
-    if ($runtimeBlock -cnotmatch (
-        "(?m)^        shell: $([regex]::Escape($runtime.Shell))\s*`$"
+)
+foreach ($suite in $validationSuites) {
+    foreach ($runtime in @(
+        [pscustomobject]@{ Name = 'Windows PowerShell 5.1'; Shell = 'powershell' },
+        [pscustomobject]@{ Name = 'PowerShell 7'; Shell = 'pwsh' }
     )) {
-        throw (
-            "Governance step '$($runtime.Name)' must use " +
-            "'$($runtime.Shell)'."
-        )
-    }
-    if (-not $runtimeBlock.Contains('$ErrorActionPreference = ''Stop''')) {
-        throw "Governance step '$($runtime.Name)' must fail fast."
-    }
-    foreach ($governanceTest in @(
-        'tests\workflow.ps1',
-        'tests\ruleset-migration.ps1',
-        'tests\lifecycle-model.ps1',
-        'tests\lifecycle.ps1',
-        'tests\policy.ps1'
-    )) {
-        if (-not $runtimeBlock.Contains($governanceTest)) {
-            throw (
-                "Governance step '$($runtime.Name)' must exercise " +
-                "'$governanceTest'."
-            )
+        $name = "$($suite.Prefix) $($runtime.Name)"
+        $block = Get-WorkflowStepBlock $suite.Job $name
+        if ($block -cnotmatch (
+            "(?m)^        shell: $([regex]::Escape($runtime.Shell))\s*$"
+        ) -or -not $block.Contains($suite.Required) -or
+            -not $block.Contains('$ErrorActionPreference = ''Stop''')) {
+            throw "Validation step '$name' is incomplete."
         }
     }
 }
-$governanceValidationBlock = Get-WorkflowJobBlock `
-    -Workflow $governanceWorkflow `
-    -JobId 'governance-validation'
-if ($governanceValidationBlock -cnotmatch (
-    '(?m)^    if:\s*\$\{\{\s*always\(\)\s*\}\}\s*$'
-)) {
-    throw "Governance validation must run with 'if: always()'."
-}
-if ($governanceValidationBlock -cnotmatch (
-    '(?m)^      - governance-suite\s*$'
-)) {
-    throw 'Governance validation must depend on Governance suite.'
-}
-if (-not $governanceValidationBlock.Contains(
-    'needs.governance-suite.result'
-)) {
-    throw 'Governance validation must inspect the Governance suite result.'
-}
-foreach ($requiredProductTest in @(
+foreach ($requiredTest in @(
     'bootstrap\windows\tests\root-build.ps1',
     'bootstrap\windows\tests\main.ps1',
     'bootstrap\windows\tests\core-rust.ps1'
 )) {
-    if (-not $windowsBlock.Contains($requiredProductTest)) {
-        throw (
-            "Windows Bootstrap must exercise '$requiredProductTest'."
-        )
+    if (-not $windowsBlock.Contains($requiredTest)) {
+        throw "Windows Bootstrap must exercise '$requiredTest'."
     }
 }
-$productBlock = Get-WorkflowJobBlock `
-    -Workflow $productWorkflow `
-    -JobId 'product-validation'
-if ($productBlock -cnotmatch '(?m)^    if:\s*\$\{\{\s*always\(\)\s*\}\}\s*$') {
-    throw "Product validation must run with 'if: always()'."
-}
-if ($productBlock -cnotmatch '(?m)^      - windows-bootstrap\s*$') {
-    throw 'Product validation must depend on Windows Bootstrap.'
-}
-if ($productBlock -cnotmatch 'needs\.windows-bootstrap\.result') {
-    throw 'Product validation must inspect the Windows Bootstrap result.'
+foreach ($governanceTest in @(
+    'tests\workflow.ps1', 'tests\ruleset-migration.ps1',
+    'tests\lifecycle-model.ps1', 'tests\lifecycle.ps1',
+    'tests\policy.ps1'
+)) {
+    if (-not $governanceSuiteBlock.Contains($governanceTest)) {
+        throw "Governance suite must exercise '$governanceTest'."
+    }
 }
 
 & (Join-Path $PSScriptRoot 'policy-runtime.ps1') `
@@ -466,5 +488,5 @@ if ($productBlock -cnotmatch 'needs\.windows-bootstrap\.result') {
 
 Write-Output (
     "PASS: $($contexts.Count) required checks map to workflow jobs; " +
-    'policy is base-trusted and product aggregation is fail-closed.'
+    'policy is base-trusted and explicit validation is fail-closed.'
 )

@@ -119,4 +119,48 @@ Assert-True (-not (Test-GovernanceClosingReference `
     -Body 'Closes #17t' `
     -IssueNumber 17)) 'literal t cannot trail an Issue number'
 
+Assert-True (Test-GovernanceIssueReference `
+    -Body "## Link`n`nRefs: #17" `
+    -IssueNumber 17) 'a standalone primary Issue reference is accepted'
+foreach ($invalidReference in @(
+    'refs: #17',
+    'Refs #17',
+    'Refs: #17 trailing text',
+    '    Refs: #17',
+    (@('```text', 'Refs: #17', '```') -join "`n"),
+    (@('<!--', 'Refs: #17', '-->') -join "`n")
+)) {
+    Assert-True (-not (Test-GovernanceIssueReference `
+        -Body $invalidReference `
+        -IssueNumber 17)) "non-canonical Issue reference is rejected: $invalidReference"
+}
+
+foreach ($keyword in @(
+    'close', 'closes', 'closed',
+    'fix', 'fixes', 'fixed',
+    'resolve', 'resolves', 'resolved'
+)) {
+    Assert-True (Test-GovernanceClosingReference `
+        -Body "$keyword #17" `
+        -IssueNumber 17) "GitHub closing keyword is detected: $keyword"
+}
+Assert-True (Test-GovernanceClosingReference `
+    -Body 'FIXES: #17' `
+    -IssueNumber 17) 'closing keyword detection is case-insensitive and accepts a colon'
+Assert-True (Test-GovernanceClosingReference `
+    -Body 'Closes swawai/swaw-harness#17' `
+    -IssueNumber 17 `
+    -Repository 'swawai/swaw-harness') 'a qualified primary Issue closing reference is detected'
+Assert-True (Test-GovernanceClosingReference `
+    -Body 'Resolved https://github.com/swawai/swaw-harness/issues/17' `
+    -IssueNumber 17 `
+    -Repository 'swawai/swaw-harness') 'a primary Issue URL closing reference is detected'
+Assert-True (-not (Test-GovernanceClosingReference `
+    -Body 'Fixes someone/else#17' `
+    -IssueNumber 17 `
+    -Repository 'swawai/swaw-harness')) 'a qualified closing reference to another repository is allowed'
+Assert-True (-not (Test-GovernanceClosingReference `
+    -Body 'Fixes #18' `
+    -IssueNumber 17)) 'a closing reference to a different Issue is not rejected'
+
 Write-Output "PASS: $assertionCount policy runtime assertions."

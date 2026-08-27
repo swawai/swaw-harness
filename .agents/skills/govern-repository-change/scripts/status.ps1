@@ -169,7 +169,7 @@ try {
     $issueContractErrors = @()
     $linkedBranchVerified = $false
     $linkedBranchError = $null
-    $pullRequestIssueLinkVerified = $false
+    $pullRequestIssueLinkVerified = $pullRequestClosingReferenceDetected = $false
     $issueChangeLinkVerified = $false
     $remoteBranchOid = $null
     $remoteBranchError = $null
@@ -335,13 +335,21 @@ try {
         [string]$_.state -eq 'OPEN'
     } | Select-Object -First 1)
     if ($null -ne $issueNumber -and $openPullRequest.Count -eq 1) {
-        $pullRequestIssueLinkVerified = Test-GovernanceClosingReference `
+        $pullRequestIssueLinkVerified = Test-GovernanceIssueReference `
             -Body ([string]$openPullRequest[0].body) `
             -IssueNumber $issueNumber
+        $pullRequestClosingReferenceDetected = Test-GovernanceClosingReference `
+            -Body (([string]$openPullRequest[0].title) + "`n" +
+                ([string]$openPullRequest[0].body)) `
+            -IssueNumber $issueNumber `
+            -Repository $repository
+        $pullRequestIssueLinkVerified = $pullRequestIssueLinkVerified -and
+            -not $pullRequestClosingReferenceDetected
     }
-    $issueChangeLinkVerified = (
-        $linkedBranchVerified -or $pullRequestIssueLinkVerified
-    )
+    $issueChangeLinkVerified = $pullRequestIssueLinkVerified
+    if ($openPullRequest.Count -eq 0) {
+        $issueChangeLinkVerified = $linkedBranchVerified
+    }
     $issueIsOpen = $null -ne $issue -and [string]$issue.state -ceq 'OPEN'
     $governedContextValid = (
         $branchMatch.Success -and
@@ -376,18 +384,25 @@ try {
     elseif ($issueContractErrors.Count -gt 0) {
         $nextAction = 'Stop: the branch Issue does not satisfy the change contract.'
     }
-    elseif (-not $issueChangeLinkVerified -and
-        $openPullRequest.Count -eq 1) {
+    elseif ($pullRequestClosingReferenceDetected) {
         $nextAction = (
-            "Stop: the open PR must contain a standalone Closes #$issueNumber " +
+            "Stop: the open PR title and body must not close, fix, or resolve " +
+            "primary Issue #$issueNumber."
+        )
+    }
+    elseif ($openPullRequest.Count -eq 1 -and
+        -not $pullRequestIssueLinkVerified) {
+        $nextAction = (
+            "Stop: the open PR must contain a standalone Refs: #$issueNumber " +
             'reference.'
         )
     }
-    elseif (-not $issueChangeLinkVerified -and
+    elseif ($openPullRequest.Count -eq 0 -and
+        -not $linkedBranchVerified -and
         -not [string]::IsNullOrWhiteSpace($linkedBranchError)) {
         $nextAction = 'Stop: the Issue-linked branch relation could not be verified.'
     }
-    elseif (-not $issueChangeLinkVerified) {
+    elseif ($openPullRequest.Count -eq 0 -and -not $linkedBranchVerified) {
         $nextAction = 'Stop: GitHub does not identify this as an Issue-linked branch.'
     }
     elseif (-not [string]::IsNullOrWhiteSpace($remoteBranchError)) {
@@ -463,6 +478,7 @@ try {
         LinkedBranchVerified = $linkedBranchVerified
         LinkedBranchError = $linkedBranchError
         PullRequestIssueLinkVerified = $pullRequestIssueLinkVerified
+        PullRequestClosingReferenceDetected = $pullRequestClosingReferenceDetected
         IssueChangeLinkVerified = $issueChangeLinkVerified
         PullRequestQueryVerified = $pullRequestQueryVerified
         GovernedContextValid = $governedContextValid

@@ -127,29 +127,37 @@ try {
     Assert-Equal 'in_sync' $updated.State 'update verification'
     Assert-CallCount $drift 'mutate:PUT' 1
 
-    $postUninstall = New-TestFixture 'post-uninstall stale governance check'
-    Set-RemoteRuleset $postUninstall {
+    $ungovernedRemoval = New-TestFixture 'ungoverned required check removal'
+    Set-RemoteRuleset $ungovernedRemoval {
         param($document)
-        $statusRule = @($document.rules | Where-Object {
-            $_.type -ceq 'required_status_checks'
-        })[0]
-        $statusRule.parameters.required_status_checks = @(
-            @($statusRule.parameters.required_status_checks) + @(
-                [pscustomobject]@{
-                    context = 'Change policy'
-                    integration_id = 15368
+        $document.rules = @($document.rules) + @(
+            [pscustomobject][ordered]@{
+                type = 'required_status_checks'
+                parameters = [pscustomobject][ordered]@{
+                    do_not_enforce_on_create = $false
+                    required_status_checks = @(
+                        [pscustomobject][ordered]@{
+                            context = 'Change policy'
+                            integration_id = 15368
+                        }
+                    )
+                    strict_required_status_checks_policy = $true
                 }
-            )
+            }
         )
     }
-    Set-FakeContext $postUninstall
-    $recoveredBaseline = & $rulesetScript apply `
-        -RepositoryRoot $postUninstall.Root
-    Assert-Equal 'update' $recoveredBaseline.Outcome `
-        'post-uninstall recovery update'
-    Assert-Equal 'in_sync' $recoveredBaseline.State `
-        'post-uninstall recovery verification'
-    Assert-CallCount $postUninstall 'mutate:PUT' 1
+    Set-FakeContext $ungovernedRemoval
+    $ungovernedStatus = & $rulesetScript status `
+        -RepositoryRoot $ungovernedRemoval.Root
+    Assert-Equal $true $ungovernedStatus.RequiresGovernanceActivation `
+        'required context removal reports its governance prerequisite'
+    [void](Assert-Throws {
+        & $rulesetScript apply -RepositoryRoot $ungovernedRemoval.Root
+    } @(
+        'dedicated governance Ruleset must be verifiably active',
+        'lifecycle source is absent on main'
+    ) 'required context removal without active governance')
+    Assert-CallCount $ungovernedRemoval 'mutate:' 0
 
     $reordered = New-TestFixture 'reordered'
     Set-RemoteRuleset $reordered {

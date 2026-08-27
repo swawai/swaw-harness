@@ -126,15 +126,40 @@ function Get-GovernanceChecklistErrors {
     return $errors.ToArray()
 }
 
-function Test-GovernanceClosingReference {
+function Test-GovernanceIssueReference {
     param(
         [AllowNull()][string]$Body,
         [Parameter(Mandatory = $true)][int]$IssueNumber
     )
 
     $semanticBody = Remove-GovernanceMarkdownNonSemanticContent -Body $Body
-    $pattern = '(?im)^[ ]{0,3}Closes[ \t]+#' +
+    $pattern = '(?m)^[ ]{0,3}Refs:[ \t]+#' +
         [regex]::Escape([string]$IssueNumber) + '[ \t]*$'
+    return $semanticBody -cmatch $pattern
+}
+
+function Test-GovernanceClosingReference {
+    param(
+        [AllowNull()][string]$Body,
+        [Parameter(Mandatory = $true)][int]$IssueNumber,
+        [AllowNull()][string]$Repository
+    )
+
+    $semanticBody = Remove-GovernanceMarkdownNonSemanticContent -Body $Body
+    $keywords = 'close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved'
+    $escapedIssue = [regex]::Escape([string]$IssueNumber)
+    $references = [Collections.Generic.List[string]]::new()
+    [void]$references.Add("#$escapedIssue")
+    if (-not [string]::IsNullOrWhiteSpace($Repository)) {
+        $escapedRepository = [regex]::Escape($Repository.Trim())
+        [void]$references.Add("$escapedRepository#$escapedIssue")
+        [void]$references.Add(
+            "https?://github\.com/$escapedRepository/issues/$escapedIssue"
+        )
+    }
+    $pattern = '(?im)(?<![a-z])(?:' + $keywords +
+        ')[ \t]*:?[ \t]+(?:' + ($references -join '|') +
+        ')(?![a-z0-9])'
     return $semanticBody -match $pattern
 }
 
@@ -323,6 +348,7 @@ Export-ModuleMember -Function @(
     'Invoke-GovernanceCommand',
     'Invoke-GovernanceNative',
     'Test-GovernanceClosingReference',
+    'Test-GovernanceIssueReference',
     'Test-GovernanceIssueContract',
     'Test-GovernanceLinkedBranch',
     'Test-GovernanceMigrationAuthorization',

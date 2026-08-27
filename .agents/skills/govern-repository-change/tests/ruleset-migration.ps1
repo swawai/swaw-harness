@@ -141,19 +141,37 @@ function Set-FakeContext {
 }
 
 function Set-RemoteProductBeforeMigration {
-    param($Fixture)
+    param(
+        $Fixture,
+        [switch]$LegacyCombined
+    )
 
     $document = Get-Content -LiteralPath $Fixture.ProductDesired -Raw |
         ConvertFrom-Json
-    $statusRule = @($document.rules | Where-Object {
-        $_.type -ceq 'required_status_checks'
-    })[0]
-    $changePolicy = [pscustomobject][ordered]@{
-        context = 'Change policy'
-        integration_id = 15368
+    $requiredChecks = @(
+        [pscustomobject][ordered]@{
+            context = 'Product validation'
+            integration_id = 15368
+        }
+    )
+    if ($LegacyCombined) {
+        $requiredChecks = @(
+            [pscustomobject][ordered]@{
+                context = 'Change policy'
+                integration_id = 15368
+            }
+        ) + $requiredChecks
     }
-    $statusRule.parameters.required_status_checks = @($changePolicy) +
-        @($statusRule.parameters.required_status_checks)
+    $document.rules = @($document.rules) + @(
+        [pscustomobject][ordered]@{
+            type = 'required_status_checks'
+            parameters = [pscustomobject][ordered]@{
+                do_not_enforce_on_create = $false
+                required_status_checks = $requiredChecks
+                strict_required_status_checks_policy = $true
+            }
+        }
+    )
     Write-Utf8 $Fixture.ProductState ($document | ConvertTo-Json -Depth 100)
 }
 
@@ -223,6 +241,9 @@ try {
         }
         $productBefore = Get-FileBytes $fixture.ProductState
         Set-FakeContext $fixture
+        $status = & $fixture.Script status -RepositoryRoot $fixture.Root
+        Assert-Equal $true $status.RequiresGovernanceActivation `
+            "Product-only migration reports its governance prerequisite"
         Assert-Throws {
             & $fixture.Script apply `
                 -RepositoryRoot $fixture.Root `
@@ -255,16 +276,32 @@ try {
 
     $productAfter = Get-Content -LiteralPath $ready.ProductState -Raw |
         ConvertFrom-Json
-    $contexts = @($productAfter.rules | Where-Object {
+    $statusRules = @($productAfter.rules | Where-Object {
         $_.type -ceq 'required_status_checks'
-    } | ForEach-Object {
+    })
+    $contexts = @($statusRules | ForEach-Object {
         @($_.parameters.required_status_checks) | ForEach-Object {
             [string]$_.context
         }
     })
-    Assert-Equal 1 $contexts.Count 'migrated protect-main check count'
-    Assert-Equal 'Product validation' $contexts[0] `
-        'migrated protect-main retains only product validation'
+    Assert-Equal 0 $statusRules.Count `
+        'migrated protect-main contains no required status rule'
+    Assert-Equal 0 $contexts.Count `
+        'migrated protect-main contains no required status checks'
+
+    $legacy = New-MigrationFixture 'legacy-combined'
+    Set-RemoteProductBeforeMigration $legacy -LegacyCombined
+    Set-RemoteGovernance $legacy 'active'
+    Set-FakeContext $legacy
+    $legacyStatus = & $legacy.Script status -RepositoryRoot $legacy.Root
+    Assert-Equal $true $legacyStatus.RequiresGovernanceActivation `
+        'legacy combined migration reports its governance prerequisite'
+    $legacyResult = & $legacy.Script apply `
+        -RepositoryRoot $legacy.Root `
+        -Confirm:$false
+    Assert-Equal 'in_sync' $legacyResult.State `
+        'legacy combined migration remains supported'
+    Assert-CallCount $legacy 'mutate:PUT' 1
 
     Write-Output (
         "PASS: $assertionCount assertions; governance activation gates the " +

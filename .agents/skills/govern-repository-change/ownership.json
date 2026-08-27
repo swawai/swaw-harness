@@ -8,6 +8,9 @@
     "required_files": [
       ".agents/skills/govern-repository-change/SKILL.md",
       ".agents/skills/govern-repository-change/ownership.json",
+      ".agents/skills/govern-repository-change/references/change-workflow.md",
+      ".agents/skills/govern-repository-change/references/control-plane.md",
+      ".agents/skills/govern-repository-change/references/review-handoff.md",
       ".agents/skills/govern-repository-change/scripts/governance.psm1",
       ".agents/skills/govern-repository-change/scripts/lifecycle-plan.psm1",
       ".agents/skills/govern-repository-change/scripts/lifecycle-remote.psm1",

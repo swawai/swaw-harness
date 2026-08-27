@@ -157,10 +157,8 @@ function Assert-GovernanceRulesetContract {
     }
     $checks = @($parameters.required_status_checks)
     $contexts = @(Get-RulesetRequiredContexts -Ruleset $Ruleset)
-    if ($contexts.Count -ne 2 -or
-        $contexts -cnotcontains 'Change policy' -or
-        $contexts -cnotcontains 'Governance validation') {
-        throw 'Governance Ruleset must require Change policy and Governance validation.'
+    if ($contexts.Count -ne 1 -or $contexts[0] -cne 'Change policy') {
+        throw 'Governance Ruleset must require only Change policy.'
     }
     foreach ($check in $checks) {
         if ([long]$check.integration_id -ne 15368) {

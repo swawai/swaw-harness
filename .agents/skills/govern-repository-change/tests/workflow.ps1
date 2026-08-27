@@ -312,10 +312,10 @@ try {
         'indented-readiness' `
         'change contract'
     Assert-FailClosedStatus 'unlinked' 'unlinked' 'Issue-linked branch'
-    Assert-FailClosedStatus `
-        'open-pr-unlinked' `
-        'open-pr-unlinked' `
-        'standalone Closes #42'
+    Assert-FailClosedStatus 'open-pr-no-reference' 'open-pr-no-reference' `
+        'standalone Refs: #42'
+    Assert-FailClosedStatus 'open-pr-closing' 'open-pr-closing' `
+        'must not close, fix, or resolve'
     Assert-FailClosedStatus 'wrong-link' 'wrong-linked-repo' 'Issue-linked branch'
     Assert-FailClosedStatus 'pr-failure' 'pr-failure' 'pull request state'
     Assert-FailClosedStatus 'wrong-pr-repo' 'wrong-pr-repo' 'pull request state'
@@ -338,7 +338,7 @@ try {
     Assert-Equal $false $openPullRequestStatus.LinkedBranchVerified `
         'matching PR replaces the transient linked-branch relation'
     Assert-Equal $true $openPullRequestStatus.PullRequestIssueLinkVerified `
-        'matching PR closing reference'
+        'matching PR Issue reference'
     Assert-Equal $true $openPullRequestStatus.IssueChangeLinkVerified `
         'matching PR preserves the durable Issue relation'
     Assert-Equal 1 @($openPullRequestStatus.PullRequests).Count `

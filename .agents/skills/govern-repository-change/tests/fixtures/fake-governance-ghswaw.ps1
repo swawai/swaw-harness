@@ -216,6 +216,8 @@ if ($CommandArgs[0] -ceq 'pr' -and $CommandArgs[1] -ceq 'list') {
     if ($scenario -in @(
         'open-pr',
         'open-pr-unlinked',
+        'open-pr-closing',
+        'open-pr-no-reference',
         'wrong-pr-repo',
         'wrong-pr-base',
         'wrong-pr-head'
@@ -235,17 +237,18 @@ if ($CommandArgs[0] -ceq 'pr' -and $CommandArgs[1] -ceq 'list') {
         }
         [pscustomobject]@{
             number = 7
-            title = 'Offline PR'
+            title = if ($scenario -ceq 'open-pr-closing') {
+                'fix: closes #42'
+            } else { 'Offline PR' }
             state = 'OPEN'
             isDraft = $false
             url = 'https://example.invalid/pull/7'
             mergeStateStatus = 'CLEAN'
             statusCheckRollup = @()
-            body = if ($scenario -ceq 'open-pr-unlinked') {
-                'Refs: #42'
-            }
-            else {
-                'Closes #42'
+            body = switch ($scenario) {
+                'open-pr-unlinked' { 'No primary Issue reference.' }
+                'open-pr-no-reference' { 'No primary Issue reference.' }
+                default { 'Refs: #42' }
             }
             headRefName = $headRef
             headRepository = [pscustomobject]@{

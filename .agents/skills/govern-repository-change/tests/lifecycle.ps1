@@ -184,16 +184,20 @@ try {
     }
     Set-RemoteProductRuleset $staleProduct {
         param($document)
-        $statusRule = @($document.rules | Where-Object {
-            $_.type -ceq 'required_status_checks'
-        })[0]
-        $statusRule.parameters.required_status_checks = @(
-            @($statusRule.parameters.required_status_checks) + @(
-                [pscustomobject]@{
-                    context = 'Change policy'
-                    integration_id = 15368
+        $document.rules = @($document.rules) + @(
+            [pscustomobject][ordered]@{
+                type = 'required_status_checks'
+                parameters = [pscustomobject][ordered]@{
+                    do_not_enforce_on_create = $false
+                    required_status_checks = @(
+                        [pscustomobject][ordered]@{
+                            context = 'Change policy'
+                            integration_id = 15368
+                        }
+                    )
+                    strict_required_status_checks_policy = $true
                 }
-            )
+            }
         )
     }
     Set-FakeContext $staleProduct
