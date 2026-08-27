@@ -6,9 +6,6 @@
 
 ## Accepted
 
-- **CORE-RELEASE-001 — Core Release 空间。** `CoreReleaseRoot` 唯一映射为 `DataRoot/core.release`，直接保存共享 Core Release 与 target selector；点号分隔顶层 owner 与 kind，不增加无独立职责的中间层。
-- **ENTRY-RELEASE-001 — Entry executable Release 空间。** `EntryReleaseRoot` 唯一映射为 `DataRoot/entry.release`，只保存内容寻址的 `swaw-harness-entry.exe` Release 与 target selector；它是 Entry Manager 的分发源，不是 Entry 实例数据。
-- **ENTRY-MANAGER-RELEASE-001 — Entry Manager Release 空间。** `EntryManagerReleaseRoot` 唯一映射为 `DataRoot/entry.manager.release`，只保存内容寻址的独立 Entry Manager Release 与 target selector，不保存 Entry 实例数据。
 - **DATA-LIFECYCLE-001 — 数据空间按所有者与生命周期分治。** 无 Bootstrap 进程运行时可以整体清理 `BootstrapWindowsCacheRoot`；删除 `BootstrapWindowsRoot` 属于工具链重置而非清 cache，`CoreReleaseRoot` 只允许显式 Release GC 与 selector 更新。
 - **ENTRY-DATA-001 — Entry 数据空间。** 仓库内 EntryDataRoot 固定为 `<repository>/data.entry`，每个直接子目录唯一对应一个 EntryId；自定义位置协议留待 Entry executable 垂直样例确定。
 - **ENTRY-LAYOUT-001 — Entry 文件与数据同名配对。** 一个 Entry 由同级的 `data.entry/<entry-id>.exe` 与 `data.entry/<entry-id>/` 组成；后者的 `entry.json` 是受管身份与生命周期 descriptor，二者不承诺文件系统级原子出现。
@@ -20,7 +17,6 @@
 - **BOOT-009 — Windows Rust 产品静态 CRT。** Windows Core 与 Entry Manager 的产品 Contract 必须显式要求静态 CRT，构建必须把该要求投影为 Cargo/rustc 命令行配置；验收必须读取发布 PE 的 import table，并拒绝 `VCRUNTIME`、`UCRT` 或其他外部 C/C++ runtime 依赖。
 - **BOOT-011 — Windows 子领域依赖方向。** `toolchain/` 可依赖 `builder/` 的基础路径、文件和进程机制，产品适配器可依赖两者；`builder/build/` 不得依赖 `builder/release/`，两者只由产品适配器和根编排器显式组合，不得以 `common/`、`utils/`、总加载器或旧路径 shim 绕过依赖方向。
 - **BOOT-012 — PowerShell 依赖显式。** Windows Bootstrap 的 PowerShell 文件必须自行 dot-source 足以加载所需函数的明确依赖链，不得依赖调用者预先加载。
-- **RELEASE-002 — Bootstrap Target Selector。** Core、Entry executable 与 Entry Manager 的 ReleaseRoot 都各自保存只含 Release 引用的 `current.<target-id>`；Publish 只原子更新本产品、本 target 的 selector，并验证所指 Release 的 target 兼容性。
 
 ## Open
 
