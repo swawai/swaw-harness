@@ -6,10 +6,6 @@
 
 ## Accepted
 
-- **DATA-LIFECYCLE-001 — 数据空间按所有者与生命周期分治。** 无 Bootstrap 进程运行时可以整体清理 `BootstrapWindowsCacheRoot`；删除 `BootstrapWindowsRoot` 属于工具链重置而非清 cache，`CoreReleaseRoot` 只允许显式 Release GC 与 selector 更新。
-- **ENTRY-CACHE-001 — Entry cache 所有者显式。** `EntryRoot/cache` 只保存 Entry-local cache；不得与 `BootstrapWindowsCacheRoot` 隐式 fallback、复制或同步。
-- **CACHE-001 — 不预建全局 Cache。** 当前不存在 `DataRoot/cache`；只有第二个真实消费者出现并共同采用内容身份、原子发布、并发锁与 GC 协议后，才允许建立全局 Artifact Cache。
-- **BOOT-007 — Windows Stage-0 作者布局。** `bootstrap/windows/builder` 保存跨产品 Candidate、Release 与基础机制，`toolchain` 独占构建工具链领域，`core`、`entry` 与 `entry.manager` 分别拥有 Core、Entry executable 与 Entry Manager 产品适配器；`main.ps1` 是先构建全部 Candidate、再发布并核验 selector 的唯一多产品编排器。
 - **BOOT-009 — Windows Rust 产品静态 CRT。** Windows Core 与 Entry Manager 的产品 Contract 必须显式要求静态 CRT，构建必须把该要求投影为 Cargo/rustc 命令行配置；验收必须读取发布 PE 的 import table，并拒绝 `VCRUNTIME`、`UCRT` 或其他外部 C/C++ runtime 依赖。
 - **BOOT-011 — Windows 子领域依赖方向。** `toolchain/` 可依赖 `builder/` 的基础路径、文件和进程机制，产品适配器可依赖两者；`builder/build/` 不得依赖 `builder/release/`，两者只由产品适配器和根编排器显式组合，不得以 `common/`、`utils/`、总加载器或旧路径 shim 绕过依赖方向。
 - **BOOT-012 — PowerShell 依赖显式。** Windows Bootstrap 的 PowerShell 文件必须自行 dot-source 足以加载所需函数的明确依赖链，不得依赖调用者预先加载。
