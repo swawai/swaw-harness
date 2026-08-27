@@ -16,8 +16,3 @@
 
 - **PUBLICATION-ATOMICITY-001 — 三产品崩溃一致性。** 当前 target-scoped 锁只串行化协作发布者，三个 selector 仍是依次更新，进程崩溃不能保证三者形成原子 cohort；在消费者要求跨产品版本一致性前，必须决定采用单一 cohort selector 还是可恢复的发布 journal。
 - **TARGET-ID-001 — TargetId 编码。** TargetId 必须区分二进制不兼容目标，至少包含 OS 与 CPU architecture，并在必要时包含 ABI；采用 Rust target triple 还是稳定 Swaw `os-arch-abi` 名称，仍需由第一个 Windows publish 样例验证。
-
-## Maintainer Notes
-
-- `toolchain/` 可依赖 `builder/` 的基础路径、文件和进程机制，产品适配器可依赖两者；`builder/build/` 不得依赖 `builder/release/`，两者只由产品适配器和根编排器显式组合。
-- 不得建立 `common/`、`utils/`、总加载器或旧路径 shim；PowerShell 文件必须自行 dot-source 足以加载所需函数的明确依赖链。
