@@ -16,3 +16,7 @@
 
 - **WIN-BOOT-006 — 三产品崩溃一致性。** 当前 target-scoped 锁只串行化协作发布者，三个 selector 仍是依次更新，进程崩溃不能保证三者形成原子 cohort；在消费者要求跨产品版本一致性前，必须决定采用单一 cohort selector 还是可恢复的发布 journal。
 - **WIN-BOOT-007 — TargetId 编码。** TargetId 必须区分二进制不兼容目标，至少包含 OS 与 CPU architecture，并在必要时包含 ABI；采用 Rust target triple 还是稳定 Swaw `os-arch-abi` 名称，仍需由第一个 Windows publish 样例验证。
+
+## Maintainer Notes
+
+- 待办：消除 MSVC 链接时间等非确定性字节，使相同构建输入稳定产生相同 ReleaseId，避免创建和切换无实质内容变化的 Release；具体链接器与参数由真实原生依赖样例验证。
