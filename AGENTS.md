@@ -39,4 +39,12 @@
 33. 首次安装治理时，受信 policy workflow 与治理候选验证必须先进入默认分支，之后才能激活治理专属 ruleset；停用或卸载只能操作治理专属 ruleset，不得停用、删除或接管 `protect-main`。若激活顺序错误，仓库负责人必须把临时放宽限定在一个引导 PR，保留 Issue、产品验证和人工评审记录，并在合入后立即恢复期望状态；该例外不得复用。
 34. `.github/workflows/**`、policy 实际加载的 `governance.psm1` 及其传递加载的 `.github/rulesets/scripts/repository.psm1` 是 required checks 的信任根；修改它们必须使用仓库负责人创建的 PR，并由负责人在审阅当前 HEAD 后最后手动重新添加 `governance-migration` 标签。任何后续 commit 或 PR 正文修改都会使这次授权失效，负责人必须复审新的当前 HEAD 并再次移除、添加该标签。Agent 不得自行添加、移除或请求自动添加该标签；无信任根变更时该标签也不得保留。
 35. 卸载治理时，必须先在治理仍 active 时把远端 `protect-main` 迁移并验证为不再包含治理 checks，再创建并完成源码移除 Draft PR 的 diff 与审查，然后将 PR 标为 Ready 并等待该事件完成；待 HEAD、正文、checks 与 conversations 最终确定后，由仓库负责人最后移除并重新添加 `governance-migration` 标签。随后从同步且干净的 `main` 另获授权执行 disable、uninstall 并回读远端确认为 absent，最后在不再修改 PR 的前提下立即由仓库负责人合并。禁止在 `protect-main` 仍引用治理 checks 或治理专属 Ruleset 仍 active 时先合并源码移除。
+
+### Code Review Rules
+
+- 独立评审由仓库负责人显式发起，并绑定被审查的准确 PR HEAD。此后若 HEAD、关联 Issue 的语义内容、适用的 Accepted 规范，或 PR 的验证与审查说明发生变化，原评审结果失效。
+- Reviewer 必须读取关联 Issue、适用的 Accepted 规范、完整 diff、验证范围与证据，并优先报告行为正确性、安全、恢复、协议、回归和测试缺口；由自动化可靠处理的纯格式问题不作为人工评审重点。
+- Reviewer 只读，不得修改 worktree 或分支、提交、push、修改 Issue 或 PR、标记 Ready、操作控制平面或合并。存在未解决的 actionable finding 时，不得宣称 PR 可合并。
+- 若完整 diff 修改任一适用的 `AGENTS.md`、`.agents/skills/govern-repository-change/SKILL.md` 中的评审交接规则或其策略枚举器，候选分支不得成为自身评审策略的授权源。此类变更不得使用普通 `/review`；仓库负责人必须在主任务中显式输入 `启动受保护评审`，由主任务派生全新的只读 reviewer subagent，在固定准确 base 与 PR HEAD SHA 的一次性独立 clone 中执行评审。交接必须使用 fetched base 中的枚举器，从 base 与 head 两端枚举完整 diff 所适用的全部根级和嵌套 `AGENTS.md`，携带每个 base 版本以及 base 中的评审交接约束作为不可放宽规则；首次引导时必须独立读取两个 Git tree，不得以候选枚举器作为授权源。候选规则只能追加约束，无法建立完整策略快照、子代理或隔离副本时必须 fail closed。
+- base 尚无上述规则的首次引导中，主任务必须先向仓库负责人展示将要授权的最低约束与准确 SHA，待负责人回复 `启动受保护评审` 后才能派生 reviewer。最低约束必须要求读取完整 Issue、适用的 Accepted 规范、完整 PR 正文、完整 diff、验证范围与证据；优先报告正确性、安全、恢复、协议、回归与测试缺口；全程只读，禁止修改仓库或 GitHub 状态、标记 Ready、操作控制平面或合并。
 <!-- swaw.repository-change-governance:end -->

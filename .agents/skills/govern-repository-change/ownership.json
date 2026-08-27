@@ -13,6 +13,7 @@
       ".agents/skills/govern-repository-change/scripts/lifecycle-remote.psm1",
       ".agents/skills/govern-repository-change/scripts/lifecycle-state.psm1",
       ".agents/skills/govern-repository-change/scripts/lifecycle.ps1",
+      ".agents/skills/govern-repository-change/scripts/review-policy-snapshot.ps1",
       ".agents/skills/govern-repository-change/scripts/start.ps1",
       ".agents/skills/govern-repository-change/scripts/status.ps1",
       ".agents/skills/govern-repository-change/tests/fixtures/fake-governance-ghswaw.ps1",
@@ -22,6 +23,7 @@
       ".agents/skills/govern-repository-change/tests/lifecycle.ps1",
       ".agents/skills/govern-repository-change/tests/policy-runtime.ps1",
       ".agents/skills/govern-repository-change/tests/policy.ps1",
+      ".agents/skills/govern-repository-change/tests/review-handoff.ps1",
       ".agents/skills/govern-repository-change/tests/ruleset-migration.ps1",
       ".agents/skills/govern-repository-change/tests/workflow.ps1"
     ],

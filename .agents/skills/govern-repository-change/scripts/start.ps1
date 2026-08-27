@@ -23,6 +23,9 @@ param(
     [string]$Invariants,
 
     [Parameter(Mandatory = $true)]
+    [string]$ValidationScope,
+
+    [Parameter(Mandatory = $true)]
     [string[]]$AcceptanceCriteria,
 
     [ValidatePattern('^[a-z][a-z0-9-]*$')]
@@ -66,6 +69,7 @@ foreach ($field in @{
     Scope = $Scope
     'Non-goals' = $NonGoals
     Invariants = $Invariants
+    'Validation scope' = $ValidationScope
     'Open questions' = $OpenQuestions
     References = $References
 }.GetEnumerator()) {
@@ -156,6 +160,10 @@ $($NonGoals.Trim())
 ### Invariants
 
 $($Invariants.Trim())
+
+### Validation scope
+
+$($ValidationScope.Trim())
 
 ### Acceptance criteria
 
