@@ -78,14 +78,15 @@ foreach ($RelativePath in $Files) {
         if ($Line -cmatch
             '^- \*\*([A-Za-z][A-Za-z0-9-]*-[0-9]{3}) \p{Pd} ') {
             $RuleId = $Matches[1]
+            $IsActiveSection = $Section -cin @('Accepted', 'Open')
+            if (-not $IsAgentFile -and -not $IsActiveSection) {
+                continue
+            }
             if ($RuleId -cnotmatch '^[A-Z][A-Z0-9-]*-[0-9]{3}$') {
                 throw "Rule IDs must use uppercase ASCII: $RelativePath"
             }
-            if ($Section -cnotin @('Accepted', 'Open')) {
-                if ($IsAgentFile) {
-                    throw "Rule declarations are only valid under Accepted or Open: $RelativePath"
-                }
-                continue
+            if (-not $IsActiveSection) {
+                throw "Rule declarations are only valid under Accepted or Open: $RelativePath"
             }
             $Rules.Add([pscustomobject]@{
                     Id = $RuleId
