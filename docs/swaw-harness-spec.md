@@ -29,7 +29,6 @@
 
 ## Open
 
-- **RF-010 — 语法必须自解释。** Resource 选择与 Facet 调用必须在语法上无歧义，parser 不得查询 Catalog 或扫描磁盘猜测某一段的角色；错误层级的协议 marker 必须产生诊断。
 - **RF-014 — 定义不执行。** Facet、可选 Shape/FacetSet 与 contract 只描述结构和语义，Facet binding 才选择 core、built-in 或 sidecar 实现；定义本身不得因“语法糖”获得可执行身份。
 
 - **ENTRY-CORE-001 — Entry selector 的引用形态。** `EntryRoot/releases` 应保存 Core Release 完整副本、硬链接，还是对 `DataRoot/core.release` 的受校验引用，尚未决议；选择必须同时满足 Entry 可搬移性、磁盘去重、原子更新与损坏隔离。
