@@ -1,13 +1,13 @@
 # Swaw Harness 核心架构规范
 
-本文是 Swaw Harness 架构与协议的唯一事实源。每条规则保持一至两句话；未来验收脚本只引用稳定规则 ID，不从散文推断要求。
+本文记录 Swaw Harness 全仓及跨领域的架构与协议；稳定领域的新规则由最近目录的 `AGENTS.md` 记录并与上层规则依次叠加，尚未下沉的既有领域规则在完成单一来源迁移前继续由本文现有条目承载。每条规则保持一至两句话；未来验收脚本只引用稳定规则 ID，不从散文推断要求。
 
 状态：`Accepted` 表示设计或当前能力已确认并约束实现，但不自动表示目标能力已经交付；每条规则必须明确自己描述当前能力还是已接受的目标。`Proposed` 表示建议方案；`Open` 表示仍需决议；`Superseded` 表示已被新规则替代。
 
 ## Accepted
 
 - **HAR-001 — 独立产品仓库。** `swaw-harness` 是 Swaw 品牌下的独立产品仓库，必须脱离 `swaw-kit` 的父目录和源码树独立构建、测试、打包与发布。
-- **HAR-002 — 文档职责单一。** 本文件记录架构与协议，`AGENTS.md` 记录维护规则，`README.md` 只做人类入口；三者不得复制同一规范正文。
+- **HAR-003 — 目录化协议归属。** 根 `AGENTS.md` 记录全仓规则，稳定领域规则归最近目录的 `AGENTS.md`，本文件只新增全仓或跨领域协议，`README.md` 只做人类入口。尚未下沉的既有领域规则继续由本文件中的现有条目承载；后续迁移必须保留 ID 与原义，并删除旧正文以保持单一来源。
 - **ARC-002 — 源码就近归属。** 实现应下沉到最近的稳定领域所有者；放在父领域 crate 可以接受，但必须按领域拆开，不能长期集中在总入口或总 dispatcher。
 - **ARC-003 — 可独立执行。** 命令领域的核心实现应位于 library API，进程入口保持薄；因此模块可在确有发布或隔离需要时增加独立 executable，而无需重写业务逻辑。
 - **ARC-004 — 边界按代价建立。** CLI 目录不等于 Cargo package 或进程边界；只有稳定领域、独立依赖、独立发布或故障隔离需求成立时才拆 crate/executable。
@@ -103,6 +103,7 @@
 
 ## Superseded
 
+- **HAR-002 — 文档职责单一。** 本文件记录架构与协议，`AGENTS.md` 记录维护规则，`README.md` 只做人类入口；三者不得复制同一规范正文。其集中式归属已由 `HAR-003` 的目录化协议归属取代。
 - **LAUNCHER-RELEASE-002 — Launcher Release 空间。** 本规则曾使用 `LauncherReleaseRoot` 与 `DataRoot/launcher.release`；当前实体名、路径与产物名已由 `TERM-001`、`ENTRY-RELEASE-001` 取代。
 - **LAUNCH-006 — Launcher 运行协议暂缓。** 本规则曾用旧产品名和 `template.harness.exe` 描述占位产物；当前名称与产物由 `ENTRY-EXEC-001` 取代。
 - **RELEASE-013 — Bootstrap Target Selector。** 本规则曾以 Launcher 命名第二个发布产品；当前三产品 selector 术语由 `RELEASE-014` 取代。
