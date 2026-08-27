@@ -14,7 +14,9 @@ Use one lightweight path for changes intended to enter the repository.
 2. Create one Issue-linked branch from current `main`; do not develop on
    `main`. Keep the Issue, branch, and PR focused on the same change.
 3. Implement and commit coherent changes. Use `ghswaw` for GitHub Issue and PR
-   operations and ordinary `git` commands for local work.
+   operations and ordinary `git` commands for local work. Send multiline Issue
+   and PR bodies through UTF-8 `--body-file` or JSON input, never inline; read
+   them back immediately and verify every required section before continuing.
 4. Run the local tests named by the Issue and any additional checks justified
    by the changed code. Record commands and results in the PR.
 5. Push the branch and create or update a Draft PR targeting `main`. Reference
