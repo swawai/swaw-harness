@@ -29,8 +29,10 @@ unknown outcome: never retry automatically; read remote state first.
 ## Install or migrate
 
 - Trusted workflows and the desired Ruleset declaration must already be on
-  GitHub `main`. `install` creates an absent dedicated Ruleset or enables its
-  exact disabled projection; it never reconciles arbitrary drift.
+  GitHub `main`. `install` creates an absent dedicated Ruleset, enables its
+  exact disabled projection, or migrates the exact active predecessor that
+  required `Change policy` plus `Governance validation`; it never reconciles
+  arbitrary drift.
 - Any sibling in the reserved tokenized namespace is a blocking collision, not
   an adoption candidate. The 128-bit ownership token is a stable installation
   identity, not proof of the creator.
@@ -64,6 +66,11 @@ unknown outcome: never retry automatically; read remote state first.
   closed. There is no general `-Force`. If scripts cannot recover, the owner
   records the exact tokenized name and ID, disables only that entity in GitHub,
   reads it back, and deletes it only when uninstall is intended.
+- After a complete governance source uninstall, the retained product manager
+  may remove stale required contexts from `protect-main` only after confirming
+  that no governance source remains on `main`; partial source still fails
+  closed. This narrow recovery prevents an orphaned context from locking every
+  PR without reviving the removed governance lifecycle.
 - Rotate an ownership token only by disabling and uninstalling the old identity
   with its old manifest, then merging and installing the new identity. Never
   infer ownership of unrelated sibling Rulesets.

@@ -331,6 +331,39 @@ try {
     Assert-Equal $false ([IO.File]::Exists($isolated.OtherState)) `
         'dedicated remote Ruleset is deleted'
 
+    $legacy = New-LifecycleFixture 'exact legacy governance projection'
+    Set-RemoteLegacyRuleset $legacy
+    Set-FakeContext $legacy
+    $legacyStatus = & $lifecycleScript status -RepositoryRoot $legacy.Root
+    Assert-Equal 'legacy_active' $legacyStatus.RulesetState `
+        'status recognizes only the exact active predecessor'
+    Assert-Equal 'migration_required' $legacyStatus.OverallState `
+        'status exposes the bounded predecessor migration'
+    $legacyPlan = & $lifecycleScript plan-install -RepositoryRoot $legacy.Root
+    Assert-Equal 'migrate' $legacyPlan.Outcome `
+        'plan-install exposes the bounded legacy migration'
+    Assert-Equal 0 @(Get-FakeCalls $legacy 'mutate:').Count `
+        'legacy migration planning is read-only'
+    $migrated = & $lifecycleScript install `
+        -RepositoryRoot $legacy.Root `
+        -Confirm:$false
+    Assert-Equal 'active' $migrated.RulesetState `
+        'legacy migration verifies the slim active Ruleset'
+    Assert-Equal 1 @(Get-FakeCalls $legacy 'mutate:PUT').Count `
+        'legacy migration updates only its exact Ruleset ID once'
+
+    $legacyRace = New-LifecycleFixture 'legacy projection race'
+    Set-RemoteLegacyRuleset $legacyRace
+    Set-FakeContext $legacyRace 'drift-before-mutation'
+    Assert-Throws {
+        & $lifecycleScript install `
+            -RepositoryRoot $legacyRace.Root `
+            -Confirm:$false
+    } @('changed after planning', 'No mutation was attempted') `
+        'legacy migration TOCTOU guard'
+    Assert-Equal 0 @(Get-FakeCalls $legacyRace 'mutate:').Count `
+        'legacy migration race never writes'
+
     $drift = New-LifecycleFixture 'drift'
     Set-RemoteRuleset $drift { param($m) $m.target = 'tag' }
     Set-FakeContext $drift

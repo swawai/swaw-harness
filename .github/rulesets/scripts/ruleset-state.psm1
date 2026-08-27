@@ -88,6 +88,29 @@ function Get-RulesetProjection {
     return $projection
 }
 
+function Get-GovernanceLegacyRulesetProjection {
+    param([Parameter(Mandatory = $true)]$Desired)
+
+    $contexts = @(Get-RulesetRequiredContexts -Ruleset $Desired)
+    if ($contexts.Count -ne 1 -or $contexts[0] -cne 'Change policy') {
+        return $null
+    }
+
+    $legacy = $Desired | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+    $statusRules = @($legacy.rules | Where-Object {
+        $_.type -ceq 'required_status_checks'
+    })
+    if ($statusRules.Count -ne 1) { return $null }
+    $checks = @($statusRules[0].parameters.required_status_checks)
+    $statusRules[0].parameters.required_status_checks = @($checks) + @(
+        [pscustomobject][ordered]@{
+            context = 'Governance validation'
+            integration_id = 15368
+        }
+    )
+    return $legacy
+}
+
 function Get-RulesetLifecycleState {
     param(
         [Parameter(Mandatory = $true)]$Desired,
@@ -105,6 +128,11 @@ function Get-RulesetLifecycleState {
         -Enforcement 'disabled'
     if (Test-RulesetDesiredState -Desired $disabled -Actual $Actual) {
         return 'disabled'
+    }
+    $legacy = Get-GovernanceLegacyRulesetProjection -Desired $Desired
+    if ($null -ne $legacy -and
+        (Test-RulesetDesiredState -Desired $legacy -Actual $Actual)) {
+        return 'legacy_active'
     }
     return 'drift'
 }

@@ -81,6 +81,7 @@ function New-LifecycleReport {
     }
     elseif ($RulesetState -ceq 'active') { 'active' }
     elseif ($RulesetState -ceq 'disabled') { 'disabled' }
+    elseif ($RulesetState -ceq 'legacy_active') { 'migration_required' }
     elseif ($RulesetState -ceq 'absent' -and $isSourceRemoval) {
         'source_removal_pending'
     }
@@ -271,7 +272,7 @@ try {
             -Repository $repository `
             -PayloadPath $payloadPath
     }
-    elseif ($plan.Outcome -ceq 'enable') {
+    elseif ($plan.Outcome -cin @('enable', 'migrate')) {
         $payloadPath = New-RulesetPayloadSnapshot -Ruleset $desired
         Set-GitHubRuleset `
             -Ghswaw $ghswaw.Source `
@@ -336,7 +337,9 @@ catch {
         $_.Exception.Message
     )
 }
-$expectedState = if ($plan.Outcome -cin @('create', 'enable')) { 'active' }
+$expectedState = if ($plan.Outcome -cin @('create', 'enable', 'migrate')) {
+    'active'
+}
     elseif ($plan.Outcome -ceq 'disable') { 'disabled' }
     else { 'absent' }
 if ($verifiedState -cne $expectedState) {

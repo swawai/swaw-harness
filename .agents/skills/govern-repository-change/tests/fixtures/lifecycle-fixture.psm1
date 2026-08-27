@@ -152,6 +152,25 @@ function Set-RemoteRuleset {
     Write-Utf8 $StatePath ($document | ConvertTo-Json -Depth 100)
 }
 
+function Set-RemoteLegacyRuleset {
+    param($Fixture)
+
+    Set-RemoteRuleset $Fixture {
+        param($document)
+        $rule = @($document.rules | Where-Object {
+            $_.type -ceq 'required_status_checks'
+        })[0]
+        $rule.parameters.required_status_checks = @(
+            @($rule.parameters.required_status_checks) + @(
+                [pscustomobject][ordered]@{
+                    context = 'Governance validation'
+                    integration_id = 15368
+                }
+            )
+        )
+    }
+}
+
 function Set-RemoteProductRuleset {
     param($Fixture, [scriptblock]$Transform)
 
@@ -178,6 +197,7 @@ Export-ModuleMember -Function @(
     'Invoke-TestGit',
     'New-LifecycleFixture',
     'Set-FakeContext',
+    'Set-RemoteLegacyRuleset',
     'Set-RemoteProductRuleset',
     'Set-RemoteRuleset',
     'Write-Utf8'

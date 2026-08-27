@@ -127,8 +127,8 @@ try {
     Assert-Equal 'in_sync' $updated.State 'update verification'
     Assert-CallCount $drift 'mutate:PUT' 1
 
-    $ungovernedRemoval = New-TestFixture 'ungoverned required check removal'
-    Set-RemoteRuleset $ungovernedRemoval {
+    $postUninstall = New-TestFixture 'post-uninstall stale required context'
+    Set-RemoteRuleset $postUninstall {
         param($document)
         $document.rules = @($document.rules) + @(
             [pscustomobject][ordered]@{
@@ -146,18 +146,58 @@ try {
             }
         )
     }
-    Set-FakeContext $ungovernedRemoval
-    $ungovernedStatus = & $rulesetScript status `
-        -RepositoryRoot $ungovernedRemoval.Root
-    Assert-Equal $true $ungovernedStatus.RequiresGovernanceActivation `
+    Set-FakeContext $postUninstall
+    $postUninstallStatus = & $rulesetScript status `
+        -RepositoryRoot $postUninstall.Root
+    Assert-Equal $true $postUninstallStatus.RequiresGovernanceActivation `
         'required context removal reports its governance prerequisite'
+    $recovered = & $rulesetScript apply -RepositoryRoot $postUninstall.Root
+    Assert-Equal 'update' $recovered.Outcome `
+        'complete source absence permits retained product recovery'
+    Assert-Equal 'in_sync' $recovered.State `
+        'post-uninstall stale context recovery is verified'
+    Assert-CallCount $postUninstall 'mutate:PUT' 1
+
+    $partialSource = New-TestFixture 'partial governance source'
+    Set-RemoteRuleset $partialSource {
+        param($document)
+        $document.rules = @($document.rules) + @(
+            [pscustomobject][ordered]@{
+                type = 'required_status_checks'
+                parameters = [pscustomobject][ordered]@{
+                    do_not_enforce_on_create = $false
+                    required_status_checks = @(
+                        [pscustomobject][ordered]@{
+                            context = 'Change policy'
+                            integration_id = 15368
+                        }
+                    )
+                    strict_required_status_checks_policy = $true
+                }
+            }
+        )
+    }
+    $partialPath = Join-Path `
+        $partialSource.Root `
+        '.github\workflows\change-policy.yml'
+    [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($partialPath))
+    [IO.File]::WriteAllText($partialPath, 'partial governance source')
+    [void](Invoke-TestGit $partialSource.Root @('add', '.'))
+    [void](Invoke-TestGit $partialSource.Root @(
+        'commit', '-m', 'test: add partial governance source'
+    ))
+    $partialSource.Head = @(
+        Invoke-TestGit $partialSource.Root @('rev-parse', 'HEAD')
+    )[-1].Trim()
+    [void](Invoke-TestGit $partialSource.Root @(
+        'update-ref', 'refs/remotes/origin/main', $partialSource.Head
+    ))
+    Set-FakeContext $partialSource
     [void](Assert-Throws {
-        & $rulesetScript apply -RepositoryRoot $ungovernedRemoval.Root
-    } @(
-        'dedicated governance Ruleset must be verifiably active',
-        'lifecycle source is absent on main'
-    ) 'required context removal without active governance')
-    Assert-CallCount $ungovernedRemoval 'mutate:' 0
+        & $rulesetScript apply -RepositoryRoot $partialSource.Root
+    } @('Governance lifecycle source is incomplete') `
+        'partial governance source blocks baseline recovery')
+    Assert-CallCount $partialSource 'mutate:' 0
 
     $reordered = New-TestFixture 'reordered'
     Set-RemoteRuleset $reordered {

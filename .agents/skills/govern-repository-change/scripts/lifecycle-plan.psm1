@@ -33,6 +33,9 @@ function Get-GovernanceLifecyclePlan {
         elseif ($RulesetState -ceq 'absent') {
             'Governance source is installed but its control plane is absent.'
         }
+        elseif ($RulesetState -ceq 'legacy_active') {
+            'Run plan-install, then install, to migrate the exact legacy Ruleset.'
+        }
         else { 'Inspect the remote Ruleset before any mutation.' }
     }
     elseif ($SourceState -cne 'installed') {
@@ -58,9 +61,15 @@ function Get-GovernanceLifecyclePlan {
         $outcome = 'blocked'
         $next = 'Inspect the remote Ruleset; lifecycle actions never reconcile drift.'
     }
+    elseif ($RulesetState -ceq 'legacy_active' -and $Action -cne 'install') {
+        $blocked = $true
+        $outcome = 'blocked'
+        $next = 'Migrate the exact legacy Ruleset with plan-install and install first.'
+    }
     elseif ($Action -ceq 'install') {
         if ($RulesetState -ceq 'absent') { $outcome = 'create' }
         elseif ($RulesetState -ceq 'disabled') { $outcome = 'enable' }
+        elseif ($RulesetState -ceq 'legacy_active') { $outcome = 'migrate' }
         $next = if ($outcome -ceq 'none') {
             'Governance is already active.'
         }
