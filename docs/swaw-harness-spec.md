@@ -7,9 +7,6 @@
 ## Accepted
 
 - **ARC-002 — 可独立执行。** 命令领域的核心实现应位于 library API，进程入口保持薄；因此模块可在确有发布或隔离需要时增加独立 executable，而无需重写业务逻辑。
-- **TERM-001 — Entry 术语。** `Entry executable` 是 `bootstrap/windows/entry` 构建并由 Entry Manager 分发的可执行产品，`Entry` 是 `<entry-id>.exe + <entry-id>/` 受管实例；`Launcher` 只可出现在 Git 保存的基线前历史中。
-- **ENTRY-001 — Entry 身份由 Manager 提交。** 合法的 Entry executable basename 与受管 descriptor 中的 EntryId 必须一致并共同确定唯一 EntryRoot；复制或重命名单个 Entry executable 文件不得创建合法 Entry。
-- **DATA-ROOT-001 — Core 数据根。** `DataRoot` 是共享 Core 运行数据的可配置绝对根，仓库内默认值为 `<repository>/data`；`core`、`docs`、`bootstrap` 与 Entry 数据均不属于 DataRoot。
 - **BOOTSTRAP-DATA-001 — Windows Bootstrap 数据空间。** `BootstrapWindowsRoot` 唯一映射为 `DataRoot/bootstrap.windows` 并保存 `toolchains/work/locks/logs`；`BootstrapWindowsCacheRoot` 唯一映射为 `DataRoot/bootstrap.windows.cache` 并保存 `downloads/build/cargo`，两者是独立受控写根。
 - **CORE-RELEASE-001 — Core Release 空间。** `CoreReleaseRoot` 唯一映射为 `DataRoot/core.release`，直接保存共享 Core Release 与 target selector；点号分隔顶层 owner 与 kind，不增加无独立职责的中间层。
 - **ENTRY-RELEASE-001 — Entry executable Release 空间。** `EntryReleaseRoot` 唯一映射为 `DataRoot/entry.release`，只保存内容寻址的 `swaw-harness-entry.exe` Release 与 target selector；它是 Entry Manager 的分发源，不是 Entry 实例数据。
@@ -21,7 +18,6 @@
 - **ENTRY-RECOVERY-001 — Entry Manager 恢复目标协议。** 实现控制面板时，Manager 是 Entry 创建、删除和状态迁移的唯一支持写入者，每次启动控制面板前必须在互斥锁内幂等恢复有效 descriptor 记录的未完成操作；无有效 descriptor 的孤立对象只报告冲突，不得推断所有权并静默删除。
 - **ENTRY-CACHE-001 — Entry cache 所有者显式。** `EntryRoot/cache` 只保存 Entry-local cache；不得与 `BootstrapWindowsCacheRoot` 隐式 fallback、复制或同步。
 - **CACHE-001 — 不预建全局 Cache。** 当前不存在 `DataRoot/cache`；只有第二个真实消费者出现并共同采用内容身份、原子发布、并发锁与 GC 协议后，才允许建立全局 Artifact Cache。
-- **BOOT-001 — Stage-0 边界。** 根 `bootstrap/` 保存无需已编译 Harness 即可运行的作者态 Stage-0 实现，`core/` 是完整 Rust workspace 且不承担获取自身编译环境的职责。
 - **BOOT-002 — 冷启动依赖最小化。** Windows Stage-0 只获取构建当前 Rust 产品必需的 minimal Rust 与 MSVC 工具链，不获取 `rustfmt`、Bun 或内置 Pwsh；开发工具与脚本 Facet runtime 由出现真实消费者后的独立 setup 协议负责。
 - **BOOT-003 — 持久清单确定性。** 写入身份或完整性 metadata 的无序集合必须先按协议规定的、与文化和 PowerShell 版本无关的 ordinal 顺序规范化；Windows 路径先按 `OrdinalIgnoreCase`、再按 `Ordinal` 决胜，验证不得依赖文件系统枚举顺序或 `Sort-Object` 默认语义。
 - **BOOT-004 — 构建环境属于子进程。** MSVC、SDK、Rust 与 Cargo 环境只注入实际工具子进程，不修改再恢复父 PowerShell 进程，也不生成需要 dot-source 的环境脚本；工具入口必须使用显式受支持的 executable 映射。

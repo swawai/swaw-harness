@@ -4,10 +4,21 @@
 
 本文件适用于整个仓库，Rule ID 前缀为 `REPO`。
 
+## 核心术语
+
+- **DataRoot**：仓库通用的数据目录空间，用于各领域的运行时工作、数据产出和持久保存；仓库内位置为 `<repository>/data`。
+- **Entry Manager executable**：负责创建和管理 Entry 的独立可执行程序。
+- **Entry**：由 Entry Manager executable 创建的受管运行实体。
+- **EntryRoot**：与一个 Entry 唯一绑定的目录根，由 Entry Manager executable 在创建 Entry 时一并建立。
+- **Bootstrap**：自动下载并设置便携 Rust 与 MSVC 编译环境，并在无需用户干预的情况下编译出 Harness 核心的启动构建流程。
+
 ## Accepted
 
 - **REPO-001 — 领域规则命名空间。** `AGENTS.md` 按目录承载其作用域内的规则；根文件记录全仓规则，稳定领域规则归最近目录并声明全仓唯一前缀。各 `AGENTS.md` 声明前缀内的 `Accepted` 与 `Open` 共用从 `001` 开始的连续序列，新 ID 使用当前最大后缀加一，活动正文始终只有一个所有者；`README.md` 只做人类入口。
 - **REPO-002 — 源码就近归属。** 实现应下沉到最近的稳定领域所有者；放在父领域 crate 可以接受，但必须按领域拆开，不能长期集中在总入口或总 dispatcher。
+- **REPO-003 — DataRoot 通用数据空间。** 各领域使用 DataRoot 时必须遵循核心术语定义的用途与仓库内位置，不得将其重新解释为“共享 Core 数据根”或“可配置绝对根”。
+- **REPO-004 — Entry 创建流程。** Entry Manager executable 是创建 Entry 的唯一入口；创建时必须同时建立该 Entry 及与其唯一绑定的 EntryRoot。
+- **REPO-005 — 核心术语统一。** 本文件的“核心术语”是全仓 `AGENTS.md` 的统一用语源；新增或改变核心高频术语必须先更新该段落，下级 `AGENTS.md` 不得自行创造同义词或改变既有含义。
 
 ## Open
 

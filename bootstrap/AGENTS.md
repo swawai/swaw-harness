@@ -8,6 +8,7 @@
 
 - **BOOTSTRAP-001 — Bootstrap 按宿主平台归属。** 平台实现位于 `bootstrap/<platform>/`，目录名表达宿主平台而非脚本解释器；当前只建立 `windows`，未来按真实实现增加 `linux`、`macos`，不得预建空 `posix` 或抽象共享层。
 - **BOOTSTRAP-002 — Bootstrap 迁移保真。** 旧 Bootstrap 的可观察功能与安全不变量必须先由行为审计和回归测试固定再迁移；任何有意删减都必须单列理由、影响与替代路径，并经确认后实施，不得在重写中静默降级。
+- **BOOTSTRAP-003 — 便携工具链一键编译。** Bootstrap 必须自动下载并设置便携 Rust 与 MSVC 编译环境，无需用户预装、配置或交互干预，即可一键编译出 Harness 核心。
 
 ## Open
 
