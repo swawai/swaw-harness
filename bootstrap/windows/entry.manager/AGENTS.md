@@ -6,7 +6,7 @@
 
 ## Accepted
 
-- **ENTRY-MANAGEMENT-001 — Entry 存储布局。** `<repository>/data` 是 DataRoot，独立的 `<repository>/data.entry` 保存 Entry；每个 Entry 由同级的 `data.entry/<entry-id>.exe` 与 `data.entry/<entry-id>/` 组成，后者是 EntryRoot，其 `entry.json` 保存受管身份与生命周期，文件和目录不承诺文件系统级原子出现。
+- **ENTRY-MANAGEMENT-001 — Entry 存储布局。** `<repository>/data` 是 DataRoot，独立的 `<repository>/data.entry` 保存 Entry；每个 Entry 由同级的 `data.entry/<EntryId>.exe` 与 `data.entry/<EntryId>/` 组成，后者是 EntryRoot，其 `entry.json` 保存受管身份与生命周期，文件和目录不承诺文件系统级原子出现。
 
 ## Open
 

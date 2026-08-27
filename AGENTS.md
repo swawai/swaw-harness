@@ -9,6 +9,7 @@
 - **DataRoot**：仓库通用的数据目录空间，用于各领域的运行时工作、数据产出和持久保存；仓库内位置为 `<repository>/data`。
 - **Entry Manager executable**：负责创建和管理 Entry 的独立可执行程序。
 - **Entry**：由 Entry Manager executable 创建的受管运行实体。
+- **EntryId**：Entry Manager 为一个 Entry 确定的文件系统名称；它同时用作 `data.entry/<EntryId>.exe` 的文件名和 `data.entry/<EntryId>/` EntryRoot 的目录名。
 - **EntryRoot**：与一个 Entry 唯一绑定的目录根，由 Entry Manager executable 在创建 Entry 时一并建立。
 - **Bootstrap**：自动下载并设置便携 Rust 与 MSVC 编译环境，并在无需用户干预的情况下编译出 Harness 核心的启动构建流程。
 - **Resource**：在一个资源空间内按文件系统路径寻找并执行操作的对象。
