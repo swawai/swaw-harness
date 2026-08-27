@@ -324,7 +324,7 @@ foreach ($contract in $validationContracts) {
     )
     $paths = @([regex]::Matches(
         $pathBlock.Groups['body'].Value,
-        '(?m)^      - (?<path>[^\r\n]+)$'
+        '(?m)^      - (?<path>[^\r\n]+)\r?$'
     ) | ForEach-Object { $_.Groups['path'].Value })
     if (-not $trigger.Success -or $paths.Count -ne 1 -or
         $paths[0] -cne $contract.TriggerPath) {
