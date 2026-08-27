@@ -61,12 +61,8 @@ try {
                 (Join-Path $ExpectedCacheRoot 'downloads') -and
             [string]$Context.CargoHome -ceq
                 (Join-Path $ExpectedCacheRoot 'cargo') -and
-            [string]$Context.CoreReleaseRoot -ceq
-                (Join-Path $DataRoot 'core.release') -and
-            [string]$Context.EntryReleaseRoot -ceq
-                (Join-Path $DataRoot 'entry.release') -and
-            [string]$Context.EntryManagerReleaseRoot -ceq
-                (Join-Path $DataRoot 'entry.manager.release') -and
+            [string]$Context.BootstrapReleaseRoot -ceq
+                (Join-Path $DataRoot 'bootstrap.release') -and
             -not (Test-Path -LiteralPath (Join-Path $DataRoot 'cache'))
         ) `
         -Message 'Bootstrap state and cache roots were not kept distinct'

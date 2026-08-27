@@ -45,12 +45,14 @@ function Read-SwawHarnessReleaseSelectorBytes {
 function Read-SwawHarnessSelectedRelease {
     param(
         [Parameter(Mandatory = $true)][string]$ReleasesRoot,
-        [Parameter(Mandatory = $true)][object]$Contract
+        [Parameter(Mandatory = $true)][object[]]$Contracts
     )
 
+    $PlatformTargetId = Get-SwawHarnessReleasePlatformTargetId `
+        -Contracts $Contracts
     $SelectorPath = Join-Path `
         $ReleasesRoot `
-        "current.$($Contract.PlatformTargetId)"
+        "current.$PlatformTargetId"
     [byte[]]$Bytes = Read-SwawHarnessReleaseSelectorBytes `
         -Path $SelectorPath
     if ($Bytes.Count -ne 65 -or $Bytes[64] -ne 10) {
@@ -63,7 +65,7 @@ function Read-SwawHarnessSelectedRelease {
     return Read-SwawHarnessRelease `
         -ReleaseRoot (Join-Path $ReleasesRoot $ReleaseId) `
         -ReleaseId $ReleaseId `
-        -Contract $Contract `
+        -Contracts $Contracts `
         -ReleasesRoot $ReleasesRoot
 }
 
@@ -76,7 +78,7 @@ function Publish-SwawHarnessReleaseSelector {
 
     $PlatformTargetId = Get-SwawHarnessSafeSegment `
         -Value $PlatformTargetId `
-        -Description 'Release selector platform target ID'
+        -Description 'Release selector target ID'
     if ($ReleaseId -cnotmatch '^[a-f0-9]{64}$') {
         throw 'Release selector identity must be a lowercase SHA-256 digest.'
     }

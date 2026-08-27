@@ -36,9 +36,7 @@ function New-SwawHarnessWindowsBootstrapContext {
         DataRoot = $DataRoot
         BootstrapWindowsRoot = $BootstrapWindowsRoot
         BootstrapWindowsCacheRoot = $BootstrapWindowsCacheRoot
-        CoreReleaseRoot = Join-Path $DataRoot 'core.release'
-        EntryReleaseRoot = Join-Path $DataRoot 'entry.release'
-        EntryManagerReleaseRoot = Join-Path $DataRoot 'entry.manager.release'
+        BootstrapReleaseRoot = Join-Path $DataRoot 'bootstrap.release'
         DownloadRoot = Join-Path $BootstrapWindowsCacheRoot 'downloads'
         ToolchainRoot = Join-Path $BootstrapWindowsRoot 'toolchains'
         WorkRoot = Join-Path $BootstrapWindowsRoot 'work'

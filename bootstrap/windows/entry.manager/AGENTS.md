@@ -14,4 +14,4 @@
 
 ## Maintainer Notes
 
-- 待办：当前 Entry Manager executable 只实现独立构建与发布，控制面板尚未实现；实现时补齐 Entry 生命周期门槛、状态提交与回读、互斥锁内的未完成操作恢复，以及对无有效 `entry.json` 孤立对象的冲突报告。
+- 待办：当前 Entry Manager executable 只实现独立构建并参与统一 Bootstrap Release，控制面板尚未实现；实现时补齐 Entry 生命周期门槛、状态提交与回读、互斥锁内的未完成操作恢复，以及对无有效 `entry.json` 孤立对象的冲突报告。

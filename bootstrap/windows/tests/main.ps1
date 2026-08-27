@@ -19,35 +19,20 @@ if ([string]::IsNullOrWhiteSpace($DataRoot)) {
 $FirstResults = @(& (Join-Path $WindowsRoot 'main.ps1') -DataRoot $DataRoot)
 Assert-MainTest `
     -Condition ($FirstResults.Count -eq 1) `
-    -Message 'first invocation did not return exactly one build result'
+    -Message 'first invocation did not return exactly one Bootstrap Release'
 $First = $FirstResults[0]
-$ExpectedCoreReleaseRoot = [IO.Path]::GetFullPath(
-    (Join-Path $DataRoot 'core.release')
-)
-$ExpectedEntryReleaseRoot = [IO.Path]::GetFullPath(
-    (Join-Path $DataRoot 'entry.release')
-)
-$ExpectedEntryManagerReleaseRoot = [IO.Path]::GetFullPath(
-    (Join-Path $DataRoot 'entry.manager.release')
+$ExpectedReleaseRoot = [IO.Path]::GetFullPath(
+    (Join-Path $DataRoot 'bootstrap.release')
 )
 Assert-MainTest `
     -Condition (
-        (Split-Path -Path ([string]$First.CoreRelease.Root) -Parent).Equals(
-            $ExpectedCoreReleaseRoot,
+        (Split-Path -Path ([string]$First.Root) -Parent).Equals(
+            $ExpectedReleaseRoot,
             [StringComparison]::OrdinalIgnoreCase
         ) -and
-        (Split-Path -Path ([string]$First.EntryRelease.Root) -Parent).
-            Equals(
-            $ExpectedEntryReleaseRoot,
-            [StringComparison]::OrdinalIgnoreCase
-        ) -and
-        (Split-Path -Path ([string]$First.EntryManagerRelease.Root) -Parent).
-            Equals(
-                $ExpectedEntryManagerReleaseRoot,
-                [StringComparison]::OrdinalIgnoreCase
-        )
+        $First.Artifacts.Count -eq 3
     ) `
-    -Message 'main did not publish all three products to their Release stores'
+    -Message 'main did not publish one complete Bootstrap Release'
 
 $SecondInvocation = @(
     & (Join-Path $WindowsRoot 'main.ps1') -DataRoot $DataRoot 6>&1
@@ -60,47 +45,30 @@ $SecondMessages = @($SecondInvocation | Where-Object {
 } | ForEach-Object { [string]$_.MessageData })
 Assert-MainTest `
     -Condition ($SecondResults.Count -eq 1) `
-    -Message 'second invocation did not return exactly one build result'
+    -Message 'second invocation did not return exactly one Bootstrap Release'
 $Second = $SecondResults[0]
 Assert-MainTest `
     -Condition (
-        [string]$First.CoreRelease.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
-        [string]$First.EntryRelease.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
-        [string]$First.EntryManagerRelease.ReleaseId -cmatch
-            '^[a-f0-9]{64}$' -and
-        [string]$Second.CoreRelease.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
-        [string]$Second.EntryRelease.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
-        [string]$Second.EntryManagerRelease.ReleaseId -cmatch
-            '^[a-f0-9]{64}$' -and
+        [string]$First.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
+        [string]$Second.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
         @($SecondMessages | Where-Object {
             $_ -cmatch '^\[BUILT\] '
         }).Count -eq 3 -and
         @($SecondMessages | Where-Object {
-            $_ -cmatch '^\[PUBLISHED\] '
-        }).Count -eq 3 -and
-        (Split-Path -Path ([string]$Second.CoreRelease.Root) -Parent).
-            Equals(
-                $ExpectedCoreReleaseRoot,
-                [StringComparison]::OrdinalIgnoreCase
-            ) -and
-        (Split-Path -Path ([string]$Second.EntryRelease.Root) -Parent).
-            Equals(
-                $ExpectedEntryReleaseRoot,
-                [StringComparison]::OrdinalIgnoreCase
-            ) -and
-        (Split-Path -Path ([string]$Second.EntryManagerRelease.Root) -Parent).
-            Equals(
-                $ExpectedEntryManagerReleaseRoot,
-                [StringComparison]::OrdinalIgnoreCase
+            $_ -cmatch '^\[PUBLISHED\] Bootstrap Release '
+        }).Count -eq 1 -and
+        (Split-Path -Path ([string]$Second.Root) -Parent).Equals(
+            $ExpectedReleaseRoot,
+            [StringComparison]::OrdinalIgnoreCase
         ) -and
-        (Get-Item -LiteralPath $First.CoreRelease.ArtifactPath).Length -gt 0 -and
-        (Get-Item -LiteralPath $First.EntryRelease.ArtifactPath).Length -gt 0 -and
-        (Get-Item -LiteralPath $First.EntryManagerRelease.ArtifactPath).Length `
-            -gt 0 -and
-        (Get-Item -LiteralPath $Second.CoreRelease.ArtifactPath).Length -gt 0 -and
-        (Get-Item -LiteralPath $Second.EntryRelease.ArtifactPath).Length -gt 0 -and
-        (Get-Item -LiteralPath $Second.EntryManagerRelease.ArtifactPath).Length -gt 0
+        $Second.Artifacts.Count -eq 3 -and
+        @($First.Artifacts | Where-Object {
+            (Get-Item -LiteralPath $_.Path).Length -gt 0
+        }).Count -eq 3 -and
+        @($Second.Artifacts | Where-Object {
+            (Get-Item -LiteralPath $_.Path).Length -gt 0
+        }).Count -eq 3
     ) `
-    -Message 'explicit Bootstrap did not preserve valid three-product Releases'
+    -Message 'explicit Bootstrap did not preserve a valid bundle Release'
 
 Write-Host '[PASS] Windows Bootstrap main end-to-end' -ForegroundColor Green

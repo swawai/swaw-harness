@@ -2,43 +2,76 @@ Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot '..\foundation.ps1')
 
-$script:SwawHarnessReleaseSchema = 'swaw.harness.release/v2'
+$script:SwawHarnessReleaseSchema = 'swaw.harness.bootstrap-release/v1'
+
+function Get-SwawHarnessReleasePlatformTargetId {
+    param([Parameter(Mandatory = $true)][object[]]$Contracts)
+
+    if ($Contracts.Count -eq 0 -or $Contracts.Count -gt 32) {
+        throw 'Bootstrap Release must contain between 1 and 32 products.'
+    }
+    $PlatformTargetId = [string]$Contracts[0].PlatformTargetId
+    [void](Get-SwawHarnessSafeSegment `
+        -Value $PlatformTargetId `
+        -Description 'Bootstrap Release platform target ID')
+    $Names = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::Ordinal
+    )
+    foreach ($Contract in $Contracts) {
+        $Name = [string]$Contract.ProductBinary
+        [void](Get-SwawHarnessSafeSegment `
+            -Value $Name `
+            -Description 'Bootstrap Release artifact name')
+        if ([string]$Contract.PlatformTargetId -cne $PlatformTargetId -or
+            [long]$Contract.MaximumBytes -le 0 -or
+            -not $Names.Add($Name)) {
+            throw 'Bootstrap Release product contracts are inconsistent.'
+        }
+    }
+    return $PlatformTargetId
+}
 
 function Get-SwawHarnessReleaseId {
     param(
         [Parameter(Mandatory = $true)][string]$PlatformTargetId,
-        [Parameter(Mandatory = $true)][string]$Name,
-        [Parameter(Mandatory = $true)][long]$Length,
-        [Parameter(Mandatory = $true)][string]$Sha256
+        [Parameter(Mandatory = $true)][object[]]$Artifacts
     )
 
-    $LengthText = $Length.ToString(
-        [Globalization.CultureInfo]::InvariantCulture
-    )
-    return Get-SwawHarnessTextSha256 -Value ([string]::Join("`n", @(
-        $script:SwawHarnessReleaseSchema,
-        "target=$PlatformTargetId",
-        "artifact=$Name",
-        "length=$LengthText",
-        "sha256=$Sha256"
-    )))
+    $Lines = [Collections.Generic.List[string]]::new()
+    $Lines.Add($script:SwawHarnessReleaseSchema)
+    $Lines.Add("target=$PlatformTargetId")
+    foreach ($Artifact in $Artifacts) {
+        $Length = [long]$Artifact.Length
+        $Sha256 = ([string]$Artifact.Sha256).Trim().ToLowerInvariant()
+        if ($Length -le 0 -or $Sha256 -cnotmatch '^[a-f0-9]{64}$') {
+            throw 'Bootstrap Release artifact identity is invalid.'
+        }
+        $Lines.Add("artifact=$([string]$Artifact.Name)")
+        $Lines.Add("length=$($Length.ToString(
+            [Globalization.CultureInfo]::InvariantCulture
+        ))")
+        $Lines.Add("sha256=$Sha256")
+    }
+    return Get-SwawHarnessTextSha256 -Value ([string]::Join("`n", $Lines))
 }
 
 function Read-SwawHarnessRelease {
     param(
         [Parameter(Mandatory = $true)][string]$ReleaseRoot,
         [Parameter(Mandatory = $true)][string]$ReleaseId,
-        [Parameter(Mandatory = $true)][object]$Contract,
+        [Parameter(Mandatory = $true)][object[]]$Contracts,
         [Parameter(Mandatory = $true)][string]$ReleasesRoot
     )
 
+    $PlatformTargetId = Get-SwawHarnessReleasePlatformTargetId `
+        -Contracts $Contracts
     if ($ReleaseId -cnotmatch '^[a-f0-9]{64}$') {
         throw 'Release ID must be a lowercase SHA-256 digest.'
     }
     $ReleaseRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $ReleaseRoot `
         -Root $ReleasesRoot `
-        -Activity 'reading a Release'
+        -Activity 'reading a Bootstrap Release'
     if ([IO.Path]::GetFileName($ReleaseRoot) -cne $ReleaseId) {
         throw "Release directory does not match its identity: $ReleaseRoot"
     }
@@ -51,7 +84,9 @@ function Read-SwawHarnessRelease {
         throw "Release directory is missing or unsafe: $ReleaseRoot"
     }
 
-    [string[]]$ExpectedNames = @('manifest.json', $Contract.ProductBinary)
+    [string[]]$ExpectedNames = @('manifest.json') + @(
+        $Contracts | ForEach-Object { [string]$_.ProductBinary }
+    )
     [string[]]$ActualNames = @(
         Get-ChildItem -LiteralPath $ReleaseRoot -Force |
             ForEach-Object { [string]$_.Name }
@@ -68,56 +103,66 @@ function Read-SwawHarnessRelease {
     $ManifestPath = Join-Path $ReleaseRoot 'manifest.json'
     $Manifest = Read-SwawHarnessJsonFile `
         -Path $ManifestPath `
-        -Description 'Release manifest'
+        -Description 'Bootstrap Release manifest'
     Assert-SwawHarnessObjectFields `
         -Value $Manifest `
         -Expected @('schema', 'releaseId', 'platformTargetId', 'artifacts') `
-        -Description 'Release manifest'
-    $Artifacts = @($Manifest.artifacts)
-    if ($Artifacts.Count -ne 1) {
-        throw "Release manifest must declare exactly one artifact: $ManifestPath"
+        -Description 'Bootstrap Release manifest'
+    $Records = @($Manifest.artifacts)
+    if ($Records.Count -ne $Contracts.Count) {
+        throw "Release manifest has an invalid product count: $ManifestPath"
     }
-    Assert-SwawHarnessObjectFields `
-        -Value $Artifacts[0] `
-        -Expected @('name', 'length', 'sha256') `
-        -Description 'Release artifact record'
-    $Record = $Artifacts[0]
-    $ArtifactName = [string]$Record.name
-    if ($ArtifactName -cne [string]$Contract.ProductBinary) {
-        throw "Release artifact name is invalid: $ManifestPath"
+
+    $Artifacts = [Collections.Generic.List[object]]::new()
+    for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
+        $Contract = $Contracts[$Index]
+        $Record = $Records[$Index]
+        Assert-SwawHarnessObjectFields `
+            -Value $Record `
+            -Expected @('name', 'length', 'sha256') `
+            -Description 'Bootstrap Release artifact record'
+        $Name = [string]$Record.name
+        if ($Name -cne [string]$Contract.ProductBinary) {
+            throw "Release artifact order or name is invalid: $ManifestPath"
+        }
+        $Path = Resolve-SwawHarnessChildPath `
+            -Root $ReleaseRoot `
+            -RelativePath $Name `
+            -Description 'Bootstrap Release artifact'
+        $Item = Assert-SwawHarnessRegularFile `
+            -Path $Path `
+            -Description 'Bootstrap Release artifact' `
+            -MaximumBytes ([long]$Contract.MaximumBytes)
+        $Sha256 = ([string]$Record.sha256).Trim().ToLowerInvariant()
+        if ([long]$Record.length -ne [long]$Item.Length -or
+            $Sha256 -cnotmatch '^[a-f0-9]{64}$' -or
+            (Get-SwawHarnessFileSha256 -Path $Path) -cne $Sha256) {
+            throw "Release artifact validation failed: $Path"
+        }
+        $Artifacts.Add([pscustomobject][ordered]@{
+            Name = $Name
+            Length = [long]$Item.Length
+            Sha256 = $Sha256
+            Path = $Path
+        })
     }
-    $ArtifactPath = Resolve-SwawHarnessChildPath `
-        -Root $ReleaseRoot `
-        -RelativePath $ArtifactName `
-        -Description 'Release artifact'
-    $Item = Assert-SwawHarnessRegularFile `
-        -Path $ArtifactPath `
-        -Description 'Release artifact' `
-        -MaximumBytes ([long]$Contract.MaximumBytes)
-    $Sha256 = ([string]$Record.sha256).Trim().ToLowerInvariant()
     if ([string]$Manifest.schema -cne $script:SwawHarnessReleaseSchema -or
         [string]$Manifest.releaseId -cne $ReleaseId -or
-        [string]$Manifest.platformTargetId -cne [string]$Contract.PlatformTargetId -or
-        $ArtifactName -cne [string]$Contract.ProductBinary -or
-        [long]$Record.length -ne [long]$Item.Length -or
-        $Sha256 -cnotmatch '^[a-f0-9]{64}$' -or
-        (Get-SwawHarnessFileSha256 -Path $ArtifactPath) -cne $Sha256) {
+        [string]$Manifest.platformTargetId -cne $PlatformTargetId) {
         throw "Release validation failed: $ReleaseRoot"
     }
     $ComputedId = Get-SwawHarnessReleaseId `
-        -PlatformTargetId ([string]$Manifest.platformTargetId) `
-        -Name $ArtifactName `
-        -Length ([long]$Record.length) `
-        -Sha256 $Sha256
+        -PlatformTargetId $PlatformTargetId `
+        -Artifacts $Artifacts.ToArray()
     if ($ComputedId -cne $ReleaseId) {
         throw "Release identity does not match its content: $ReleaseRoot"
     }
 
     return [pscustomobject][ordered]@{
         ReleaseId = $ReleaseId
-        PlatformTargetId = [string]$Manifest.platformTargetId
+        PlatformTargetId = $PlatformTargetId
         Root = $ReleaseRoot
         ManifestPath = $ManifestPath
-        ArtifactPath = $ArtifactPath
+        Artifacts = $Artifacts.ToArray()
     }
 }
