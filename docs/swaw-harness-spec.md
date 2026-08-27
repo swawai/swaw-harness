@@ -2,12 +2,12 @@
 
 本文记录 Swaw Harness 全仓及跨领域的架构与协议；稳定领域的新规则由最近目录的 `AGENTS.md` 记录并与上层规则依次叠加，尚未下沉的既有领域规则在完成单一来源迁移前继续由本文现有条目承载。每条规则保持一至两句话；未来验收脚本只引用稳定规则 ID，不从散文推断要求。
 
-状态：`Accepted` 表示已经完成决议并形成当前可验证的实现约束，不要求永久不变，也不自动表示目标能力已经交付；过渡边界只有同时声明当前约束与明确退出条件时才可接受，纯进度事实属于 `Maintainer Notes`。`Proposed` 表示建议方案，`Open` 表示仍需决议，两者都不具有实现约束；`Superseded` 表示已被新规则替代。Rule ID 是全仓稳定身份，数字后缀记录身份历史而非目录内顺序，因此规则下沉后允许不连续且不得重新编号。
+状态：`Accepted` 表示已经完成决议并形成当前可验证的实现约束，不要求永久不变，也不自动表示目标能力已经交付；过渡边界只有同时声明当前约束与明确退出条件时才可接受，纯进度事实属于 `Maintainer Notes`。`Proposed` 表示建议方案，`Open` 表示仍需决议，两者都不具有实现约束；`Superseded` 表示原 ID 已退出活动状态并记录替代或撤回原因。完整 Rule ID 与领域前缀都必须全仓唯一；领域序列从 `001` 开始并以历史最大后缀加一，不填补空洞，任何已分配 ID 退出活动状态时都保留 `Superseded` 记录。
 
 ## Accepted
 
 - **HAR-001 — 独立产品仓库。** `swaw-harness` 是 Swaw 品牌下的独立产品仓库，必须脱离 `swaw-kit` 的父目录和源码树独立构建、测试、打包与发布。
-- **HAR-003 — 目录化协议归属。** 根 `AGENTS.md` 记录全仓规则，稳定领域规则归最近目录的 `AGENTS.md`，本文件只新增全仓或跨领域协议，`README.md` 只做人类入口。尚未下沉的既有领域规则继续由本文件中的现有条目承载；后续迁移必须保留 ID 与原义，并删除旧正文以保持单一来源。
+- **HAR-004 — 领域规则命名空间。** 根 `AGENTS.md` 记录全仓规则，稳定领域规则归最近目录的 `AGENTS.md` 并声明全仓唯一前缀，本文件只新增全仓或跨领域协议，`README.md` 只做人类入口。同一领域前缀下各状态共用从 `001` 开始且只增不补的序列；任何 ID 因下沉重编号、替换或撤回而退出活动状态时必须保留 `Superseded` 历史，并删除旧的活动正文以保持单一来源。
 - **ARC-002 — 源码就近归属。** 实现应下沉到最近的稳定领域所有者；放在父领域 crate 可以接受，但必须按领域拆开，不能长期集中在总入口或总 dispatcher。
 - **ARC-003 — 可独立执行。** 命令领域的核心实现应位于 library API，进程入口保持薄；因此模块可在确有发布或隔离需要时增加独立 executable，而无需重写业务逻辑。
 - **ARC-004 — 边界按代价建立。** CLI 目录不等于 Cargo package 或进程边界；只有稳定领域、独立依赖、独立发布或故障隔离需求成立时才拆 crate/executable。
@@ -83,22 +83,23 @@
 ## Superseded
 
 - **HAR-002 — 文档职责单一。** 本文件记录架构与协议，`AGENTS.md` 记录维护规则，`README.md` 只做人类入口；三者不得复制同一规范正文。其集中式归属已由 `HAR-003` 的目录化协议归属取代。
+- **HAR-003 — 目录化协议归属。** 本规则建立了目录所有权，但要求下沉时保留中央 ID，导致领域序列无法从 `001` 自治；其所有权模型与可追溯 rekey 规则由 `HAR-004` 取代。
 - **LAUNCHER-RELEASE-002 — Launcher Release 空间。** 本规则曾使用 `LauncherReleaseRoot` 与 `DataRoot/launcher.release`；当前实体名、路径与产物名已由 `TERM-001`、`ENTRY-RELEASE-001` 取代。
 - **LAUNCH-006 — Launcher 运行协议暂缓。** 本规则曾用旧产品名和 `template.harness.exe` 描述占位产物；当前名称与产物由 `ENTRY-EXEC-001` 取代。
 - **RELEASE-013 — Bootstrap Target Selector。** 本规则曾以 Launcher 命名第二个发布产品；当前三产品 selector 术语由 `RELEASE-014` 取代。
-- **ENTRY-001 — 启动器文件名是 Entry 身份。** 本规则曾允许复制或重命名 Launcher 形成新 Entry；Entry 创建权与双重身份核验已由 `ENTRY-002`、`ENTRY-LAYOUT-003` 和 `ENTRY-MANAGER-002` 取代。
+- **ENTRY-001 — 启动器文件名是 Entry 身份。** 本规则曾允许复制或重命名 Launcher 形成新 Entry；Entry 创建权与双重身份核验已由 `ENTRY-002`、`ENTRY-LAYOUT-003` 和 `ENTRY-MANAGEMENT-002` 取代。
 - **LAUNCHER-RELEASE-001 — Launcher Release 空间。** 本规则曾把 Entry Manager 描述为未来组件；其职责先由 `LAUNCHER-RELEASE-002` 收敛，当前实体命名与独立发布由 `ENTRY-RELEASE-001`、`ENTRY-MANAGER-RELEASE-001` 取代。
-- **BOOT-046 — 显式 Bootstrap 发布两种产品。** 本规则曾只发布 Core 与 Launcher；三产品构建发布边界已由 `BOOT-050` 取代。
+- **BOOT-046 — 显式 Bootstrap 发布两种产品。** 本规则曾只发布 Core 与 Launcher；三产品构建发布边界已由 `WIN-BOOT-005` 取代。
 - **BOOT-048 — Windows Stage-0 作者布局。** 本规则曾使用 `launcher` 作者目录且没有 Entry Manager 产品；当前布局已由 `BOOT-049` 取代。
-- **ENTRY-MANAGER-001 — Entry 创建职责独立。** 本规则曾把 Entry Manager 预留在仓库根；当前独立作者项目与职责由 `ENTRY-MANAGER-002` 取代。
+- **ENTRY-MANAGER-001 — Entry 创建职责独立。** 本规则曾把 Entry Manager 预留在仓库根；当前独立作者项目与职责由 `ENTRY-MANAGEMENT-002` 取代。
 - **RELEASE-012 — Bootstrap Target Selector。** 本规则只覆盖 Core 与旧称 Launcher 的 selector；三产品 selector 协议先由 `RELEASE-013` 扩展，当前术语由 `RELEASE-014` 取代。
 - **ENTRY-RUNTIME-001 — Entry 文件与数据同名配对。** 本规则曾把配对布局保留为候选；该布局及其非原子状态协议已由 `ENTRY-LAYOUT-003`、`ENTRY-LIFECYCLE-001` 和 `ENTRY-RECOVERY-001` 接受。
 - **BOOT-047 — 产品构建分治、发布事务共享。** Core 与 Launcher 曾各自拥有编译脚本与 Contract，而 Candidate、Release 和工具链实现共同位于 `_lib`；该内部库先由 `BOOT-048` 拆分，当前布局继续由 `BOOT-049` 约束。
-- **BOOT-035 — 仓库根 Windows 构建入口。** 根 `build.cmd` 曾只构建 Core 并把 Launcher 留待未来；当前入口边界已由 `BOOT-045`、`BOOT-050` 取代。
-- **BOOT-036 — 显式 Bootstrap 发布共享 Core。** `main.ps1` 曾只发布 Core；当前三产品发布已由 `BOOT-050` 取代。
+- **BOOT-035 — 仓库根 Windows 构建入口。** 根 `build.cmd` 曾只构建 Core 并把 Launcher 留待未来；当前入口边界已由 `BOOT-045`、`WIN-BOOT-005` 取代。
+- **BOOT-036 — 显式 Bootstrap 发布共享 Core。** `main.ps1` 曾只发布 Core；当前三产品发布已由 `WIN-BOOT-005` 取代。
 - **BOOT-043 — Windows Build 与 Publish 分离。** Core 曾独占 `BootstrapWindowsCacheRoot/build` 且共享层不得承担 Launcher 职责；两个真实产品出现后，产品缓存分治与共享发布事务已由 `BOOT-047` 取代。
 - **LAUNCH-005 — Launcher 只读启动。** 旧称 Launcher 曾被约束为直接解析 `DataRoot/core.release/current.<target-id>`；该运行协议先由 `LAUNCH-006` 暂缓，当前由 `ENTRY-EXEC-001` 与 `ENTRY-LAYOUT-003` 约束。
-- **LAUNCH-002 — 缺失 Release 显式失败。** Launcher 曾被要求提示运行根 `build.cmd`；缺失 Entry/Core 的修复职责现归 `ENTRY-MANAGER-002` 的独立 Manager。
+- **LAUNCH-002 — 缺失 Release 显式失败。** Launcher 曾被要求提示运行根 `build.cmd`；缺失 Entry/Core 的修复职责现归 `ENTRY-MANAGEMENT-002` 的独立 Manager。
 - **RELEASE-009 — 共享 Core 内容寻址池。** 本规则曾进一步承诺所有 Entry 直接共享此池；当前只接受 Bootstrap 发布池本身，Entry 如何引用由 `RELEASE-011`、`ENTRY-CORE-001` 取代。
 - **RELEASE-010 — Core Target Selector。** 本规则曾把 Bootstrap Core selector 直接规定为旧称 Launcher 的运行 selector；发布侧 selector 现由 `RELEASE-014` 保留，Entry 运行路径仍由 `ENTRY-EXEC-001` 暂缓。
 
@@ -110,13 +111,13 @@
 - **DATA-LIFECYCLE-002 — 数据空间按所有者分治。** `DataRoot/bootstrap` 保存可重建的 Bootstrap 状态，`DataRoot/core_release` 保存发布后不可变的 Release 与可原子替换的 selector；各 owner 只能修改自己的受控根，后者不得作为 cache 整体清理。Windows Bootstrap 的状态与 cache 已由 `DATA-LIFECYCLE-003` 分离。
 - **ENTRY-CACHE-001 — Entry cache 所有者显式。** `EntryRoot/cache` 只保存 Entry-local cache；不得与 `BootstrapDataRoot` 隐式 fallback、复制或同步。旧 Bootstrap 根已由 `ENTRY-CACHE-002` 取代。
 - **BOOT-040 — Windows Build 与 Publish 分离。** `bootstrap/windows/build.ps1` 只在 `DataRoot/bootstrap/windows/build` 产生 Candidate，`bootstrap/windows/publish.ps1` 只验证 Candidate、内容寻址发布到 `CoreReleaseRoot` 并原子更新 selector；二者都不得承担 Launcher 职责。其 Candidate 路径已由 `BOOT-043` 取代。
-- **BOOT-041 — 工具链入口与代码信任边界。** `toolchain-setup.ps1` 显式安装或修复 Contract 指定的工具链，`toolchain.ps1` 只从作者态 `bootstrap/windows` 解析并运行已安装工具；`DataRoot/bootstrap/windows` 只保存数据与不可变载荷，不发布供用户执行的脚本。其数据根已由 `BOOT-044` 取代。
+- **BOOT-041 — 工具链入口与代码信任边界。** `toolchain-setup.ps1` 显式安装或修复 Contract 指定的工具链，`toolchain.ps1` 只从作者态 `bootstrap/windows` 解析并运行已安装工具；`DataRoot/bootstrap/windows` 只保存数据与不可变载荷，不发布供用户执行的脚本。其数据根已由 `WIN-TOOLCHAIN-005` 取代。
 - **DATA-LIFECYCLE-001 — 同根不同生命周期。** 共处 CoreDataRoot 不表示共享写权限或删除策略：cache 可清理，Release 发布后不可变，各 owner 只能修改自己的受控子树。无职责的 CoreDataRoot 聚合已由 `DATA-LIFECYCLE-003` 的独立生命周期根取代。
 - **CORE-DATA-001 — CoreDataRoot。** CoreDataRoot 唯一映射为 `DataRoot/_core`，当前只定义 `cache/` 与 `releases/` 两个子树；CoreDataRoot 本身不得被整体视为可清理 cache，也不得预建推测用途。该中间层已由 `BOOTSTRAP-DATA-002` 与 `CORE-RELEASE-002` 取代。
 - **CACHE-004 — Cache 所有者显式。** `DataRoot/_core/cache` 只保存可跨 Entry 复用且可重建的 Core cache，`EntryRoot/cache` 只保存 Entry-local cache；调用方必须显式选择其一，不允许隐式 fallback 或复制同步。Bootstrap cache 与 Entry cache 已由 `DATA-LIFECYCLE-003`、`ENTRY-CACHE-002` 分别约束。
 - **BOOT-037 — Windows Build 与 Publish 分离。** `bootstrap/windows/build.ps1` 只在 `DataRoot/_core/cache` 产生 Candidate，`bootstrap/windows/publish.ps1` 只验证 Candidate、内容寻址发布到共享 Core releases 并原子更新 selector；二者都不得承担 Launcher 职责。其路径已由 `BOOT-043` 取代。
-- **BOOT-038 — 工具链入口与代码信任边界。** `toolchain-setup.ps1` 显式安装或修复 Contract 指定的工具链，`toolchain.ps1` 只从作者态 `bootstrap/windows` 解析并运行已安装工具；`DataRoot/_core/cache` 只保存数据与不可变载荷，不发布供用户执行的脚本。其数据路径已由 `BOOT-044` 取代。
-- **BOOT-039 — Windows 路径预算。** Windows Bootstrap v2 的规范化 DataRoot 最长 38 个 UTF-16 code unit，必须在下载或安装前拒绝超限路径。缩短后的物理布局已由 `BOOT-042` 在相同最坏路径预算下放宽 DataRoot。
+- **BOOT-038 — 工具链入口与代码信任边界。** `toolchain-setup.ps1` 显式安装或修复 Contract 指定的工具链，`toolchain.ps1` 只从作者态 `bootstrap/windows` 解析并运行已安装工具；`DataRoot/_core/cache` 只保存数据与不可变载荷，不发布供用户执行的脚本。其数据路径已由 `WIN-TOOLCHAIN-005` 取代。
+- **BOOT-039 — Windows 路径预算。** Windows Bootstrap v2 的规范化 DataRoot 最长 38 个 UTF-16 code unit，必须在下载或安装前拒绝超限路径。缩短后的物理布局已由 `WIN-BOOT-004` 在相同最坏路径预算下放宽 DataRoot。
 - **LAUNCH-003 — Launcher 只读启动。** Launcher 只解析并验证 `DataRoot/_core/releases/current.<target-id>` 指向的共享不可变 Core Release，不调用 Bootstrap、不联网、不构建，也不扫描 `core/target` 或比较源码时间。其路径已由 `LAUNCH-005` 取代。
 - **RELEASE-005 — 共享 Core 内容寻址池。** 所有 Entry 与不同 target 共享 `DataRoot/_core/releases/<release-id>/` 中的不可变 Core Release；`release-id` 的 Hash 必须覆盖完整发布内容及含 target 的发布元数据，不能只散列源码 revision。其路径已由 `RELEASE-009` 取代。
 - **RELEASE-006 — Core Target Selector。** `DataRoot/_core/releases/current.<target-id>` 是只含 Release 引用的普通 selector 文件，Publish 只原子更新本 target 的 selector，Launcher 必须同时校验所指 Release 的 target 兼容性。其路径已由 `RELEASE-010` 取代。
@@ -127,8 +128,8 @@
 - **CACHE-001 — Cache 所有者显式。** `VarRoot/cache` 只保存可跨 Entry 复用的共享 cache，`EntryRoot/cache` 只保存 Entry-local cache；调用方必须显式选择其一，不允许隐式 fallback 或复制同步。其物理路径已由 `CACHE-002` 取代。
 - **CACHE-002 — Cache 所有者显式。** `VarRoot/var_cache` 只保存可跨 Entry 复用的共享 cache，`VarRoot/var_entry/<entry-id>/cache` 只保存 Entry-local cache。其 Core cache 物理路径已由 `CACHE-003` 取代。
 - **ENTRY-LAYOUT-001 — EntryRoot。** EntryRoot 唯一映射为 `VarRoot/var_entry/<entry-id>`。共享 Core 迁入实体 `var/_core` 后，EntryRoot 物理布局已由 `ENTRY-LAYOUT-002` 重新开放，不能沿用本规则实现。
-- **DEV-003 — 垂直样例驱动。** 新协议先在 `source/templates/helloworld` 形成端到端验收。其作者态路径已由 `DEV-005` 取代。
-- **DEV-004 — 单变量演进。** `source/templates/helloworld` 每次只引入一个待验证的外部协议能力。其作者态路径已由 `DEV-006` 取代。
+- **DEV-003 — 垂直样例驱动。** 新协议先在 `source/templates/helloworld` 形成端到端验收。其作者态路径已由 `HELLOWORLD-001` 取代。
+- **DEV-004 — 单变量演进。** `source/templates/helloworld` 每次只引入一个待验证的外部协议能力。其作者态路径已由 `HELLOWORLD-002` 取代。
 - **VAR-002 — 同根不同生命周期。** 共处 `VarRoot` 不表示共享写权限或删除策略。`VarRoot` 术语已由 `DATA-LIFECYCLE-001` 的 CoreDataRoot 取代。
 - **VAR-004 — 单一可配置运行根。** `VarRoot` 默认映射为 `<repository>/var`。其命名与职责已由 `DATA-ROOT-001` 取代。
 - **CORE-LAYOUT-001 — CoreRoot。** CoreRoot 映射为 `VarRoot/_core`。其无歧义名称与新根路径已由 `CORE-DATA-001` 取代。
@@ -136,7 +137,7 @@
 - **ENTRY-LAYOUT-002 — EntryRoot 物理布局。** EntryRoot 在 VarRoot 下的位置曾保持开放。用户已确定仓库内独立 `data.entry` 空间，该问题由 `ENTRY-DATA-001` 取代。
 - **DEV-001 — 垂直样例驱动。** 新的 Core 或 Facet 协议必须先在 `templates/helloworld` 形成最小端到端实现与黑盒验收，通过后才扩展到其他模块。其路径已由 `DEV-003` 取代。
 - **DEV-002 — 单变量演进。** `templates/helloworld` 每次只引入一个待验证的外部协议能力，不为尚未出现的复用、类型或执行模式预建抽象。其路径已由 `DEV-004` 取代。
-- **BOOT-002 — 唯一 Bootstrap 入口。** `bootstrap/main.ps1` 是 Launcher 和人工调用的唯一 Bootstrap 入口，由它持锁、重新检查 Release 并编排 build 与 publish；Launcher 不得直接调用内部脚本。其平台路径已由 `BOOT-006`、`BOOT-007` 取代。
+- **BOOT-002 — 唯一 Bootstrap 入口。** `bootstrap/main.ps1` 是 Launcher 和人工调用的唯一 Bootstrap 入口，由它持锁、重新检查 Release 并编排 build 与 publish；Launcher 不得直接调用内部脚本。其平台路径已由 `BOOTSTRAP-001`、`BOOT-007` 取代。
 - **BOOT-003 — Launcher 只认 Release。** Launcher 只验证 `var_entry/<entry-id>/releases/current` 选择的不可变 Release；没有可用 Release 时才调用 Bootstrap，绝不扫描 `source/target`、比较源码时间或执行 Cargo。其单一 selector 路径已由 `BOOT-010` 取代。
 - **BOOT-004 — Build 与 Publish 分离。** `bootstrap/build.ps1` 只在 `var_cache` 中产生候选构建，`bootstrap/publish.ps1` 只负责验证候选、内容寻址发布到 Entry releases 并原子更新 selector；两者都不得承担 Launcher 职责。其 Windows 路径已由 `BOOT-009` 取代。
 - **BOOT-005 — 发布后重新解析。** Bootstrap 成功返回后，Launcher 必须重新读取并验证 `current` 再执行 Release；Bootstrap 不直接启动产品，也不通过临时路径或 stdout 绕过已发布 selector。其 target-specific selector 语义已由 `BOOT-011` 取代。
@@ -154,9 +155,9 @@
 - **BOOT-032 — 工具链入口与代码信任边界。** 工具链数据位于 `VarRoot/_core/cache`。其数据根路径已由 `BOOT-038` 取代。
 - **BOOT-033 — Windows 路径预算。** Windows Bootstrap v2 的 VarRoot 最长 38 个 UTF-16 code unit。其参数术语已由 `BOOT-039` 取代。
 - **LAUNCH-001 — Launcher 只读启动。** Launcher 从 `VarRoot/_core/releases` 启动且不扫描 `source/target`。其路径已由 `LAUNCH-003` 取代。
-- **BOOT-014 — 工具链状态单一。** Bootstrap 只发布一个权威工具链完整性 metadata；构建环境在 Bootstrap 进程内应用并在退出时恢复，不生成重复的 `env.cmd`、`env.ps1`、`state.json` 与 `environment.json` 状态源。其父进程环境修改方式已由 `BOOT-024` 取代，单一 metadata 约束继续由 `BOOT-022` 保留。
+- **BOOT-014 — 工具链状态单一。** Bootstrap 只发布一个权威工具链完整性 metadata；构建环境在 Bootstrap 进程内应用并在退出时恢复，不生成重复的 `env.cmd`、`env.ps1`、`state.json` 与 `environment.json` 状态源。其父进程环境修改方式已由 `BOOT-024` 取代，单一 metadata 约束继续由 `WIN-TOOLCHAIN-004` 保留。
 - **BOOT-015 — 只恢复当前协议。** `swaw-harness` 只识别和恢复自身当前协议命名的安装 work、partial 与带时间戳 backup，不兼容不存在于新仓库历史中的 `swaw-kit` 或无序旧 backup 格式。通用 backup/rollback 已由 `BOOT-025` 的内容寻址只前进发布取代。
-- **RELEASE-TARGET-001 — Release target 隔离。** 跨平台 VarRoot 中的 Release 与 `current` 必须按 host target 隔离；采用 Rust target triple、稳定 Swaw platform id 或其他目录形态仍需由第一个 Windows publish 样例验证。其目录形态已由 `RELEASE-001`、`RELEASE-002` 确定，剩余 TargetId 编码问题由 `TARGET-ID-001` 承接。
+- **RELEASE-TARGET-001 — Release target 隔离。** 跨平台 VarRoot 中的 Release 与 `current` 必须按 host target 隔离；采用 Rust target triple、稳定 Swaw platform id 或其他目录形态仍需由第一个 Windows publish 样例验证。其目录形态已由 `RELEASE-001`、`RELEASE-002` 确定，剩余 TargetId 编码问题由 `WIN-BOOT-007` 承接。
 - **RELEASE-001 — Entry-local 内容寻址池。** 不同 target 的不可变 Release 共存于 `var_entry/<entry-id>/releases/<release-id>/`。其 Entry-local 所有权已由共享 Core 池 `RELEASE-003` 取代。
 - **RELEASE-002 — Entry-local Target Selector。** `var_entry/<entry-id>/releases/current.<target-id>` 选择 Entry-local Release。其路径已由共享 Core selector `RELEASE-004` 取代。
 - **RELEASE-003 — 共享 Core 内容寻址池。** 共享 Release 位于 `VarRoot/_core/releases/<release-id>`。其根路径已由 `RELEASE-005` 取代。

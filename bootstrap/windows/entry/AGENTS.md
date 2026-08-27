@@ -2,7 +2,7 @@
 
 ## Scope
 
-本目录拥有由 Windows Bootstrap 构建和发布的 Entry executable 产品适配器与当前运行边界。
+本目录拥有由 Windows Bootstrap 构建和发布的 Entry executable 产品适配器与当前运行边界。Rule ID 前缀为 `ENTRY-EXEC`。
 
 ## Accepted
 
