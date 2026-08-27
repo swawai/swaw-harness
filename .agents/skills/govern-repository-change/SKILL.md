@@ -19,9 +19,9 @@ Use one lightweight path for changes intended to enter the repository.
    by the changed code. Record commands and results in the PR.
 5. Push the branch and create or update a Draft PR targeting `main`. Reference
    the Issue with `Refs: #N`; do not use a closing keyword.
-6. The repository owner starts Codex `/review` when review is wanted. Review the
-   current PR and its validation evidence. Fix actionable findings in the
-   development task, then request review again.
+6. The repository owner types `/review`, chooses **Review against a base
+   branch**, and selects `origin/main`. Fix actionable findings in the
+   development task, then repeat `/review` only if the PR changed.
 7. Only the repository owner marks the PR ready, merges it, and later decides
    whether to close the Issue.
 
