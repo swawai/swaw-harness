@@ -2,7 +2,7 @@
 
 本文记录 Swaw Harness 全仓及跨领域的架构与协议；稳定领域的新规则由最近目录的 `AGENTS.md` 记录并与上层规则依次叠加，尚未下沉的既有领域规则在完成单一来源迁移前继续由本文现有条目承载。每条规则保持一至两句话；未来验收脚本只引用稳定规则 ID，不从散文推断要求。
 
-状态：`Accepted` 表示已经完成决议并形成当前可验证的实现约束，不要求永久不变，也不自动表示目标能力已经交付；过渡边界只有同时声明当前约束与明确退出条件时才可接受，纯进度事实属于 `Maintainer Notes`。`Proposed` 表示建议方案，`Open` 表示仍需决议，两者都不具有实现约束；`Superseded` 表示原 ID 已退出活动状态并记录替代或撤回原因。完整 Rule ID 与领域前缀都必须全仓唯一；领域序列从 `001` 开始并以历史最大后缀加一，不填补空洞，任何已分配 ID 退出活动状态时都保留 `Superseded` 记录。
+状态：`Accepted` 表示已经完成决议并形成当前可验证的实现约束，不要求永久不变，也不自动表示目标能力已经交付；过渡边界只有同时声明当前约束与明确退出条件时才可接受，纯进度事实属于 `Maintainer Notes`。`Open` 是唯一的未决规则状态且不具有实现约束；`Superseded` 是可选的非约束历史，仅在原 ID 退出活动状态时记录替代或撤回原因，不承载当前规则。完整 Rule ID 与领域前缀都必须全仓唯一；领域序列从 `001` 开始并以历史最大后缀加一，不填补空洞，任何已分配 ID 退出活动状态时都保留 `Superseded` 记录。
 
 ## Accepted
 
@@ -41,7 +41,7 @@
 - **RELEASE-011 — Core 发布池身份。** `DataRoot/core.release/<release-id>/` 是 Bootstrap 产生的共享不可变 Core 发布池；`release-id` 的 Hash 必须覆盖完整发布内容及含 target 的发布元数据，不能只散列源码 revision。
 - **RELEASE-014 — Bootstrap Target Selector。** Core、Entry executable 与 Entry Manager 的 ReleaseRoot 都各自保存只含 Release 引用的 `current.<target-id>`；Publish 只原子更新本产品、本 target 的 selector，并验证所指 Release 的 target 兼容性。
 
-## Proposed
+## Open
 
 - **RF-001 — Resource。** Resource 是具有稳定身份、可被寻址的 subject；它可以由本地或外部事实源提供，不等同于目录、文件或某次返回的数据。
 - **RF-002 — Facet。** Facet 是绑定到 Resource 的原子命名行为，不是类；`operation` 与 `projection` 分别表达有副作用的动作和只读投影，子 Resource 遍历不再作为 Facet 类型。
@@ -63,8 +63,6 @@
 - **RF-018 — 术语单义。** `kind` 只表达 Facet 的行为类别；静态 command backing、Space member contract 和领域数据 schema 必须使用各自独立的名称。
 - **RF-019 — 核心抽象有边界。** Resource–Facet 统一产品可见的寻址、能力、依赖与编排语义，但不替代 Rust crate 图、进程边界、存储事务或发布拓扑。
 - **RF-020 — 定义不制造类型层级。** ResourceDefinition 描述静态 Resource 或 Space，FacetDefinition 描述调用契约与 binding，Space 的 `memberFacets` 描述直接成员能力；这些作者态定义不得演化为 runtime inheritance/override/merge 体系。
-
-## Open
 
 - **ENTRY-CORE-001 — Entry selector 的引用形态。** `EntryRoot/releases` 应保存 Core Release 完整副本、硬链接，还是对 `DataRoot/core.release` 的受校验引用，尚未决议；选择必须同时满足 Entry 可搬移性、磁盘去重、原子更新与损坏隔离。
 

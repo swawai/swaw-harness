@@ -33,7 +33,10 @@ foreach ($RelativePath in $Files) {
     foreach ($Line in $Lines) {
         if ($Line -match '^## (.+)$') {
             $Heading = $Matches[1]
-            if ($Heading -in @('Accepted', 'Proposed', 'Open', 'Superseded')) {
+            if ($Heading -ceq 'Proposed') {
+                throw "Use Open for unresolved rules: $RelativePath"
+            }
+            if ($Heading -in @('Accepted', 'Open', 'Superseded')) {
                 $Section = $Heading
             }
             else {
