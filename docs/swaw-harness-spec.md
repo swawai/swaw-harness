@@ -7,12 +7,8 @@
 ## Accepted
 
 - **BOOT-009 — Windows Rust 产品静态 CRT。** Windows Core 与 Entry Manager 的产品 Contract 必须显式要求静态 CRT，构建必须把该要求投影为 Cargo/rustc 命令行配置；验收必须读取发布 PE 的 import table，并拒绝 `VCRUNTIME`、`UCRT` 或其他外部 C/C++ runtime 依赖。
-- **BOOT-011 — Windows 子领域依赖方向。** `toolchain/` 可依赖 `builder/` 的基础路径、文件和进程机制，产品适配器可依赖两者；`builder/build/` 不得依赖 `builder/release/`，两者只由产品适配器和根编排器显式组合，不得以 `common/`、`utils/`、总加载器或旧路径 shim 绕过依赖方向。
-- **BOOT-012 — PowerShell 依赖显式。** Windows Bootstrap 的 PowerShell 文件必须自行 dot-source 足以加载所需函数的明确依赖链，不得依赖调用者预先加载。
 
 ## Open
-
-- **ENTRY-CORE-001 — Entry selector 的引用形态。** `EntryRoot/releases` 应保存 Core Release 完整副本、硬链接，还是对 `DataRoot/core.release` 的受校验引用，尚未决议；选择必须同时满足 Entry 可搬移性、磁盘去重、原子更新与损坏隔离。
 
 - **REMOTE-001 — 远端物化。** 远端查询不得在读取时隐式写入本地资源树；显式 `mount/import` 创建只含 provider、稳定 remote ID、revision 与状态的本地 descriptor，cache 与凭据不属于 Resource identity。
 - **BUILD-REPRO-001 — Windows 可复现链接。** 当前 MSVC `link.exe` 的全新构建会把链接时间写入 PE，使同源码与同工具链仍可能产生字节不同但各自内容寻址正确的 Release；是否改用 `lld-link` 或建立更完整的 reproducible-build contract，必须在真实原生依赖样例出现后决议，不能仅追加 `/Brepro` 就宣称可复现。
