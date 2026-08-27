@@ -20,7 +20,7 @@ if ([string]::IsNullOrWhiteSpace($DataRoot)) {
 . (Join-Path $WindowsRoot 'builder\context.ps1')
 . (Join-Path $WindowsRoot 'builder\contract.ps1')
 . (Join-Path $WindowsRoot 'builder\process.ps1')
-. (Join-Path $WindowsRoot 'builder\release\selector.ps1')
+. (Join-Path $WindowsRoot 'builder\build\candidate.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $WindowsRoot 'entry.manager\contract.ps1')
@@ -54,44 +54,35 @@ try {
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $First = & (Join-Path $WindowsRoot 'entry.manager\publish.ps1') `
-        -DataRoot $TestRoot `
-        -CandidatePath ([string]$CandidatePath) |
-        Select-Object -Last 1
-    $FirstCreated = (Get-Item -LiteralPath $First.ReleaseRoot).CreationTimeUtc
-    $Second = & (Join-Path $WindowsRoot 'entry.manager\publish.ps1') `
-        -DataRoot $TestRoot `
-        -CandidatePath ([string]$CandidatePath) |
-        Select-Object -Last 1
-
     $EntryManagerContract = Read-SwawHarnessWindowsEntryManagerContract `
         -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
         -TargetId $PlatformContract.TargetId
-    $Selected = Read-SwawHarnessSelectedRelease `
-        -ReleasesRoot (Join-Path $TestRoot 'entry.manager.release') `
-        -Contract $EntryManagerContract
-    $Artifact = Get-Item -LiteralPath $Selected.ArtifactPath
+    $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
+    $BuildRoot = Join-Path $TestContext.BootstrapWindowsCacheRoot (
+        "build\entry.manager\$($PlatformContract.TargetId)"
+    )
+    $Candidate = Read-SwawHarnessBootstrapCandidate `
+        -Path ([string]$CandidatePath) `
+        -Contract $EntryManagerContract `
+        -BuildRoot $BuildRoot
+    $Artifact = Get-Item -LiteralPath $Candidate.ArtifactPath
     Assert-EntryManagerTest `
         -Condition (
-            [string]$First.ReleaseId -ceq [string]$Second.ReleaseId -and
-            [string]$Selected.ReleaseId -ceq [string]$First.ReleaseId -and
             $Artifact.Name -ceq 'swaw-harness-entry-manager.exe' -and
             $Artifact.Length -gt 0 -and
-            $Artifact.Length -le $EntryManagerContract.MaximumBytes -and
-            (Get-Item -LiteralPath $Second.ReleaseRoot).CreationTimeUtc -eq
-                $FirstCreated
+            $Artifact.Length -le $EntryManagerContract.MaximumBytes
         ) `
-        -Message 'Entry Manager publication is not immutable and idempotent'
+        -Message 'Entry Manager build did not produce a valid Candidate'
     [void](Assert-SwawHarnessNoExternalCrtImports `
-        -ArtifactPath $Selected.ArtifactPath `
+        -ArtifactPath $Candidate.ArtifactPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
 
     $Result = Invoke-SwawHarnessCapturedProcess `
-        -Executable $Selected.ArtifactPath `
+        -Executable $Candidate.ArtifactPath `
         -Arguments @() `
-        -WorkingDirectory $Selected.Root
+        -WorkingDirectory (Split-Path $Candidate.ArtifactPath -Parent)
     Assert-EntryManagerTest `
         -Condition (
             $Result.ExitCode -eq 1 -and
@@ -110,5 +101,5 @@ try {
     }
 }
 
-Write-Host '[PASS] Windows Entry Manager build and publication' `
+Write-Host '[PASS] Windows Entry Manager build' `
     -ForegroundColor Green

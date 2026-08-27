@@ -45,12 +45,13 @@ function Read-SwawHarnessReleaseSelectorBytes {
 function Read-SwawHarnessSelectedRelease {
     param(
         [Parameter(Mandatory = $true)][string]$ReleasesRoot,
-        [Parameter(Mandatory = $true)][object]$Contract
+        [Parameter(Mandatory = $true)][object[]]$Contracts
     )
 
+    $TargetId = Get-SwawHarnessReleaseTargetId -Contracts $Contracts
     $SelectorPath = Join-Path `
         $ReleasesRoot `
-        "current.$($Contract.TargetId)"
+        "current.$TargetId"
     [byte[]]$Bytes = Read-SwawHarnessReleaseSelectorBytes `
         -Path $SelectorPath
     if ($Bytes.Count -ne 65 -or $Bytes[64] -ne 10) {
@@ -63,7 +64,7 @@ function Read-SwawHarnessSelectedRelease {
     return Read-SwawHarnessRelease `
         -ReleaseRoot (Join-Path $ReleasesRoot $ReleaseId) `
         -ReleaseId $ReleaseId `
-        -Contract $Contract `
+        -Contracts $Contracts `
         -ReleasesRoot $ReleasesRoot
 }
 

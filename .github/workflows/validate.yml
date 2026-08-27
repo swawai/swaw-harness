@@ -55,11 +55,11 @@ jobs:
           $dataRoot = Join-Path $PWD 'data'
           & .\bootstrap\windows\tests\core-rust.ps1 -DataRoot $dataRoot
 
-      - name: Verify releases
+      - name: Verify Bootstrap release and product builds
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $dataRoot = Join-Path $PWD 'data'
-          & .\bootstrap\windows\tests\core-release.ps1 -DataRoot $dataRoot
+          & .\bootstrap\windows\tests\bootstrap-release.ps1 -DataRoot $dataRoot
           & .\bootstrap\windows\tests\entry.ps1 -DataRoot $dataRoot
           & .\bootstrap\windows\tests\entry-manager.ps1 -DataRoot $dataRoot

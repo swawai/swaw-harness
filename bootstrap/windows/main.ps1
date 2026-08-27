@@ -56,6 +56,6 @@ $PublicationResults = @(Publish-SwawHarnessWindowsProducts `
     -EntryCandidatePath ([string]$EntryBuildResults[0]) `
     -EntryManagerCandidatePath ([string]$EntryManagerBuildResults[0]))
 if ($PublicationResults.Count -ne 1) {
-    throw 'Product publication must return exactly one publication set.'
+    throw 'Bootstrap publication must return exactly one Release.'
 }
 Write-Output $PublicationResults[0]

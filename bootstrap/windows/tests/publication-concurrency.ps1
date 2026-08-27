@@ -36,20 +36,13 @@ function New-PublicationTestCandidate {
         -ControlledRoot $Context.BootstrapWindowsCacheRoot
 }
 
-function Test-PublicationTupleEquals {
+function Test-PublicationReleaseEquals {
     param(
         [Parameter(Mandatory = $true)][object]$Left,
         [Parameter(Mandatory = $true)][object]$Right
     )
 
-    return (
-        [string]$Left.CoreRelease.ReleaseId -ceq
-            [string]$Right.CoreRelease.ReleaseId -and
-        [string]$Left.EntryRelease.ReleaseId -ceq
-            [string]$Right.EntryRelease.ReleaseId -and
-        [string]$Left.EntryManagerRelease.ReleaseId -ceq
-            [string]$Right.EntryManagerRelease.ReleaseId
-    )
+    return [string]$Left.ReleaseId -ceq [string]$Right.ReleaseId
 }
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
@@ -65,6 +58,7 @@ $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
 if ([string]::IsNullOrWhiteSpace($DataRoot)) {
     $DataRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..\data'))
 }
+$DataRoot = [IO.Path]::GetFullPath($DataRoot)
 [void][IO.Directory]::CreateDirectory($DataRoot)
 $TestRoot = Join-Path $DataRoot (
     'bootstrap.windows.cache\_test\publication-concurrency-' +
@@ -168,7 +162,7 @@ try {
 
     $Gate = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot (
-            "publish-harness-$($PlatformContract.TargetId).lock"
+            "publish-bootstrap-$($PlatformContract.TargetId).lock"
         )) `
         -ControlledRoot $Context.BootstrapWindowsRoot `
         -TimeoutSeconds 30
@@ -226,12 +220,8 @@ try {
         -Condition (@($Processes | Where-Object { $_.HasExited }).Count -eq 0) `
         -Message 'a publication bypassed the target-scoped publication lock'
     Assert-PublicationConcurrencyTest `
-        -Condition (@(
-            $Context.CoreReleaseRoot,
-            $Context.EntryReleaseRoot,
-            $Context.EntryManagerReleaseRoot |
-                Where-Object { Test-SwawHarnessPathExists -Path $_ }
-        ).Count -eq 0) `
+        -Condition (-not (Test-SwawHarnessPathExists `
+            -Path $Context.BootstrapReleaseRoot)) `
         -Message 'publication advanced a Release store while its gate was held'
     $Gate.Dispose()
     $Gate = $null
@@ -253,37 +243,25 @@ try {
         $Result = Import-Clixml -LiteralPath ([string]$Process.ResultPath)
         Assert-PublicationConcurrencyTest `
             -Condition (
-                [string]$Result.CoreRelease.ReleaseId -cmatch
-                    '^[a-f0-9]{64}$' -and
-                [string]$Result.EntryRelease.ReleaseId -cmatch
-                    '^[a-f0-9]{64}$' -and
-                [string]$Result.EntryManagerRelease.ReleaseId -cmatch
-                    '^[a-f0-9]{64}$'
+                [string]$Result.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
+                $Result.Artifacts.Count -eq 3
             ) `
             -Message 'a concurrent publication returned an incomplete set'
         $Results.Add($Result)
     }
     Assert-PublicationConcurrencyTest `
-        -Condition (-not (Test-PublicationTupleEquals `
+        -Condition (-not (Test-PublicationReleaseEquals `
             -Left $Results[0] `
             -Right $Results[1])) `
         -Message 'the A and B fixtures did not produce distinct Release sets'
 
-    $Selected = [pscustomobject][ordered]@{
-        CoreRelease = Read-SwawHarnessSelectedRelease `
-            -ReleasesRoot $Context.CoreReleaseRoot `
-            -Contract $CoreContract
-        EntryRelease = Read-SwawHarnessSelectedRelease `
-            -ReleasesRoot $Context.EntryReleaseRoot `
-            -Contract $EntryContract
-        EntryManagerRelease = Read-SwawHarnessSelectedRelease `
-            -ReleasesRoot $Context.EntryManagerReleaseRoot `
-            -Contract $EntryManagerContract
-    }
+    $Selected = Read-SwawHarnessSelectedRelease `
+        -ReleasesRoot $Context.BootstrapReleaseRoot `
+        -Contracts @($CoreContract, $EntryContract, $EntryManagerContract)
     Assert-PublicationConcurrencyTest `
         -Condition (
-            (Test-PublicationTupleEquals -Left $Selected -Right $Results[0]) -or
-            (Test-PublicationTupleEquals -Left $Selected -Right $Results[1])
+            (Test-PublicationReleaseEquals -Left $Selected -Right $Results[0]) -or
+            (Test-PublicationReleaseEquals -Left $Selected -Right $Results[1])
         ) `
         -Message 'final selectors combine different publication sets'
 
@@ -303,7 +281,7 @@ try {
         -Message 'invalid publication fixture was not rejected'
     $Probe = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot (
-            "publish-harness-$($PlatformContract.TargetId).lock"
+            "publish-bootstrap-$($PlatformContract.TargetId).lock"
         )) `
         -ControlledRoot $Context.BootstrapWindowsRoot `
         -TimeoutSeconds 2
@@ -315,7 +293,7 @@ try {
         -EntryManagerCandidatePath $CandidateSets['B']['entry.manager'])
     Assert-PublicationConcurrencyTest `
         -Condition ($AfterFailure.Count -eq 1 -and
-            (Test-PublicationTupleEquals `
+            (Test-PublicationReleaseEquals `
                 -Left $AfterFailure[0] `
                 -Right $Results[1])) `
         -Message 'failed publication did not release its orchestration lock'

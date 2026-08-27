@@ -4,106 +4,126 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot 'selector.ps1')
 . (Join-Path $PSScriptRoot '..\filesystem.ps1')
 
-function Publish-SwawHarnessRelease {
+function Publish-SwawHarnessBootstrapRelease {
     param(
         [Parameter(Mandatory = $true)][object]$Context,
-        [Parameter(Mandatory = $true)][object]$Contract,
-        [Parameter(Mandatory = $true)][object]$Candidate,
-        [Parameter(Mandatory = $true)][string]$ReleasesRoot,
-        [Parameter(Mandatory = $true)][string]$LockName
+        [Parameter(Mandatory = $true)][object[]]$Contracts,
+        [Parameter(Mandatory = $true)][object[]]$Candidates
     )
 
+    $TargetId = Get-SwawHarnessReleaseTargetId -Contracts $Contracts
+    if ($Candidates.Count -ne $Contracts.Count) {
+        throw 'Bootstrap Release requires one Candidate for every product.'
+    }
     $ReleasesRoot = Assert-SwawHarnessPathInsideRoot `
-        -Path $ReleasesRoot `
+        -Path ([string]$Context.BootstrapReleaseRoot) `
         -Root $Context.DataRoot `
-        -Activity 'using a Release store'
-    $CandidateName = [string]$Candidate.Name
-    $CandidateLength = [long]$Candidate.Length
-    $CandidateSha256 = ([string]$Candidate.Sha256).Trim().ToLowerInvariant()
-    if ([string]$Candidate.TargetId -cne [string]$Contract.TargetId -or
-        $CandidateName -cne [string]$Contract.ProductBinary -or
-        $CandidateLength -le 0 -or
-        $CandidateLength -gt [long]$Contract.MaximumBytes -or
-        $CandidateSha256 -cnotmatch '^[a-f0-9]{64}$') {
-        throw 'Candidate does not satisfy the product Release contract.'
+        -Activity 'using the Bootstrap Release store'
+    $Artifacts = [Collections.Generic.List[object]]::new()
+    for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
+        $Contract = $Contracts[$Index]
+        $Candidate = $Candidates[$Index]
+        $Name = [string]$Candidate.Name
+        $Length = [long]$Candidate.Length
+        $Sha256 = ([string]$Candidate.Sha256).Trim().ToLowerInvariant()
+        if ([string]$Candidate.TargetId -cne $TargetId -or
+            $Name -cne [string]$Contract.ProductBinary -or
+            $Length -le 0 -or
+            $Length -gt [long]$Contract.MaximumBytes -or
+            $Sha256 -cnotmatch '^[a-f0-9]{64}$') {
+            throw 'Candidate does not satisfy its Bootstrap Release contract.'
+        }
+        $CandidatePath = Assert-SwawHarnessPathInsideRoot `
+            -Path ([string]$Candidate.ArtifactPath) `
+            -Root $Context.BootstrapWindowsCacheRoot `
+            -Activity 'reading a Bootstrap Release candidate artifact'
+        $Item = Assert-SwawHarnessRegularFile `
+            -Path $CandidatePath `
+            -Description 'Bootstrap Release candidate artifact' `
+            -MaximumBytes ([long]$Contract.MaximumBytes)
+        if ([long]$Item.Length -ne $Length -or
+            (Get-SwawHarnessFileSha256 -Path $CandidatePath) -cne $Sha256) {
+            throw 'Candidate does not satisfy its Bootstrap Release contract.'
+        }
+        $Artifacts.Add([pscustomobject][ordered]@{
+            Name = $Name
+            Length = $Length
+            Sha256 = $Sha256
+            Path = $CandidatePath
+        })
     }
-    $CandidateArtifactPath = Assert-SwawHarnessPathInsideRoot `
-        -Path ([string]$Candidate.ArtifactPath) `
-        -Root $Context.BootstrapWindowsCacheRoot `
-        -Activity 'reading a product candidate artifact'
-    $CandidateArtifact = Assert-SwawHarnessRegularFile `
-        -Path $CandidateArtifactPath `
-        -Description 'Product candidate artifact' `
-        -MaximumBytes ([long]$Contract.MaximumBytes)
-    if ([long]$CandidateArtifact.Length -ne $CandidateLength) {
-        throw 'Candidate does not satisfy the product Release contract.'
-    }
-    [void][IO.Directory]::CreateDirectory($ReleasesRoot)
-    [void](Assert-SwawHarnessControlledRoot `
-        -Root $ReleasesRoot `
-        -Description 'Release store')
-    $ReleaseId = Get-SwawHarnessReleaseId `
-        -TargetId ([string]$Candidate.TargetId) `
-        -Name $CandidateName `
-        -Length $CandidateLength `
-        -Sha256 $CandidateSha256
 
+    $ReleaseId = Get-SwawHarnessReleaseId `
+        -TargetId $TargetId `
+        -Artifacts $Artifacts.ToArray()
     $Lock = Enter-SwawHarnessFileLock `
-        -Path (Join-Path $Context.LockRoot $LockName) `
-        -ControlledRoot $Context.BootstrapWindowsRoot
+        -Path (Join-Path $Context.LockRoot (
+            "publish-bootstrap-$TargetId.lock"
+        )) `
+        -ControlledRoot $Context.BootstrapWindowsRoot `
+        -TimeoutSeconds 1800
     try {
+        [void][IO.Directory]::CreateDirectory($ReleasesRoot)
+        [void](Assert-SwawHarnessControlledRoot `
+            -Root $ReleasesRoot `
+            -Description 'Bootstrap Release store')
         foreach ($WorkItem in Get-ChildItem -LiteralPath $ReleasesRoot -Force) {
             if ([string]$WorkItem.Name -cmatch
                 '^\.publish-[a-f0-9]{32}\.tmp$') {
                 Remove-SwawHarnessControlledPathWithRetry `
                     -Path ([string]$WorkItem.FullName) `
                     -ControlledRoot $ReleasesRoot `
-                    -Activity 'cleaning interrupted Release publication'
+                    -Activity 'cleaning interrupted Bootstrap Release publication'
             }
         }
+
         $ReleaseRoot = Join-Path $ReleasesRoot $ReleaseId
-        $ExistingRelease = $null
+        $Release = $null
         if (Test-SwawHarnessPathExists -Path $ReleaseRoot) {
             try {
-                $ExistingRelease = Read-SwawHarnessRelease `
+                $Release = Read-SwawHarnessRelease `
                     -ReleaseRoot $ReleaseRoot `
                     -ReleaseId $ReleaseId `
-                    -Contract $Contract `
+                    -Contracts $Contracts `
                     -ReleasesRoot $ReleasesRoot
             } catch {
-                $ExistingRelease = $null
+                $Release = $null
             }
         }
-        if ($null -eq $ExistingRelease) {
+        if ($null -eq $Release) {
             $StageParent = Join-Path $ReleasesRoot (
                 ".publish-$([Guid]::NewGuid().ToString('N')).tmp"
             )
             $StageRoot = Join-Path $StageParent $ReleaseId
             [void][IO.Directory]::CreateDirectory($StageRoot)
             try {
-                $Destination = Resolve-SwawHarnessChildPath `
-                    -Root $StageRoot `
-                    -RelativePath $CandidateName `
-                    -Description 'Staged Release artifact'
-                [IO.File]::Copy($CandidateArtifactPath, $Destination, $false)
-                $Item = Assert-SwawHarnessRegularFile `
-                    -Path $Destination `
-                    -Description 'Staged Release artifact' `
-                    -MaximumBytes ([long]$Contract.MaximumBytes)
-                $Hash = Get-SwawHarnessFileSha256 -Path $Destination
-                if ([long]$Item.Length -ne $CandidateLength -or
-                    $Hash -cne $CandidateSha256) {
-                    throw "Staged Release artifact is corrupt: $Destination"
+                $ManifestArtifacts = [Collections.Generic.List[object]]::new()
+                foreach ($Artifact in $Artifacts) {
+                    $Destination = Resolve-SwawHarnessChildPath `
+                        -Root $StageRoot `
+                        -RelativePath ([string]$Artifact.Name) `
+                        -Description 'staged Bootstrap Release artifact'
+                    [IO.File]::Copy([string]$Artifact.Path, $Destination, $false)
+                    $StagedItem = Assert-SwawHarnessRegularFile `
+                        -Path $Destination `
+                        -Description 'staged Bootstrap Release artifact' `
+                        -MaximumBytes ([long]$Artifact.Length)
+                    if ([long]$StagedItem.Length -ne [long]$Artifact.Length -or
+                        (Get-SwawHarnessFileSha256 -Path $Destination) -cne
+                            [string]$Artifact.Sha256) {
+                        throw "Staged Release artifact is corrupt: $Destination"
+                    }
+                    $ManifestArtifacts.Add([ordered]@{
+                        name = [string]$Artifact.Name
+                        length = [long]$Artifact.Length
+                        sha256 = [string]$Artifact.Sha256
+                    })
                 }
                 $Manifest = [ordered]@{
                     schema = $script:SwawHarnessReleaseSchema
-                    releaseId = [string]$ReleaseId
-                    targetId = [string]$Contract.TargetId
-                    artifacts = @([ordered]@{
-                        name = $CandidateName
-                        length = $CandidateLength
-                        sha256 = $CandidateSha256
-                    })
+                    releaseId = $ReleaseId
+                    targetId = $TargetId
+                    artifacts = $ManifestArtifacts.ToArray()
                 }
                 [IO.File]::WriteAllText(
                     (Join-Path $StageRoot 'manifest.json'),
@@ -113,13 +133,13 @@ function Publish-SwawHarnessRelease {
                 [void](Read-SwawHarnessRelease `
                     -ReleaseRoot $StageRoot `
                     -ReleaseId $ReleaseId `
-                    -Contract $Contract `
+                    -Contracts $Contracts `
                     -ReleasesRoot $ReleasesRoot)
                 if (Test-SwawHarnessPathExists -Path $ReleaseRoot) {
                     Remove-SwawHarnessControlledPathWithRetry `
                         -Path $ReleaseRoot `
                         -ControlledRoot $ReleasesRoot `
-                        -Activity 'removing a corrupt content-addressed Release'
+                        -Activity 'removing a corrupt Bootstrap Release'
                 }
                 [IO.Directory]::Move($StageRoot, $ReleaseRoot)
             } finally {
@@ -127,7 +147,7 @@ function Publish-SwawHarnessRelease {
                     Remove-SwawHarnessControlledPathWithRetry `
                         -Path $StageParent `
                         -ControlledRoot $ReleasesRoot `
-                        -Activity 'cleaning Release publication work'
+                        -Activity 'cleaning Bootstrap Release publication work'
                 }
             }
         }
@@ -135,11 +155,9 @@ function Publish-SwawHarnessRelease {
         $Release = Read-SwawHarnessRelease `
             -ReleaseRoot $ReleaseRoot `
             -ReleaseId $ReleaseId `
-            -Contract $Contract `
+            -Contracts $Contracts `
             -ReleasesRoot $ReleasesRoot
-        $SelectorPath = Join-Path $ReleasesRoot (
-            "current.$($Contract.TargetId)"
-        )
+        $SelectorPath = Join-Path $ReleasesRoot "current.$TargetId"
         $SelectorItem = Get-Item `
             -LiteralPath $SelectorPath `
             -Force `
@@ -151,16 +169,21 @@ function Publish-SwawHarnessRelease {
             Remove-SwawHarnessControlledPathWithRetry `
                 -Path $SelectorPath `
                 -ControlledRoot $ReleasesRoot `
-                -Activity 'removing an unsafe Release selector'
+                -Activity 'removing an unsafe Bootstrap Release selector'
         }
         $SelectorPath = Publish-SwawHarnessReleaseSelector `
             -ReleasesRoot $ReleasesRoot `
-            -TargetId ([string]$Contract.TargetId) `
-            -ReleaseId ([string]$Release.ReleaseId)
+            -TargetId $TargetId `
+            -ReleaseId $ReleaseId
+        Write-Host "[PUBLISHED] Bootstrap Release $ReleaseId" `
+            -ForegroundColor Green
         return [pscustomobject][ordered]@{
-            ReleaseId = [string]$Release.ReleaseId
-            ReleaseRoot = [string]$Release.Root
-            SelectorPath = [string]$SelectorPath
+            ReleaseId = $Release.ReleaseId
+            TargetId = $Release.TargetId
+            Root = $Release.Root
+            ManifestPath = $Release.ManifestPath
+            Artifacts = $Release.Artifacts
+            SelectorPath = $SelectorPath
         }
     } finally {
         $Lock.Dispose()

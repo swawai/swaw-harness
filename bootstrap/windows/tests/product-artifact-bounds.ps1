@@ -25,7 +25,7 @@ function Test-ProductArtifactBoundsRejection {
         return (
             $_.Exception.Message -like '*bounded regular file*' -or
             $_.Exception.Message -like
-                '*does not satisfy the product Release contract*'
+                '*does not satisfy its Bootstrap Release contract*'
         )
     }
 }
@@ -55,6 +55,7 @@ $Context = [pscustomobject][ordered]@{
     DataRoot = $TestRoot
     BootstrapWindowsRoot = $BootstrapWindowsRoot
     BootstrapWindowsCacheRoot = $BootstrapWindowsCacheRoot
+    BootstrapReleaseRoot = $ReleasesRoot
     LockRoot = $LockRoot
 }
 
@@ -140,12 +141,10 @@ try {
         Sha256 = $Sha256
     }
     $ReleasePublisherRejected = Test-ProductArtifactBoundsRejection {
-        [void](Publish-SwawHarnessRelease `
+        [void](Publish-SwawHarnessBootstrapRelease `
             -Context $Context `
-            -Contract $Contract `
-            -Candidate $Candidate `
-            -ReleasesRoot $ReleasesRoot `
-            -LockName 'bounds-test.lock')
+            -Contracts @($Contract) `
+            -Candidates @($Candidate))
     }
     Assert-ProductArtifactBoundsTest `
         -Condition $ReleasePublisherRejected `
@@ -159,12 +158,10 @@ try {
             Length = $MaximumBytes
             Sha256 = $Sha256
         }
-        [void](Publish-SwawHarnessRelease `
+        [void](Publish-SwawHarnessBootstrapRelease `
             -Context $Context `
-            -Contract $Contract `
-            -Candidate $DeclaredWithinLimit `
-            -ReleasesRoot $ReleasesRoot `
-            -LockName 'bounds-test.lock')
+            -Contracts @($Contract) `
+            -Candidates @($DeclaredWithinLimit))
     }
     Assert-ProductArtifactBoundsTest `
         -Condition $ActualSizeRejected `
@@ -182,12 +179,10 @@ try {
             Length = 1
             Sha256 = $MismatchedSha256
         }
-        [void](Publish-SwawHarnessRelease `
+        [void](Publish-SwawHarnessBootstrapRelease `
             -Context $Context `
-            -Contract $Contract `
-            -Candidate $MismatchedCandidate `
-            -ReleasesRoot $ReleasesRoot `
-            -LockName 'bounds-test.lock')
+            -Contracts @($Contract) `
+            -Candidates @($MismatchedCandidate))
     }
     Assert-ProductArtifactBoundsTest `
         -Condition $ActualLengthRejected `
@@ -195,9 +190,11 @@ try {
 
     $ReleaseId = Get-SwawHarnessReleaseId `
         -TargetId $Contract.TargetId `
-        -Name $Contract.ProductBinary `
-        -Length $OversizedLength `
-        -Sha256 $Sha256
+        -Artifacts @([pscustomobject]@{
+            Name = $Contract.ProductBinary
+            Length = $OversizedLength
+            Sha256 = $Sha256
+        })
     $ReleaseRoot = Join-Path $ReleasesRoot $ReleaseId
     [void][IO.Directory]::CreateDirectory($ReleaseRoot)
     [IO.File]::Copy(
@@ -224,7 +221,7 @@ try {
         [void](Read-SwawHarnessRelease `
             -ReleaseRoot $ReleaseRoot `
             -ReleaseId $ReleaseId `
-            -Contract $Contract `
+            -Contracts @($Contract) `
             -ReleasesRoot $ReleasesRoot)
     }
     Assert-ProductArtifactBoundsTest `
