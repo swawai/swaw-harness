@@ -14,8 +14,8 @@
 - **Resource**：在一个资源空间内按文件系统路径寻找并执行操作的对象。
 - **Facet**：对已找到 Resource 执行的具名操作。
 - **资源空间**：具有独立文件系统根、事实来源、生命周期与写入权限边界的一组 Resource；不得简称为含义过宽的 `Space`。
-- **ReleaseId**：不可变发布目录的内容身份，由目标与发布物内容共同确定；相同目标下内容未改变时必须得到并复用相同 ReleaseId。
-- **selector**：指向某个目标当前 ReleaseId 的可原子替换选择记录；只负责切换当前发布，不承载或复制发布物。
+- **ReleaseId**：由固定 Release schema、TargetId、发布物文件名、字节长度和发布物 SHA-256 共同计算出的 64 字符小写十六进制 SHA-256；它直接作为产品发布根下的不可变目录名，例如 `<repository>/data/core.release/<ReleaseId>/`，相同字段必须得到并复用相同 ReleaseId。
+- **selector**：产品发布根下名为 `current.<TargetId>` 的普通文本文件，内容严格为 64 字符 ReleaseId 加一个 LF（共 65 个 ASCII 字节）；它是指向 `<ReleaseId>/` 的逻辑文件指针，以原子替换完成当前版本切换，不是符号链接且不包含发布物。
 
 ## Accepted
 
