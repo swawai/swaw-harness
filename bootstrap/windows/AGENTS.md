@@ -1,8 +1,23 @@
-# Windows Bootstrap 维护规则
+# Windows Bootstrap
 
-1. `builder/` 保存 Windows Stage-0 的跨产品构建与发布基础机制；`toolchain/` 管理构建工具链，`core/`、`entry/` 与 `entry.manager/` 分别拥有各自的产品适配器。
-2. `builder/build/` 管理不可变 Candidate，`builder/release/` 管理不可变 Release 与 selector；不得建立 `common/`、`utils/`、总加载器或旧路径 shim。
-3. `toolchain/` 可依赖 `builder/` 的基础路径、文件和进程机制；产品适配器可依赖两者。`builder/build/` 不得依赖 `builder/release/`，两者只由产品适配器和 `main.ps1` 显式编排。
-4. PowerShell 文件必须自行 dot-source 足以加载所需函数的明确依赖链，不依赖调用者预先加载。
-5. `main.ps1` 是多产品总编排器：必须先完成 Core、Entry 与 Entry Manager 的所有 Candidate 构建，再推进任何产品 selector，并在返回前重新解析和核验本轮发布结果。
-6. `publication.ps1` 是 `main.ps1` 使用的 target-scoped 串行发布边界；各产品 `publish.ps1` 只是内部适配器，不单独承诺多产品 selector 一致性。
+## Scope
+
+本目录拥有 Windows Stage-0 的平台 Contract、根编排入口与数据路径边界；`builder/`、`toolchain/` 和三个产品目录拥有各自的稳定子领域。
+
+## Accepted
+
+- **BOOT-008 — 平台 Contract 就近归属。** Windows 工具链版本、host target、下载来源与校验事实由 `bootstrap/windows/contract.json` 唯一声明；第二个平台出现真实共同字段前，不建立跨平台 contract 合并或继承体系。
+- **BOOT-027 — Microsoft 许可非交互接受。** Windows Contract 必须固定 Microsoft Build Tools 许可地址与 `by-bootstrap-invocation` 接受方式；首次获取该工具链载荷前必须输出许可地址，调用 Bootstrap 即表示接受，不得弹出交互确认，MSI 必须显式禁止自动重启。
+- **BOOT-028 — VS 产品线显式固定。** Windows Bootstrap v3 固定使用 VS 2026 stable 产品线及一个经长度与 SHA-256 锚定的精确 package manifest；不得在运行时解析 `latest`，升级必须同时修改 Contract、安装 recipe 与验收测试。
+- **BOOT-042 — Windows 路径预算。** Windows Bootstrap v3 的规范化 DataRoot 最长 50 个 UTF-16 code unit，必须在下载或安装前拒绝超限路径；该上限与缩短后的物理布局共同保持原有最坏绝对路径预算不变。
+- **BOOT-050 — 显式 Bootstrap 发布三种产品。** `bootstrap/windows/main.ps1` 每次调用都先构建 Core、Entry executable 与 Entry Manager 的全部 Candidate，再分别发布到各自 ReleaseRoot；已有 selector 不得跳过构建，内容未改变时复用 ReleaseId。
+
+## Open
+
+- **PUBLICATION-ATOMICITY-001 — 三产品崩溃一致性。** 当前 target-scoped 锁只串行化协作发布者，三个 selector 仍是依次更新，进程崩溃不能保证三者形成原子 cohort；在消费者要求跨产品版本一致性前，必须决定采用单一 cohort selector 还是可恢复的发布 journal。
+- **TARGET-ID-001 — TargetId 编码。** TargetId 必须区分二进制不兼容目标，至少包含 OS 与 CPU architecture，并在必要时包含 ABI；采用 Rust target triple 还是稳定 Swaw `os-arch-abi` 名称，仍需由第一个 Windows publish 样例验证。
+
+## Maintainer Notes
+
+- `toolchain/` 可依赖 `builder/` 的基础路径、文件和进程机制，产品适配器可依赖两者；`builder/build/` 不得依赖 `builder/release/`，两者只由产品适配器和根编排器显式组合。
+- 不得建立 `common/`、`utils/`、总加载器或旧路径 shim；PowerShell 文件必须自行 dot-source 足以加载所需函数的明确依赖链。

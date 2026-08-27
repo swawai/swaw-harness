@@ -12,9 +12,6 @@
 - **ARC-003 — 可独立执行。** 命令领域的核心实现应位于 library API，进程入口保持薄；因此模块可在确有发布或隔离需要时增加独立 executable，而无需重写业务逻辑。
 - **ARC-004 — 边界按代价建立。** CLI 目录不等于 Cargo package 或进程边界；只有稳定领域、独立依赖、独立发布或故障隔离需求成立时才拆 crate/executable。
 - **ARC-005 — 唯一生产路径。** 一个命令在一个发行档中只能有一个主执行模式；从 built-in 迁为 sidecar 时必须 hard cut 旧路径，不长期并存多种生产入口。
-- **TPL-001 — 标准模块边界。** 标准 Rust 模块把领域行为放在 library API，并只用薄 executable 处理进程输入输出；模块必须可由 workspace 独立编译、测试和运行。
-- **DEV-005 — 垂直样例驱动。** 新的 Core 或 Facet 协议必须先在 `core/templates/helloworld` 形成最小端到端实现与黑盒验收，通过后才扩展到其他模块。
-- **DEV-006 — 单变量演进。** `core/templates/helloworld` 每次只引入一个待验证的外部协议能力，不为尚未出现的复用、类型或执行模式预建抽象。
 - **TERM-001 — Entry 术语。** `Entry executable` 是 `bootstrap/windows/entry` 构建并由 Entry Manager 分发的可执行产品，`Entry` 是 `<entry-id>.exe + <entry-id>/` 受管实例；`Launcher` 只可出现在 Superseded 历史记录中。
 - **ENTRY-002 — Entry 身份由 Manager 提交。** 合法的 Entry executable basename 与受管 descriptor 中的 EntryId 必须一致并共同确定唯一 EntryRoot；复制或重命名单个 Entry executable 文件不得创建合法 Entry。
 - **DATA-ROOT-001 — Core 数据根。** `DataRoot` 是共享 Core 运行数据的可配置绝对根，仓库内默认值为 `<repository>/data`；`core`、`docs`、`bootstrap` 与 Entry 数据均不属于 DataRoot。
@@ -30,31 +27,15 @@
 - **ENTRY-CACHE-002 — Entry cache 所有者显式。** `EntryRoot/cache` 只保存 Entry-local cache；不得与 `BootstrapWindowsCacheRoot` 隐式 fallback、复制或同步。
 - **CACHE-005 — 不预建全局 Cache。** 当前不存在 `DataRoot/cache`；只有第二个真实消费者出现并共同采用内容身份、原子发布、并发锁与 GC 协议后，才允许建立全局 Artifact Cache。
 - **BOOT-034 — Stage-0 边界。** 根 `bootstrap/` 保存无需已编译 Harness 即可运行的作者态 Stage-0 实现，`core/` 是完整 Rust workspace 且不承担获取自身编译环境的职责。
-- **BOOT-006 — Bootstrap 按宿主平台归属。** 平台实现位于 `bootstrap/<platform>/`，目录名表达宿主平台而非脚本解释器；当前只建立 `windows`，未来按真实实现增加 `linux`、`macos`，不得预建空 `posix` 或抽象共享层。
-- **BOOT-008 — 平台 Contract 就近归属。** Windows 工具链版本、host target、下载来源与校验事实由 `bootstrap/windows/contract.json` 唯一声明；第二个平台出现真实共同字段前，不建立跨平台 contract 合并或继承体系。
-- **BOOT-012 — Bootstrap 迁移保真。** 旧 Bootstrap 的可观察功能与安全不变量必须先由行为审计和回归测试固定再迁移；任何有意删减都必须单列理由、影响与替代路径，并经确认后实施，不得在重写中静默降级。
 - **BOOT-013 — 冷启动依赖最小化。** Windows Stage-0 只获取构建当前 Rust 产品必需的 minimal Rust 与 MSVC 工具链，不获取 `rustfmt`、Bun 或内置 Pwsh；开发工具与脚本 Facet runtime 由出现真实消费者后的独立 setup 协议负责。
-- **BOOT-016 — Windows 物理路径有界。** 对仍受 `MAX_PATH` 约束的 MSVC/MSI 工具链，物理目录使用由完整身份确定的短 locator（工具链为 `tc-<128-bit hash prefix>`），完整 256-bit 身份仍由唯一 metadata 保存并校验；locator 冲突必须拒绝，不能误用已有内容。
-- **BOOT-017 — 外部载荷身份。** Contract 直接锚定的固定文件必须同时校验精确长度与 SHA-256；Microsoft 子载荷清单中的 `size` 只作为有界下载的声明值，实际身份以非空实际长度和清单 SHA-256 为准，并同时记录声明长度与实际长度。
 - **BOOT-018 — 持久清单确定性。** 写入身份或完整性 metadata 的无序集合必须先按协议规定的、与文化和 PowerShell 版本无关的 ordinal 顺序规范化；Windows 路径先按 `OrdinalIgnoreCase`、再按 `Ordinal` 决胜，验证不得依赖文件系统枚举顺序或 `Sort-Object` 默认语义。
-- **BOOT-019 — 工具链校验分层。** 安装时从完整文件树生成确定性摘要，但持久收据只保存该摘要、来源证明与少量关键文件记录；日常复用只执行快速收据检查，完整树遍历与 Hash 只能由显式 Full audit 触发，不得进入 Entry executable 或 Bootstrap 默认路径。
-- **BOOT-021 — Candidate 不可变。** Build 必须在释放构建锁前把产物固化为内容寻址、可独立验证的不可变 Candidate，Publish 不得引用仍可被后续 Cargo 构建覆盖的 target artifact 或共享 mutable `candidate.json`。
-- **BOOT-022 — 工具链由 Contract 选择。** Bootstrap 工具链是由平台 Contract、target 与安装 recipe 共同确定的不可变构建输入；不得再用 mutable `current.*` 或生成脚本中的硬编码 ToolchainId 建立第二选择源。
 - **BOOT-024 — 构建环境属于子进程。** MSVC、SDK、Rust 与 Cargo 环境只注入实际工具子进程，不修改再恢复父 PowerShell 进程，也不生成需要 dot-source 的环境脚本；工具入口必须使用显式受支持的 executable 映射。
 - **BOOT-025 — 内容寻址安装只前进发布。** Toolchain 与 Candidate 等内容寻址对象只允许从已验证 stage 原子移动到不存在的目标；损坏目标可在同一身份锁内移除后重建，不为不会被合法覆盖的旧对象维护通用 backup/rollback 协议。
-- **BOOT-027 — Microsoft 许可非交互接受。** Windows Contract 必须固定 Microsoft Build Tools 许可地址与 `by-bootstrap-invocation` 接受方式；首次获取该工具链载荷前必须输出许可地址，调用 Bootstrap 即表示接受，不得弹出交互确认，MSI 必须显式禁止自动重启。
-- **BOOT-028 — VS 产品线显式固定。** Windows Bootstrap v3 固定使用 VS 2026 stable 产品线及一个经长度与 SHA-256 锚定的精确 package manifest；不得在运行时解析 `latest`，升级必须同时修改 Contract、安装 recipe 与验收测试。
 - **BOOT-045 — 仓库根 Windows 构建入口。** 根 `build.cmd` 是无业务逻辑的 Windows 适配器，只以 `<repository>/data` 调用 `bootstrap/windows/main.ps1` 并原样传播退出码；它不得复制 Entry executable、创建 Entry 或输出人工复制指引。
-- **BOOT-050 — 显式 Bootstrap 发布三种产品。** `bootstrap/windows/main.ps1` 每次调用都先构建 Core、Entry executable 与 Entry Manager 的全部 Candidate，再分别发布到各自 ReleaseRoot；已有 selector 不得跳过构建，内容未改变时复用 ReleaseId。
 - **BOOT-049 — Windows Stage-0 作者布局。** `bootstrap/windows/builder` 保存跨产品 Candidate、Release 与基础机制，`toolchain` 独占构建工具链领域，`core`、`entry` 与 `entry.manager` 分别拥有 Core、Entry executable 与 Entry Manager 产品适配器；`main.ps1` 是先构建全部 Candidate、再发布并核验 selector 的唯一多产品编排器。
 - **BOOT-055 — 平台与产品 Contract 分治。** `bootstrap/windows/contract.json` v3 只声明 target、Rust 与 MSVC 平台事实；`core/contract.json`、`entry/contract.json`、`entry.manager/contract.json` 分别声明各自产物事实，不得由平台 Contract 的泛称 `product` 暗指 Core。
 - **BOOT-056 — Windows Rust 产品静态 CRT。** Windows Core 与 Entry Manager 的产品 Contract 必须显式要求静态 CRT，构建必须把该要求投影为 Cargo/rustc 命令行配置；验收必须读取发布 PE 的 import table，并拒绝 `VCRUNTIME`、`UCRT` 或其他外部 C/C++ runtime 依赖。
 - **BOOT-057 — 多产品发布串行边界。** `bootstrap/windows/publication.ps1` 是 `main.ps1` 使用的内部 target-scoped 发布边界，其锁覆盖三种产品的发布、selector 回读与本轮结果核验；产品目录内的 `publish.ps1` 只是适配器，不是受支持的并发多产品入口。
-- **BOOT-044 — 工具链入口与代码信任边界。** `toolchain-setup.ps1` 显式安装或修复 Contract 指定的工具链，`toolchain.ps1` 只从作者态 `bootstrap/windows` 解析并运行 `BootstrapWindowsRoot/toolchains` 中的已安装工具；两个 Windows Bootstrap 数据根都不得发布供用户执行的脚本。
-- **BOOT-042 — Windows 路径预算。** Windows Bootstrap v3 的规范化 DataRoot 最长 50 个 UTF-16 code unit，必须在下载或安装前拒绝超限路径；该上限与缩短后的物理布局共同保持原有最坏绝对路径预算不变。
-- **ENTRY-EXEC-001 — Entry executable 运行协议暂缓。** 当前 `swaw-harness-entry.exe` 只验证无 CRT 原生编译、大小约束与不可变发布，执行时必须显式失败；在 Entry Manager 垂直样例确认运行布局前，不得迁入旧实现的寻址、manager、Bootstrap 或环境变量协议。
-- **ENTRY-MANAGER-EXEC-001 — Entry Manager 控制面板暂缓。** 当前 Entry Manager executable 只验证独立构建、静态 CRT、大小约束与不可变发布，执行时必须以非零退出码和明确的未实现诊断失败；选择、命名、创建、删除与恢复是已接受的目标职责，不是当前已实现的控制面板能力。
-- **ENTRY-MANAGER-002 — Entry 管理器独立。** Entry Manager 是作者项目 `bootstrap/windows/entry.manager` 产生的独立 executable，其目标职责是 Entry executable 的选择、命名、创建、删除与恢复，当前实施边界由 `ENTRY-MANAGER-EXEC-001` 界定；Entry executable 不自复制，根 `build.cmd` 也不创建 Entry。
 - **RELEASE-011 — Core 发布池身份。** `DataRoot/core.release/<release-id>/` 是 Bootstrap 产生的共享不可变 Core 发布池；`release-id` 的 Hash 必须覆盖完整发布内容及含 target 的发布元数据，不能只散列源码 revision。
 - **RELEASE-014 — Bootstrap Target Selector。** Core、Entry executable 与 Entry Manager 的 ReleaseRoot 都各自保存只含 Release 引用的 `current.<target-id>`；Publish 只原子更新本产品、本 target 的 selector，并验证所指 Release 的 target 兼容性。
 
@@ -83,8 +64,6 @@
 
 ## Open
 
-- **PUBLICATION-ATOMICITY-001 — 三产品崩溃一致性。** 当前 target-scoped 锁只串行化协作发布者，三个 selector 仍是依次更新，进程崩溃不能保证三者形成原子 cohort；在消费者要求跨产品版本一致性前，必须决定采用单一 cohort selector 还是可恢复的发布 journal。
-
 - **ENTRY-CORE-001 — Entry selector 的引用形态。** `EntryRoot/releases` 应保存 Core Release 完整副本、硬链接，还是对 `DataRoot/core.release` 的受校验引用，尚未决议；选择必须同时满足 Entry 可搬移性、磁盘去重、原子更新与损坏隔离。
 
 - **LIFE-001 — 本地 descriptor。** 若采用 Materialized Resource Space，当前建议 v1 要求每个可寻址 Resource 拥有本地 descriptor，但不要求 payload 本地化；未 mount/import 的远端搜索结果仍是 Projection 值。
@@ -97,8 +76,6 @@
 - **NAME-001 — 空间用名词，动作作 Facet。** 执行产物空间应命名为 `.releases` 或 `.executables`，`execute` 保留为 Operation；不得用 `.execute` 同时表示空间和动作。
 - **TEMPLATE-001 — Facet template marker。** 待真实约束证明后，再决定模板是否从通用 `facet.json` 分离为 `facet-template.json`；当前不因命名偏好增加协议类型。
 - **RUNS-001 — Runs Space。** 若采用 Space 模型，`.runs/<owner>/<run-id>` 应成为 Run Resource 的唯一规范路径，命令详情中的 Runs 只是对该 Resource 的查询或引用，不再制造第二份 route identity。
-- **ENTRY-ID-001 — EntryId 语法。** EntryId 的大小写归一、长度、可移植字符集与 Windows 保留名仍需确定；目录映射不得直接接受任意 Unicode basename。
-- **TARGET-ID-001 — TargetId 编码。** TargetId 必须区分二进制不兼容目标，至少包含 OS 与 CPU architecture，并在必要时包含 ABI；采用 Rust target triple 还是稳定 Swaw `os-arch-abi` 名称，仍需由第一个 Windows publish 样例验证。
 - **BUILD-REPRO-001 — Windows 可复现链接。** 当前 MSVC `link.exe` 的全新构建会把链接时间写入 PE，使同源码与同工具链仍可能产生字节不同但各自内容寻址正确的 Release；是否改用 `lld-link` 或建立更完整的 reproducible-build contract，必须在真实原生依赖样例出现后决议，不能仅追加 `/Brepro` 就宣称可复现。
 
 ## Superseded
