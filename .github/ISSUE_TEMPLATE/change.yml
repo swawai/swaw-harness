@@ -1,12 +1,6 @@
 name: Change
 description: Define one bounded, reviewable change before implementation begins.
 body:
-  - type: markdown
-    attributes:
-      value: |
-        This Issue is the change identity. State the intended result and constraints;
-        implementation details may evolve, but scope changes must be recorded here first.
-
   - type: textarea
     id: outcome
     attributes:
@@ -45,6 +39,19 @@ body:
     attributes:
       label: Invariants
       description: Which existing contracts or behaviors must remain true? Write "None identified" if empty.
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation_scope
+    attributes:
+      label: Validation scope
+      description: State the planned repository-controlled checks, important scenarios, known omissions, and whether final full remote validation is needed.
+      placeholder: |
+        Targeted checks or test IDs:
+        Important scenarios:
+        Known omissions:
+        Final full remote validation: required/not required, with reason
     validations:
       required: true
 

@@ -185,6 +185,8 @@ $testRoot = Join-Path $tempParent ('swaw-govern-tests-' + [guid]::NewGuid().ToSt
 
 try {
     [void][IO.Directory]::CreateDirectory($testRoot)
+    & (Join-Path $PSScriptRoot 'review-handoff.ps1')
+
     $fakeBin = Join-Path $testRoot 'bin'
     [void][IO.Directory]::CreateDirectory($fakeBin)
     $fakeScript = Join-Path $fakeBin 'fake-ghswaw.ps1'
@@ -199,6 +201,18 @@ try {
     $happy = New-TestFixture 'happy'
     Set-FakeContext $happy
     $unicodeOutcome = 'caf' + [char]0x00E9 + ' offline change.'
+    $validationScope = @(
+        'Targeted checks: offline governance workflow.',
+        'Important scenarios: Issue and branch identity.',
+        'Known omissions: live GitHub mutations.',
+        'Final full remote validation: not required.'
+    ) -join "`n"
+    $validationParameter = (Get-Command $startScript).Parameters['ValidationScope']
+    Assert-True ($null -ne $validationParameter) 'ValidationScope parameter exists'
+    $mandatory = @($validationParameter.Attributes | Where-Object {
+        $_ -is [Management.Automation.ParameterAttribute] -and $_.Mandatory
+    })
+    Assert-Equal 1 $mandatory.Count 'ValidationScope is mandatory'
     $startArguments = @{
         Title = 'Test governed change'
         Slug = 'test-change'
@@ -207,6 +221,7 @@ try {
         Scope = 'Temporary fixture.'
         NonGoals = 'Real GitHub writes.'
         Invariants = 'Remain completely offline.'
+        ValidationScope = $validationScope
         AcceptanceCriteria = @('The linked branch is verified.')
         RepositoryRoot = $happy.Root
     }
@@ -219,6 +234,9 @@ try {
         ConvertFrom-Json
     Assert-Equal 'Test governed change' $payload.title 'Issue payload title'
     Assert-Contains $payload.body $unicodeOutcome 'UTF-8 Issue body'
+    Assert-Contains $payload.body '### Validation scope' 'Validation scope heading'
+    Assert-Contains $payload.body $startArguments.ValidationScope `
+        'Validation scope content'
     Assert-Contains $payload.body '### Acceptance criteria' 'Issue contract headings'
     Assert-CallCount $happy 'api-create' 1
     Assert-CallCount $happy 'issue-develop-create' 1

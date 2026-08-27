@@ -18,6 +18,13 @@ Real GitHub access.
 
 No external state changes.
 
+### Validation scope
+
+- Targeted checks: the offline governance workflow test.
+- Important scenarios: linked Issue, branch, and PR identity remain consistent.
+- Known omissions: live GitHub mutations.
+- Final full remote validation: not required for this fixture.
+
 ### Acceptance criteria
 
 - [ ] The status is valid.
