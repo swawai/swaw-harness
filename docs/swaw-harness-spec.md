@@ -12,6 +12,7 @@
 - **ARC-002 — 可独立执行。** 命令领域的核心实现应位于 library API，进程入口保持薄；因此模块可在确有发布或隔离需要时增加独立 executable，而无需重写业务逻辑。
 - **ARC-003 — 边界按代价建立。** CLI 目录不等于 Cargo package 或进程边界；只有稳定领域、独立依赖、独立发布或故障隔离需求成立时才拆 crate/executable。
 - **ARC-004 — 唯一生产路径。** 一个命令在一个发行档中只能有一个主执行模式；从 built-in 迁为 sidecar 时必须 hard cut 旧路径，不长期并存多种生产入口。
+- **ARC-005 — 调用意图显式。** 跨领域调用必须通过明确 API 与参数表达意图，禁止根据 mode、caller 或路径猜测行为。
 - **TERM-001 — Entry 术语。** `Entry executable` 是 `bootstrap/windows/entry` 构建并由 Entry Manager 分发的可执行产品，`Entry` 是 `<entry-id>.exe + <entry-id>/` 受管实例；`Launcher` 只可出现在 Git 保存的基线前历史中。
 - **ENTRY-001 — Entry 身份由 Manager 提交。** 合法的 Entry executable basename 与受管 descriptor 中的 EntryId 必须一致并共同确定唯一 EntryRoot；复制或重命名单个 Entry executable 文件不得创建合法 Entry。
 - **DATA-ROOT-001 — Core 数据根。** `DataRoot` 是共享 Core 运行数据的可配置绝对根，仓库内默认值为 `<repository>/data`；`core`、`docs`、`bootstrap` 与 Entry 数据均不属于 DataRoot。
