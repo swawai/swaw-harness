@@ -16,5 +16,5 @@
 
 12. 预期入库的变更使用 `.agents/skills/govern-repository-change/SKILL.md`；只读分析、解释和诊断除外。
 13. 默认流程是 `Issue → branch → PR → local test → review → human merge`，不得直接在 `main` 开发。
-14. 测试范围写在 Issue 中，日常优先执行相称的本地测试；GitHub 全量验证只在仓库负责人显式要求时运行。
+14. 测试范围写在 Issue 中，日常执行相称的本地测试。
 15. PR 使用 `Refs: #<issue-id>` 关联 Issue，不自动关闭 Issue；只有仓库负责人决定合并与关闭 Issue。

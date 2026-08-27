@@ -25,8 +25,17 @@ Use one lightweight path for changes intended to enter the repository.
 7. Only the repository owner marks the PR ready, merges it, and later decides
    whether to close the Issue.
 
-GitHub full validation is optional and runs only when the repository owner
-explicitly requests it. It does not replace local tests or review.
+## Optional full validation
+
+Only when the repository owner explicitly requests it, run the selected PR
+branch with:
+
+```powershell
+ghswaw workflow run validate.yml --ref <PR-head-branch>
+```
+
+Record the returned run URL and tested revision in the PR. Do not trigger full
+validation for ordinary changes; it does not replace local tests or review.
 
 ## Authorization boundary
 
