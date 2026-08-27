@@ -11,7 +11,3 @@
 ## Open
 
 无。
-
-## Superseded
-
-- **BOOT-021 — Candidate 不可变。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-CANDIDATE-001` 继承。

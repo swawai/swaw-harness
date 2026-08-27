@@ -12,8 +12,3 @@
 ## Open
 
 无。
-
-## Superseded
-
-- **BOOT-006 — Bootstrap 按宿主平台归属。** 本规则曾使用中央 Bootstrap 序列；其原义由 `BOOTSTRAP-001` 继承。
-- **BOOT-012 — Bootstrap 迁移保真。** 本规则曾使用中央 Bootstrap 序列；其原义由 `BOOTSTRAP-002` 继承。

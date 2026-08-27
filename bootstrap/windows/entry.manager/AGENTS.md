@@ -12,9 +12,3 @@
 ## Open
 
 - **ENTRY-MANAGEMENT-003 — EntryId 语法。** EntryId 的大小写归一、长度、可移植字符集与 Windows 保留名仍需确定；目录映射不得直接接受任意 Unicode basename。
-
-## Superseded
-
-- **ENTRY-MANAGER-EXEC-001 — Entry Manager 控制面板暂缓。** 本规则曾使用独立执行边界前缀；其原义由 `ENTRY-MANAGEMENT-001` 继承。
-- **ENTRY-MANAGER-002 — Entry 管理器独立。** 本规则曾使用中央 Entry Manager 序列；其原义由 `ENTRY-MANAGEMENT-002` 继承。
-- **ENTRY-ID-001 — EntryId 语法。** 本规则曾使用中央议题前缀；其未决问题由 `ENTRY-MANAGEMENT-003` 继承。

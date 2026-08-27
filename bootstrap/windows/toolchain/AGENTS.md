@@ -15,11 +15,3 @@
 ## Open
 
 无。
-
-## Superseded
-
-- **BOOT-016 — Windows 物理路径有界。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-TOOLCHAIN-001` 继承。
-- **BOOT-017 — 外部载荷身份。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-TOOLCHAIN-002` 继承。
-- **BOOT-019 — 工具链校验分层。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-TOOLCHAIN-003` 继承。
-- **BOOT-022 — 工具链由 Contract 选择。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-TOOLCHAIN-004` 继承。
-- **BOOT-044 — 工具链入口与代码信任边界。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-TOOLCHAIN-005` 继承。

@@ -36,7 +36,7 @@ foreach ($RelativePath in $Files) {
             if ($Heading -ceq 'Proposed') {
                 throw "Use Open for unresolved rules: $RelativePath"
             }
-            if ($Heading -in @('Accepted', 'Open', 'Superseded')) {
+            if ($Heading -in @('Accepted', 'Open')) {
                 $Section = $Heading
             }
             else {
@@ -57,6 +57,9 @@ foreach ($RelativePath in $Files) {
         }
 
         if ($Line -match '^- \*\*([A-Z][A-Z0-9-]*-[0-9]{3}) — ') {
+            if ($Section -notin @('Accepted', 'Open')) {
+                throw "Rule declarations are only valid under Accepted or Open: $RelativePath"
+            }
             $Rules.Add([pscustomobject]@{
                     Id = $Matches[1]
                     Section = $Section
@@ -76,6 +79,27 @@ foreach ($RelativePath in $Files) {
 $DuplicateIds = @($Rules | Group-Object Id | Where-Object Count -gt 1)
 if ($DuplicateIds.Count -gt 0) {
     throw "Duplicate Rule IDs: $($DuplicateIds.Name -join ', ')"
+}
+
+$CurrentPrefixGroups = @(
+    $Rules | Group-Object { $_.Id -replace '-[0-9]{3}$', '' }
+)
+foreach ($PrefixGroup in $CurrentPrefixGroups) {
+    $PrefixFiles = @(
+        $PrefixGroup.Group | Select-Object -ExpandProperty File -Unique
+    )
+    if ($PrefixFiles.Count -ne 1) {
+        throw "Prefix $($PrefixGroup.Name) is split across owners: $($PrefixFiles -join ', ')"
+    }
+    $Numbers = @(
+        $PrefixGroup.Group |
+            ForEach-Object { [int]($_.Id -replace '^.*-([0-9]{3})$', '$1') } |
+            Sort-Object
+    )
+    $Expected = @(1..$Numbers.Count)
+    if (($Numbers -join ',') -cne ($Expected -join ',')) {
+        throw "Prefix $($PrefixGroup.Name) must form a contiguous current sequence from 001."
+    }
 }
 
 $DuplicatePrefixes = @($Owners | Group-Object Prefix | Where-Object Count -gt 1)
@@ -153,7 +177,7 @@ foreach ($Owner in $Owners) {
                 '{0}-{1:000}' -f $Owner.Prefix, $_
             }
         )
-        throw "Prefix $($Owner.Prefix) has missing historical IDs: $($MissingIds -join ', ')"
+        throw "Prefix $($Owner.Prefix) has missing current IDs: $($MissingIds -join ', ')"
     }
     if ($Maximum -ge 999) {
         throw "Prefix $($Owner.Prefix) has exhausted its three-digit sequence."
@@ -171,8 +195,9 @@ $OrderedResults = @($Results | Sort-Object Prefix)
 if ([string]::IsNullOrWhiteSpace($Prefix)) {
     $OrderedResults | Format-Table Prefix, Maximum, NextId, File -AutoSize
     Write-Host (
-        '[PASS] {0} Rule IDs are unique; {1} local prefixes have one owner and contiguous history.' -f
+        '[PASS] {0} current Rule IDs are unique; {1} current prefixes each have one owner and a contiguous 001-based sequence; {2} owners declare local prefixes.' -f
         $Rules.Count,
+        $CurrentPrefixGroups.Count,
         $Owners.Count
     )
     exit 0

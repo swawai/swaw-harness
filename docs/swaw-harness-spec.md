@@ -2,44 +2,44 @@
 
 本文记录 Swaw Harness 全仓及跨领域的架构与协议；稳定领域的新规则由最近目录的 `AGENTS.md` 记录并与上层规则依次叠加，尚未下沉的既有领域规则在完成单一来源迁移前继续由本文现有条目承载。每条规则保持一至两句话；未来验收脚本只引用稳定规则 ID，不从散文推断要求。
 
-状态：`Accepted` 表示已经完成决议并形成当前可验证的实现约束，不要求永久不变，也不自动表示目标能力已经交付；过渡边界只有同时声明当前约束与明确退出条件时才可接受，纯进度事实属于 `Maintainer Notes`。`Open` 是唯一的未决规则状态且不具有实现约束；`Superseded` 是可选的非约束历史，仅在原 ID 退出活动状态时记录替代或撤回原因，不承载当前规则。完整 Rule ID 与领域前缀都必须全仓唯一；领域序列从 `001` 开始并以历史最大后缀加一，不填补空洞，任何已分配 ID 退出活动状态时都保留 `Superseded` 记录。
+状态：`Accepted` 表示已经完成决议并形成当前可验证的实现约束，不要求永久不变，也不自动表示目标能力已经交付；过渡边界只有同时声明当前约束与明确退出条件时才可接受，纯进度事实属于 `Maintainer Notes`。`Open` 是唯一的未决规则状态且不具有实现约束；当前协议文件只保留这两种规则，Git 保存退出规则与基线前编号的历史。当前规范树中的完整 Rule ID 与领域前缀必须唯一，同一前缀的序列从 `001` 连续开始，新 ID 使用当前最大后缀加一。
 
 ## Accepted
 
 - **HAR-001 — 独立产品仓库。** `swaw-harness` 是 Swaw 品牌下的独立产品仓库，必须脱离 `swaw-kit` 的父目录和源码树独立构建、测试、打包与发布。
-- **HAR-004 — 领域规则命名空间。** 根 `AGENTS.md` 记录全仓规则，稳定领域规则归最近目录的 `AGENTS.md` 并声明全仓唯一前缀，本文件只新增全仓或跨领域协议，`README.md` 只做人类入口。同一领域前缀下各状态共用从 `001` 开始且只增不补的序列；任何 ID 因下沉重编号、替换或撤回而退出活动状态时必须保留 `Superseded` 历史，并删除旧的活动正文以保持单一来源。
-- **ARC-002 — 源码就近归属。** 实现应下沉到最近的稳定领域所有者；放在父领域 crate 可以接受，但必须按领域拆开，不能长期集中在总入口或总 dispatcher。
-- **ARC-003 — 可独立执行。** 命令领域的核心实现应位于 library API，进程入口保持薄；因此模块可在确有发布或隔离需要时增加独立 executable，而无需重写业务逻辑。
-- **ARC-004 — 边界按代价建立。** CLI 目录不等于 Cargo package 或进程边界；只有稳定领域、独立依赖、独立发布或故障隔离需求成立时才拆 crate/executable。
-- **ARC-005 — 唯一生产路径。** 一个命令在一个发行档中只能有一个主执行模式；从 built-in 迁为 sidecar 时必须 hard cut 旧路径，不长期并存多种生产入口。
-- **TERM-001 — Entry 术语。** `Entry executable` 是 `bootstrap/windows/entry` 构建并由 Entry Manager 分发的可执行产品，`Entry` 是 `<entry-id>.exe + <entry-id>/` 受管实例；`Launcher` 只可出现在 Superseded 历史记录中。
-- **ENTRY-002 — Entry 身份由 Manager 提交。** 合法的 Entry executable basename 与受管 descriptor 中的 EntryId 必须一致并共同确定唯一 EntryRoot；复制或重命名单个 Entry executable 文件不得创建合法 Entry。
+- **HAR-002 — 领域规则命名空间。** 根 `AGENTS.md` 记录全仓规则，稳定领域规则归最近目录的 `AGENTS.md` 并声明全仓唯一前缀，本文件只新增全仓或跨领域协议，`README.md` 只做人类入口。此次重构建立当前编号基线：每个前缀的 `Accepted` 与 `Open` 从 `001` 连续编号，旧声明从当前规范树删除且只由 Git 保留，活动正文始终只有一个所有者。
+- **ARC-001 — 源码就近归属。** 实现应下沉到最近的稳定领域所有者；放在父领域 crate 可以接受，但必须按领域拆开，不能长期集中在总入口或总 dispatcher。
+- **ARC-002 — 可独立执行。** 命令领域的核心实现应位于 library API，进程入口保持薄；因此模块可在确有发布或隔离需要时增加独立 executable，而无需重写业务逻辑。
+- **ARC-003 — 边界按代价建立。** CLI 目录不等于 Cargo package 或进程边界；只有稳定领域、独立依赖、独立发布或故障隔离需求成立时才拆 crate/executable。
+- **ARC-004 — 唯一生产路径。** 一个命令在一个发行档中只能有一个主执行模式；从 built-in 迁为 sidecar 时必须 hard cut 旧路径，不长期并存多种生产入口。
+- **TERM-001 — Entry 术语。** `Entry executable` 是 `bootstrap/windows/entry` 构建并由 Entry Manager 分发的可执行产品，`Entry` 是 `<entry-id>.exe + <entry-id>/` 受管实例；`Launcher` 只可出现在 Git 保存的基线前历史中。
+- **ENTRY-001 — Entry 身份由 Manager 提交。** 合法的 Entry executable basename 与受管 descriptor 中的 EntryId 必须一致并共同确定唯一 EntryRoot；复制或重命名单个 Entry executable 文件不得创建合法 Entry。
 - **DATA-ROOT-001 — Core 数据根。** `DataRoot` 是共享 Core 运行数据的可配置绝对根，仓库内默认值为 `<repository>/data`；`core`、`docs`、`bootstrap` 与 Entry 数据均不属于 DataRoot。
-- **BOOTSTRAP-DATA-002 — Windows Bootstrap 数据空间。** `BootstrapWindowsRoot` 唯一映射为 `DataRoot/bootstrap.windows` 并保存 `toolchains/work/locks/logs`；`BootstrapWindowsCacheRoot` 唯一映射为 `DataRoot/bootstrap.windows.cache` 并保存 `downloads/build/cargo`，两者是独立受控写根。
-- **CORE-RELEASE-002 — Core Release 空间。** `CoreReleaseRoot` 唯一映射为 `DataRoot/core.release`，直接保存共享 Core Release 与 target selector；点号分隔顶层 owner 与 kind，不增加无独立职责的中间层。
+- **BOOTSTRAP-DATA-001 — Windows Bootstrap 数据空间。** `BootstrapWindowsRoot` 唯一映射为 `DataRoot/bootstrap.windows` 并保存 `toolchains/work/locks/logs`；`BootstrapWindowsCacheRoot` 唯一映射为 `DataRoot/bootstrap.windows.cache` 并保存 `downloads/build/cargo`，两者是独立受控写根。
+- **CORE-RELEASE-001 — Core Release 空间。** `CoreReleaseRoot` 唯一映射为 `DataRoot/core.release`，直接保存共享 Core Release 与 target selector；点号分隔顶层 owner 与 kind，不增加无独立职责的中间层。
 - **ENTRY-RELEASE-001 — Entry executable Release 空间。** `EntryReleaseRoot` 唯一映射为 `DataRoot/entry.release`，只保存内容寻址的 `swaw-harness-entry.exe` Release 与 target selector；它是 Entry Manager 的分发源，不是 Entry 实例数据。
 - **ENTRY-MANAGER-RELEASE-001 — Entry Manager Release 空间。** `EntryManagerReleaseRoot` 唯一映射为 `DataRoot/entry.manager.release`，只保存内容寻址的独立 Entry Manager Release 与 target selector，不保存 Entry 实例数据。
-- **DATA-LIFECYCLE-003 — 数据空间按所有者与生命周期分治。** 无 Bootstrap 进程运行时可以整体清理 `BootstrapWindowsCacheRoot`；删除 `BootstrapWindowsRoot` 属于工具链重置而非清 cache，`CoreReleaseRoot` 只允许显式 Release GC 与 selector 更新。
+- **DATA-LIFECYCLE-001 — 数据空间按所有者与生命周期分治。** 无 Bootstrap 进程运行时可以整体清理 `BootstrapWindowsCacheRoot`；删除 `BootstrapWindowsRoot` 属于工具链重置而非清 cache，`CoreReleaseRoot` 只允许显式 Release GC 与 selector 更新。
 - **ENTRY-DATA-001 — Entry 数据空间。** 仓库内 EntryDataRoot 固定为 `<repository>/data.entry`，每个直接子目录唯一对应一个 EntryId；自定义位置协议留待 Entry executable 垂直样例确定。
-- **ENTRY-LAYOUT-003 — Entry 文件与数据同名配对。** 一个 Entry 由同级的 `data.entry/<entry-id>.exe` 与 `data.entry/<entry-id>/` 组成；后者的 `entry.json` 是受管身份与生命周期 descriptor，二者不承诺文件系统级原子出现。
+- **ENTRY-LAYOUT-001 — Entry 文件与数据同名配对。** 一个 Entry 由同级的 `data.entry/<entry-id>.exe` 与 `data.entry/<entry-id>/` 组成；后者的 `entry.json` 是受管身份与生命周期 descriptor，二者不承诺文件系统级原子出现。
 - **ENTRY-LIFECYCLE-001 — Entry 生命周期目标协议。** 实现 Entry 创建与启动时，descriptor 的状态只允许 `provisioning`、`active`、`deleting`；只有文件、目录、身份和运行引用全部核验通过的 `active` Entry 可启动，Manager 只有在状态提交并回读成功后才报告创建成功。
 - **ENTRY-RECOVERY-001 — Entry Manager 恢复目标协议。** 实现控制面板时，Manager 是 Entry 创建、删除和状态迁移的唯一支持写入者，每次启动控制面板前必须在互斥锁内幂等恢复有效 descriptor 记录的未完成操作；无有效 descriptor 的孤立对象只报告冲突，不得推断所有权并静默删除。
-- **ENTRY-CACHE-002 — Entry cache 所有者显式。** `EntryRoot/cache` 只保存 Entry-local cache；不得与 `BootstrapWindowsCacheRoot` 隐式 fallback、复制或同步。
-- **CACHE-005 — 不预建全局 Cache。** 当前不存在 `DataRoot/cache`；只有第二个真实消费者出现并共同采用内容身份、原子发布、并发锁与 GC 协议后，才允许建立全局 Artifact Cache。
-- **BOOT-034 — Stage-0 边界。** 根 `bootstrap/` 保存无需已编译 Harness 即可运行的作者态 Stage-0 实现，`core/` 是完整 Rust workspace 且不承担获取自身编译环境的职责。
-- **BOOT-013 — 冷启动依赖最小化。** Windows Stage-0 只获取构建当前 Rust 产品必需的 minimal Rust 与 MSVC 工具链，不获取 `rustfmt`、Bun 或内置 Pwsh；开发工具与脚本 Facet runtime 由出现真实消费者后的独立 setup 协议负责。
-- **BOOT-018 — 持久清单确定性。** 写入身份或完整性 metadata 的无序集合必须先按协议规定的、与文化和 PowerShell 版本无关的 ordinal 顺序规范化；Windows 路径先按 `OrdinalIgnoreCase`、再按 `Ordinal` 决胜，验证不得依赖文件系统枚举顺序或 `Sort-Object` 默认语义。
-- **BOOT-024 — 构建环境属于子进程。** MSVC、SDK、Rust 与 Cargo 环境只注入实际工具子进程，不修改再恢复父 PowerShell 进程，也不生成需要 dot-source 的环境脚本；工具入口必须使用显式受支持的 executable 映射。
-- **BOOT-025 — 内容寻址安装只前进发布。** Toolchain 与 Candidate 等内容寻址对象只允许从已验证 stage 原子移动到不存在的目标；损坏目标可在同一身份锁内移除后重建，不为不会被合法覆盖的旧对象维护通用 backup/rollback 协议。
-- **BOOT-045 — 仓库根 Windows 构建入口。** 根 `build.cmd` 是无业务逻辑的 Windows 适配器，只以 `<repository>/data` 调用 `bootstrap/windows/main.ps1` 并原样传播退出码；它不得复制 Entry executable、创建 Entry 或输出人工复制指引。
-- **BOOT-049 — Windows Stage-0 作者布局。** `bootstrap/windows/builder` 保存跨产品 Candidate、Release 与基础机制，`toolchain` 独占构建工具链领域，`core`、`entry` 与 `entry.manager` 分别拥有 Core、Entry executable 与 Entry Manager 产品适配器；`main.ps1` 是先构建全部 Candidate、再发布并核验 selector 的唯一多产品编排器。
-- **BOOT-055 — 平台与产品 Contract 分治。** `bootstrap/windows/contract.json` v3 只声明 target、Rust 与 MSVC 平台事实；`core/contract.json`、`entry/contract.json`、`entry.manager/contract.json` 分别声明各自产物事实，不得由平台 Contract 的泛称 `product` 暗指 Core。
-- **BOOT-056 — Windows Rust 产品静态 CRT。** Windows Core 与 Entry Manager 的产品 Contract 必须显式要求静态 CRT，构建必须把该要求投影为 Cargo/rustc 命令行配置；验收必须读取发布 PE 的 import table，并拒绝 `VCRUNTIME`、`UCRT` 或其他外部 C/C++ runtime 依赖。
-- **BOOT-057 — 多产品发布串行边界。** `bootstrap/windows/publication.ps1` 是 `main.ps1` 使用的内部 target-scoped 发布边界，其锁覆盖三种产品的发布、selector 回读与本轮结果核验；产品目录内的 `publish.ps1` 只是适配器，不是受支持的并发多产品入口。
-- **BOOT-058 — Windows 子领域依赖方向。** `toolchain/` 可依赖 `builder/` 的基础路径、文件和进程机制，产品适配器可依赖两者；`builder/build/` 不得依赖 `builder/release/`，两者只由产品适配器和根编排器显式组合，不得以 `common/`、`utils/`、总加载器或旧路径 shim 绕过依赖方向。
-- **BOOT-059 — PowerShell 依赖显式。** Windows Bootstrap 的 PowerShell 文件必须自行 dot-source 足以加载所需函数的明确依赖链，不得依赖调用者预先加载。
-- **RELEASE-011 — Core 发布池身份。** `DataRoot/core.release/<release-id>/` 是 Bootstrap 产生的共享不可变 Core 发布池；`release-id` 的 Hash 必须覆盖完整发布内容及含 target 的发布元数据，不能只散列源码 revision。
-- **RELEASE-014 — Bootstrap Target Selector。** Core、Entry executable 与 Entry Manager 的 ReleaseRoot 都各自保存只含 Release 引用的 `current.<target-id>`；Publish 只原子更新本产品、本 target 的 selector，并验证所指 Release 的 target 兼容性。
+- **ENTRY-CACHE-001 — Entry cache 所有者显式。** `EntryRoot/cache` 只保存 Entry-local cache；不得与 `BootstrapWindowsCacheRoot` 隐式 fallback、复制或同步。
+- **CACHE-001 — 不预建全局 Cache。** 当前不存在 `DataRoot/cache`；只有第二个真实消费者出现并共同采用内容身份、原子发布、并发锁与 GC 协议后，才允许建立全局 Artifact Cache。
+- **BOOT-001 — Stage-0 边界。** 根 `bootstrap/` 保存无需已编译 Harness 即可运行的作者态 Stage-0 实现，`core/` 是完整 Rust workspace 且不承担获取自身编译环境的职责。
+- **BOOT-002 — 冷启动依赖最小化。** Windows Stage-0 只获取构建当前 Rust 产品必需的 minimal Rust 与 MSVC 工具链，不获取 `rustfmt`、Bun 或内置 Pwsh；开发工具与脚本 Facet runtime 由出现真实消费者后的独立 setup 协议负责。
+- **BOOT-003 — 持久清单确定性。** 写入身份或完整性 metadata 的无序集合必须先按协议规定的、与文化和 PowerShell 版本无关的 ordinal 顺序规范化；Windows 路径先按 `OrdinalIgnoreCase`、再按 `Ordinal` 决胜，验证不得依赖文件系统枚举顺序或 `Sort-Object` 默认语义。
+- **BOOT-004 — 构建环境属于子进程。** MSVC、SDK、Rust 与 Cargo 环境只注入实际工具子进程，不修改再恢复父 PowerShell 进程，也不生成需要 dot-source 的环境脚本；工具入口必须使用显式受支持的 executable 映射。
+- **BOOT-005 — 内容寻址安装只前进发布。** Toolchain 与 Candidate 等内容寻址对象只允许从已验证 stage 原子移动到不存在的目标；损坏目标可在同一身份锁内移除后重建，不为不会被合法覆盖的旧对象维护通用 backup/rollback 协议。
+- **BOOT-006 — 仓库根 Windows 构建入口。** 根 `build.cmd` 是无业务逻辑的 Windows 适配器，只以 `<repository>/data` 调用 `bootstrap/windows/main.ps1` 并原样传播退出码；它不得复制 Entry executable、创建 Entry 或输出人工复制指引。
+- **BOOT-007 — Windows Stage-0 作者布局。** `bootstrap/windows/builder` 保存跨产品 Candidate、Release 与基础机制，`toolchain` 独占构建工具链领域，`core`、`entry` 与 `entry.manager` 分别拥有 Core、Entry executable 与 Entry Manager 产品适配器；`main.ps1` 是先构建全部 Candidate、再发布并核验 selector 的唯一多产品编排器。
+- **BOOT-008 — 平台与产品 Contract 分治。** `bootstrap/windows/contract.json` v3 只声明 target、Rust 与 MSVC 平台事实；`core/contract.json`、`entry/contract.json`、`entry.manager/contract.json` 分别声明各自产物事实，不得由平台 Contract 的泛称 `product` 暗指 Core。
+- **BOOT-009 — Windows Rust 产品静态 CRT。** Windows Core 与 Entry Manager 的产品 Contract 必须显式要求静态 CRT，构建必须把该要求投影为 Cargo/rustc 命令行配置；验收必须读取发布 PE 的 import table，并拒绝 `VCRUNTIME`、`UCRT` 或其他外部 C/C++ runtime 依赖。
+- **BOOT-010 — 多产品发布串行边界。** `bootstrap/windows/publication.ps1` 是 `main.ps1` 使用的内部 target-scoped 发布边界，其锁覆盖三种产品的发布、selector 回读与本轮结果核验；产品目录内的 `publish.ps1` 只是适配器，不是受支持的并发多产品入口。
+- **BOOT-011 — Windows 子领域依赖方向。** `toolchain/` 可依赖 `builder/` 的基础路径、文件和进程机制，产品适配器可依赖两者；`builder/build/` 不得依赖 `builder/release/`，两者只由产品适配器和根编排器显式组合，不得以 `common/`、`utils/`、总加载器或旧路径 shim 绕过依赖方向。
+- **BOOT-012 — PowerShell 依赖显式。** Windows Bootstrap 的 PowerShell 文件必须自行 dot-source 足以加载所需函数的明确依赖链，不得依赖调用者预先加载。
+- **RELEASE-001 — Core 发布池身份。** `DataRoot/core.release/<release-id>/` 是 Bootstrap 产生的共享不可变 Core 发布池；`release-id` 的 Hash 必须覆盖完整发布内容及含 target 的发布元数据，不能只散列源码 revision。
+- **RELEASE-002 — Bootstrap Target Selector。** Core、Entry executable 与 Entry Manager 的 ReleaseRoot 都各自保存只含 Release 引用的 `current.<target-id>`；Publish 只原子更新本产品、本 target 的 selector，并验证所指 Release 的 target 兼容性。
 
 ## Open
 
@@ -77,86 +77,3 @@
 - **TEMPLATE-001 — Facet template marker。** 待真实约束证明后，再决定模板是否从通用 `facet.json` 分离为 `facet-template.json`；当前不因命名偏好增加协议类型。
 - **RUNS-001 — Runs Space。** 若采用 Space 模型，`.runs/<owner>/<run-id>` 应成为 Run Resource 的唯一规范路径，命令详情中的 Runs 只是对该 Resource 的查询或引用，不再制造第二份 route identity。
 - **BUILD-REPRO-001 — Windows 可复现链接。** 当前 MSVC `link.exe` 的全新构建会把链接时间写入 PE，使同源码与同工具链仍可能产生字节不同但各自内容寻址正确的 Release；是否改用 `lld-link` 或建立更完整的 reproducible-build contract，必须在真实原生依赖样例出现后决议，不能仅追加 `/Brepro` 就宣称可复现。
-
-## Superseded
-
-- **HAR-002 — 文档职责单一。** 本文件记录架构与协议，`AGENTS.md` 记录维护规则，`README.md` 只做人类入口；三者不得复制同一规范正文。其集中式归属已由 `HAR-003` 的目录化协议归属取代。
-- **HAR-003 — 目录化协议归属。** 本规则建立了目录所有权，但要求下沉时保留中央 ID，导致领域序列无法从 `001` 自治；其所有权模型与可追溯 rekey 规则由 `HAR-004` 取代。
-- **LAUNCHER-RELEASE-002 — Launcher Release 空间。** 本规则曾使用 `LauncherReleaseRoot` 与 `DataRoot/launcher.release`；当前实体名、路径与产物名已由 `TERM-001`、`ENTRY-RELEASE-001` 取代。
-- **LAUNCH-006 — Launcher 运行协议暂缓。** 本规则曾用旧产品名和 `template.harness.exe` 描述占位产物；当前名称与产物由 `ENTRY-EXEC-001` 取代。
-- **RELEASE-013 — Bootstrap Target Selector。** 本规则曾以 Launcher 命名第二个发布产品；当前三产品 selector 术语由 `RELEASE-014` 取代。
-- **ENTRY-001 — 启动器文件名是 Entry 身份。** 本规则曾允许复制或重命名 Launcher 形成新 Entry；Entry 创建权与双重身份核验已由 `ENTRY-002`、`ENTRY-LAYOUT-003` 和 `ENTRY-MANAGEMENT-002` 取代。
-- **LAUNCHER-RELEASE-001 — Launcher Release 空间。** 本规则曾把 Entry Manager 描述为未来组件；其职责先由 `LAUNCHER-RELEASE-002` 收敛，当前实体命名与独立发布由 `ENTRY-RELEASE-001`、`ENTRY-MANAGER-RELEASE-001` 取代。
-- **BOOT-046 — 显式 Bootstrap 发布两种产品。** 本规则曾只发布 Core 与 Launcher；三产品构建发布边界已由 `WIN-BOOT-005` 取代。
-- **BOOT-048 — Windows Stage-0 作者布局。** 本规则曾使用 `launcher` 作者目录且没有 Entry Manager 产品；当前布局已由 `BOOT-049` 取代。
-- **ENTRY-MANAGER-001 — Entry 创建职责独立。** 本规则曾把 Entry Manager 预留在仓库根；当前独立作者项目与职责由 `ENTRY-MANAGEMENT-002` 取代。
-- **RELEASE-012 — Bootstrap Target Selector。** 本规则只覆盖 Core 与旧称 Launcher 的 selector；三产品 selector 协议先由 `RELEASE-013` 扩展，当前术语由 `RELEASE-014` 取代。
-- **ENTRY-RUNTIME-001 — Entry 文件与数据同名配对。** 本规则曾把配对布局保留为候选；该布局及其非原子状态协议已由 `ENTRY-LAYOUT-003`、`ENTRY-LIFECYCLE-001` 和 `ENTRY-RECOVERY-001` 接受。
-- **BOOT-047 — 产品构建分治、发布事务共享。** Core 与 Launcher 曾各自拥有编译脚本与 Contract，而 Candidate、Release 和工具链实现共同位于 `_lib`；该内部库先由 `BOOT-048` 拆分，当前布局继续由 `BOOT-049` 约束。
-- **BOOT-035 — 仓库根 Windows 构建入口。** 根 `build.cmd` 曾只构建 Core 并把 Launcher 留待未来；当前入口边界已由 `BOOT-045`、`WIN-BOOT-005` 取代。
-- **BOOT-036 — 显式 Bootstrap 发布共享 Core。** `main.ps1` 曾只发布 Core；当前三产品发布已由 `WIN-BOOT-005` 取代。
-- **BOOT-043 — Windows Build 与 Publish 分离。** Core 曾独占 `BootstrapWindowsCacheRoot/build` 且共享层不得承担 Launcher 职责；两个真实产品出现后，产品缓存分治与共享发布事务已由 `BOOT-047` 取代。
-- **LAUNCH-005 — Launcher 只读启动。** 旧称 Launcher 曾被约束为直接解析 `DataRoot/core.release/current.<target-id>`；该运行协议先由 `LAUNCH-006` 暂缓，当前由 `ENTRY-EXEC-001` 与 `ENTRY-LAYOUT-003` 约束。
-- **LAUNCH-002 — 缺失 Release 显式失败。** Launcher 曾被要求提示运行根 `build.cmd`；缺失 Entry/Core 的修复职责现归 `ENTRY-MANAGEMENT-002` 的独立 Manager。
-- **RELEASE-009 — 共享 Core 内容寻址池。** 本规则曾进一步承诺所有 Entry 直接共享此池；当前只接受 Bootstrap 发布池本身，Entry 如何引用由 `RELEASE-011`、`ENTRY-CORE-001` 取代。
-- **RELEASE-010 — Core Target Selector。** 本规则曾把 Bootstrap Core selector 直接规定为旧称 Launcher 的运行 selector；发布侧 selector 现由 `RELEASE-014` 保留，Entry 运行路径仍由 `ENTRY-EXEC-001` 暂缓。
-
-- **CORE-RELEASE-001 — Core Release 空间。** `CoreReleaseRoot` 唯一映射为 `DataRoot/core_release`，直接保存共享 Core Release 与 target selector；不增加无独立职责的 `_core` 中间层。其顶层命名已由 `CORE-RELEASE-002` 的点号命名空间取代。
-- **LAUNCH-004 — Launcher 只读启动。** Launcher 只解析并验证 `DataRoot/core_release/current.<target-id>` 指向的共享不可变 Core Release，不调用 Bootstrap、不联网、不构建，也不扫描 `core/target` 或比较源码时间。其 selector 路径已由 `LAUNCH-005` 取代。
-- **RELEASE-007 — 共享 Core 内容寻址池。** 所有 Entry 与不同 target 共享 `DataRoot/core_release/<release-id>/` 中的不可变 Core Release；`release-id` 的 Hash 必须覆盖完整发布内容及含 target 的发布元数据，不能只散列源码 revision。其路径已由 `RELEASE-009` 取代。
-- **RELEASE-008 — Core Target Selector。** `DataRoot/core_release/current.<target-id>` 是只含 Release 引用的普通 selector 文件，Publish 只原子更新本 target 的 selector，Launcher 必须同时校验所指 Release 的 target 兼容性。其路径已由 `RELEASE-010` 取代。
-- **BOOTSTRAP-DATA-001 — Bootstrap 数据空间。** `BootstrapDataRoot` 唯一映射为 `DataRoot/bootstrap`，各平台只写 `BootstrapDataRoot/<platform>`；Windows 的受控写边界是 `DataRoot/bootstrap/windows`，不得覆盖其他平台数据。其嵌套平台根与单一生命周期已由 `BOOTSTRAP-DATA-002` 取代。
-- **DATA-LIFECYCLE-002 — 数据空间按所有者分治。** `DataRoot/bootstrap` 保存可重建的 Bootstrap 状态，`DataRoot/core_release` 保存发布后不可变的 Release 与可原子替换的 selector；各 owner 只能修改自己的受控根，后者不得作为 cache 整体清理。Windows Bootstrap 的状态与 cache 已由 `DATA-LIFECYCLE-003` 分离。
-- **ENTRY-CACHE-001 — Entry cache 所有者显式。** `EntryRoot/cache` 只保存 Entry-local cache；不得与 `BootstrapDataRoot` 隐式 fallback、复制或同步。旧 Bootstrap 根已由 `ENTRY-CACHE-002` 取代。
-- **BOOT-040 — Windows Build 与 Publish 分离。** `bootstrap/windows/build.ps1` 只在 `DataRoot/bootstrap/windows/build` 产生 Candidate，`bootstrap/windows/publish.ps1` 只验证 Candidate、内容寻址发布到 `CoreReleaseRoot` 并原子更新 selector；二者都不得承担 Launcher 职责。其 Candidate 路径已由 `BOOT-043` 取代。
-- **BOOT-041 — 工具链入口与代码信任边界。** `toolchain-setup.ps1` 显式安装或修复 Contract 指定的工具链，`toolchain.ps1` 只从作者态 `bootstrap/windows` 解析并运行已安装工具；`DataRoot/bootstrap/windows` 只保存数据与不可变载荷，不发布供用户执行的脚本。其数据根已由 `WIN-TOOLCHAIN-005` 取代。
-- **DATA-LIFECYCLE-001 — 同根不同生命周期。** 共处 CoreDataRoot 不表示共享写权限或删除策略：cache 可清理，Release 发布后不可变，各 owner 只能修改自己的受控子树。无职责的 CoreDataRoot 聚合已由 `DATA-LIFECYCLE-003` 的独立生命周期根取代。
-- **CORE-DATA-001 — CoreDataRoot。** CoreDataRoot 唯一映射为 `DataRoot/_core`，当前只定义 `cache/` 与 `releases/` 两个子树；CoreDataRoot 本身不得被整体视为可清理 cache，也不得预建推测用途。该中间层已由 `BOOTSTRAP-DATA-002` 与 `CORE-RELEASE-002` 取代。
-- **CACHE-004 — Cache 所有者显式。** `DataRoot/_core/cache` 只保存可跨 Entry 复用且可重建的 Core cache，`EntryRoot/cache` 只保存 Entry-local cache；调用方必须显式选择其一，不允许隐式 fallback 或复制同步。Bootstrap cache 与 Entry cache 已由 `DATA-LIFECYCLE-003`、`ENTRY-CACHE-002` 分别约束。
-- **BOOT-037 — Windows Build 与 Publish 分离。** `bootstrap/windows/build.ps1` 只在 `DataRoot/_core/cache` 产生 Candidate，`bootstrap/windows/publish.ps1` 只验证 Candidate、内容寻址发布到共享 Core releases 并原子更新 selector；二者都不得承担 Launcher 职责。其路径已由 `BOOT-043` 取代。
-- **BOOT-038 — 工具链入口与代码信任边界。** `toolchain-setup.ps1` 显式安装或修复 Contract 指定的工具链，`toolchain.ps1` 只从作者态 `bootstrap/windows` 解析并运行已安装工具；`DataRoot/_core/cache` 只保存数据与不可变载荷，不发布供用户执行的脚本。其数据路径已由 `WIN-TOOLCHAIN-005` 取代。
-- **BOOT-039 — Windows 路径预算。** Windows Bootstrap v2 的规范化 DataRoot 最长 38 个 UTF-16 code unit，必须在下载或安装前拒绝超限路径。缩短后的物理布局已由 `WIN-BOOT-004` 在相同最坏路径预算下放宽 DataRoot。
-- **LAUNCH-003 — Launcher 只读启动。** Launcher 只解析并验证 `DataRoot/_core/releases/current.<target-id>` 指向的共享不可变 Core Release，不调用 Bootstrap、不联网、不构建，也不扫描 `core/target` 或比较源码时间。其路径已由 `LAUNCH-005` 取代。
-- **RELEASE-005 — 共享 Core 内容寻址池。** 所有 Entry 与不同 target 共享 `DataRoot/_core/releases/<release-id>/` 中的不可变 Core Release；`release-id` 的 Hash 必须覆盖完整发布内容及含 target 的发布元数据，不能只散列源码 revision。其路径已由 `RELEASE-009` 取代。
-- **RELEASE-006 — Core Target Selector。** `DataRoot/_core/releases/current.<target-id>` 是只含 Release 引用的普通 selector 文件，Publish 只原子更新本 target 的 selector，Launcher 必须同时校验所指 Release 的 target 兼容性。其路径已由 `RELEASE-010` 取代。
-- **ARC-001 — 三种空间分离。** 源码/作者空间、不可变发布/执行空间、可变数据空间必须分离；逻辑地址可以映射它们，但不得把三者合并为同一棵可写目录树。该物理根限制已由 `VAR-002`、`VAR-003` 取代，生命周期与写权限分离仍然保留。
-- **VAR-001 — 单一 VarRoot。** Harness 自写的 cache、Release、Run、Export 与领域状态必须位于一个用户可配置的绝对 `VarRoot` 下；`source` 与 `docs` 不属于 `VarRoot`，各运行目录只从该根确定性派生。该实体 `var/` 层级已由 `VAR-003`、`VAR-NAME-001` 的共同父目录与扁平 `var_*` 空间取代。
-- **VAR-003 — 单一可配置父目录。** `VarRoot` 是用户只需配置一次的绝对父目录，Harness 自写根目录都由它确定性派生；默认布局可让 `source`、`docs` 与 `var_*` 共用父目录，但只有 `var_*` 属于 Harness 管理的运行数据。其共同父目录语义已由实体 `<repository>/var` 与 `VAR-004` 取代。
-- **VAR-NAME-001 — 扁平 Var 空间命名。** Harness 管理的顶层运行目录使用保留的 `var_<kind>` snake_case 名称，当前定义 `var_cache` 与 `var_entry`。该扁平布局已由 `VAR-004`、`CORE-LAYOUT-001` 的 `var/_core/{cache,releases}` 取代。
-- **CACHE-001 — Cache 所有者显式。** `VarRoot/cache` 只保存可跨 Entry 复用的共享 cache，`EntryRoot/cache` 只保存 Entry-local cache；调用方必须显式选择其一，不允许隐式 fallback 或复制同步。其物理路径已由 `CACHE-002` 取代。
-- **CACHE-002 — Cache 所有者显式。** `VarRoot/var_cache` 只保存可跨 Entry 复用的共享 cache，`VarRoot/var_entry/<entry-id>/cache` 只保存 Entry-local cache。其 Core cache 物理路径已由 `CACHE-003` 取代。
-- **ENTRY-LAYOUT-001 — EntryRoot。** EntryRoot 唯一映射为 `VarRoot/var_entry/<entry-id>`。共享 Core 迁入实体 `var/_core` 后，EntryRoot 物理布局已由 `ENTRY-LAYOUT-002` 重新开放，不能沿用本规则实现。
-- **DEV-003 — 垂直样例驱动。** 新协议先在 `source/templates/helloworld` 形成端到端验收。其作者态路径已由 `HELLOWORLD-001` 取代。
-- **DEV-004 — 单变量演进。** `source/templates/helloworld` 每次只引入一个待验证的外部协议能力。其作者态路径已由 `HELLOWORLD-002` 取代。
-- **VAR-002 — 同根不同生命周期。** 共处 `VarRoot` 不表示共享写权限或删除策略。`VarRoot` 术语已由 `DATA-LIFECYCLE-001` 的 CoreDataRoot 取代。
-- **VAR-004 — 单一可配置运行根。** `VarRoot` 默认映射为 `<repository>/var`。其命名与职责已由 `DATA-ROOT-001` 取代。
-- **CORE-LAYOUT-001 — CoreRoot。** CoreRoot 映射为 `VarRoot/_core`。其无歧义名称与新根路径已由 `CORE-DATA-001` 取代。
-- **CACHE-003 — Cache 所有者显式。** Core cache 位于 `VarRoot/_core/cache`。其新根路径已由 `CACHE-004` 取代。
-- **ENTRY-LAYOUT-002 — EntryRoot 物理布局。** EntryRoot 在 VarRoot 下的位置曾保持开放。用户已确定仓库内独立 `data.entry` 空间，该问题由 `ENTRY-DATA-001` 取代。
-- **DEV-001 — 垂直样例驱动。** 新的 Core 或 Facet 协议必须先在 `templates/helloworld` 形成最小端到端实现与黑盒验收，通过后才扩展到其他模块。其路径已由 `DEV-003` 取代。
-- **DEV-002 — 单变量演进。** `templates/helloworld` 每次只引入一个待验证的外部协议能力，不为尚未出现的复用、类型或执行模式预建抽象。其路径已由 `DEV-004` 取代。
-- **BOOT-002 — 唯一 Bootstrap 入口。** `bootstrap/main.ps1` 是 Launcher 和人工调用的唯一 Bootstrap 入口，由它持锁、重新检查 Release 并编排 build 与 publish；Launcher 不得直接调用内部脚本。其平台路径已由 `BOOTSTRAP-001`、`BOOT-007` 取代。
-- **BOOT-003 — Launcher 只认 Release。** Launcher 只验证 `var_entry/<entry-id>/releases/current` 选择的不可变 Release；没有可用 Release 时才调用 Bootstrap，绝不扫描 `source/target`、比较源码时间或执行 Cargo。其单一 selector 路径已由 `BOOT-010` 取代。
-- **BOOT-004 — Build 与 Publish 分离。** `bootstrap/build.ps1` 只在 `var_cache` 中产生候选构建，`bootstrap/publish.ps1` 只负责验证候选、内容寻址发布到 Entry releases 并原子更新 selector；两者都不得承担 Launcher 职责。其 Windows 路径已由 `BOOT-009` 取代。
-- **BOOT-005 — 发布后重新解析。** Bootstrap 成功返回后，Launcher 必须重新读取并验证 `current` 再执行 Release；Bootstrap 不直接启动产品，也不通过临时路径或 stdout 绕过已发布 selector。其 target-specific selector 语义已由 `BOOT-011` 取代。
-- **BOOT-007 — Windows 唯一入口。** `bootstrap/windows/main.ps1` 是 Windows Launcher 和人工调用的唯一 Bootstrap 入口，由它持锁、重新检查 Release 并编排同目录的 `build.ps1` 与 `publish.ps1`；Launcher 不得直接调用内部脚本。其“已有 Release 时跳过显式构建”语义已由 `BOOT-020` 取代，Launcher 仍只调用 `main.ps1`，工具链维护入口由 `BOOT-023` 单独约束。
-- **BOOT-009 — Windows Build 与 Publish 分离。** `bootstrap/windows/build.ps1` 只在 `var_cache` 中产生候选构建，`bootstrap/windows/publish.ps1` 发布到 Entry releases。其存储所有者与路径已由 `BOOT-031` 取代。
-- **BOOT-010 — Launcher 只认目标 Release。** Launcher 验证 Entry-local Release，缺失时调用 Bootstrap。其 Entry-local 发布与可写启动语义已由 `LAUNCH-001`、`LAUNCH-002` 取代。
-- **BOOT-011 — Bootstrap 后重新解析。** Bootstrap 成功后 Launcher 重新解析 selector。Launcher 不再调用 Bootstrap，该流程已由 `BOOT-029`、`LAUNCH-001`、`LAUNCH-002` 取代。
-- **BOOT-020 — 显式 Bootstrap 总是发布当前构建。** Launcher 在 Release 缺失时调用 `main.ps1`，而显式 `main.ps1` 总是 Build 与 Publish。前一职责已删除，后一职责由 `BOOT-030` 取代。
-- **BOOT-023 — 工具链入口与代码信任边界。** 作者态入口解析工具链，`var_cache` 只保存数据与载荷。其 cache 路径已由 `BOOT-032` 取代。
-- **BOOT-026 — Windows 路径预算。** Windows Bootstrap v2 的规范化 `VarRoot` 最长 40 个 UTF-16 code unit。迁入更长的 `_core/cache` 后已由保持相同最坏路径长度的 `BOOT-033` 取代。
-- **BOOT-001 — Stage-0 边界。** `source/` 是完整 Rust workspace。其作者态路径已由 `BOOT-034` 取代。
-- **BOOT-029 — 仓库根 Windows 构建入口。** 根 `build.cmd` 以 `<repository>/var` 调用 Windows Bootstrap。其默认数据路径已由 `BOOT-035` 取代。
-- **BOOT-030 — 显式 Bootstrap 发布共享 Core。** `main.ps1` 接收 VarRoot 并发布共享 Core。其参数术语已由 `BOOT-036` 取代。
-- **BOOT-031 — Windows Build 与 Publish 分离。** Candidate 与 Release 位于 `VarRoot/_core`。其数据根路径已由 `BOOT-037` 取代。
-- **BOOT-032 — 工具链入口与代码信任边界。** 工具链数据位于 `VarRoot/_core/cache`。其数据根路径已由 `BOOT-038` 取代。
-- **BOOT-033 — Windows 路径预算。** Windows Bootstrap v2 的 VarRoot 最长 38 个 UTF-16 code unit。其参数术语已由 `BOOT-039` 取代。
-- **LAUNCH-001 — Launcher 只读启动。** Launcher 从 `VarRoot/_core/releases` 启动且不扫描 `source/target`。其路径已由 `LAUNCH-003` 取代。
-- **BOOT-014 — 工具链状态单一。** Bootstrap 只发布一个权威工具链完整性 metadata；构建环境在 Bootstrap 进程内应用并在退出时恢复，不生成重复的 `env.cmd`、`env.ps1`、`state.json` 与 `environment.json` 状态源。其父进程环境修改方式已由 `BOOT-024` 取代，单一 metadata 约束继续由 `WIN-TOOLCHAIN-004` 保留。
-- **BOOT-015 — 只恢复当前协议。** `swaw-harness` 只识别和恢复自身当前协议命名的安装 work、partial 与带时间戳 backup，不兼容不存在于新仓库历史中的 `swaw-kit` 或无序旧 backup 格式。通用 backup/rollback 已由 `BOOT-025` 的内容寻址只前进发布取代。
-- **RELEASE-TARGET-001 — Release target 隔离。** 跨平台 VarRoot 中的 Release 与 `current` 必须按 host target 隔离；采用 Rust target triple、稳定 Swaw platform id 或其他目录形态仍需由第一个 Windows publish 样例验证。其目录形态已由 `RELEASE-001`、`RELEASE-002` 确定，剩余 TargetId 编码问题由 `WIN-BOOT-007` 承接。
-- **RELEASE-001 — Entry-local 内容寻址池。** 不同 target 的不可变 Release 共存于 `var_entry/<entry-id>/releases/<release-id>/`。其 Entry-local 所有权已由共享 Core 池 `RELEASE-003` 取代。
-- **RELEASE-002 — Entry-local Target Selector。** `var_entry/<entry-id>/releases/current.<target-id>` 选择 Entry-local Release。其路径已由共享 Core selector `RELEASE-004` 取代。
-- **RELEASE-003 — 共享 Core 内容寻址池。** 共享 Release 位于 `VarRoot/_core/releases/<release-id>`。其根路径已由 `RELEASE-005` 取代。
-- **RELEASE-004 — Core Target Selector。** selector 位于 `VarRoot/_core/releases/current.<target-id>`。其根路径已由 `RELEASE-006` 取代。

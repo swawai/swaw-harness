@@ -16,13 +16,3 @@
 
 - **WIN-BOOT-006 — 三产品崩溃一致性。** 当前 target-scoped 锁只串行化协作发布者，三个 selector 仍是依次更新，进程崩溃不能保证三者形成原子 cohort；在消费者要求跨产品版本一致性前，必须决定采用单一 cohort selector 还是可恢复的发布 journal。
 - **WIN-BOOT-007 — TargetId 编码。** TargetId 必须区分二进制不兼容目标，至少包含 OS 与 CPU architecture，并在必要时包含 ABI；采用 Rust target triple 还是稳定 Swaw `os-arch-abi` 名称，仍需由第一个 Windows publish 样例验证。
-
-## Superseded
-
-- **BOOT-008 — 平台 Contract 就近归属。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-BOOT-001` 继承。
-- **BOOT-027 — Microsoft 许可非交互接受。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-BOOT-002` 继承。
-- **BOOT-028 — VS 产品线显式固定。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-BOOT-003` 继承。
-- **BOOT-042 — Windows 路径预算。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-BOOT-004` 继承。
-- **BOOT-050 — 显式 Bootstrap 发布三种产品。** 本规则曾使用中央 Bootstrap 序列；其原义由 `WIN-BOOT-005` 继承。
-- **PUBLICATION-ATOMICITY-001 — 三产品崩溃一致性。** 本规则曾使用中央议题前缀；其未决问题由 `WIN-BOOT-006` 继承。
-- **TARGET-ID-001 — TargetId 编码。** 本规则曾使用中央议题前缀；其未决问题由 `WIN-BOOT-007` 继承。
