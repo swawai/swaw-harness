@@ -43,8 +43,28 @@ foreach ($RelativePath in $Files) {
     $Section = ''
     $Heading = ''
     $DeclaredPrefix = $null
+    $FenceCharacter = ''
+    $FenceLength = 0
 
     foreach ($Line in $Lines) {
+        if ($FenceLength -gt 0) {
+            $ClosingFencePattern =
+                '^[ ]{0,3}' +
+                [regex]::Escape($FenceCharacter) +
+                '{' + $FenceLength + ',}[ \t]*$'
+            if ($Line -cmatch $ClosingFencePattern) {
+                $FenceCharacter = ''
+                $FenceLength = 0
+            }
+            continue
+        }
+        if ($Line -cmatch
+            '^[ ]{0,3}(?<Marker>`{3,}|~{3,})(?<Info>.*)$') {
+            $FenceCharacter = $Matches.Marker.Substring(0, 1)
+            $FenceLength = $Matches.Marker.Length
+            continue
+        }
+
         if ($Line -cmatch '^## (.+)$') {
             $Heading = $Matches[1]
             if ($IsAgentFile -and $Heading -ceq 'Proposed') {
@@ -60,7 +80,8 @@ foreach ($RelativePath in $Files) {
         }
 
         if ($IsAgentFile -and
-            $Line -cmatch 'Rule ID [^`]*`([A-Za-z][A-Za-z0-9-]*)`') {
+            $Line -cmatch
+            'Rule ID \u524D\u7F00\u4E3A `([A-Za-z][A-Za-z0-9-]*)`') {
             $CandidatePrefix = $Matches[1]
             if ($CandidatePrefix -cnotmatch '^[A-Z][A-Z0-9-]*$') {
                 throw "Rule ID prefixes must use uppercase ASCII: $RelativePath"
