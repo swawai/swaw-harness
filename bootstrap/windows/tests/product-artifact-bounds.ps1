@@ -47,7 +47,7 @@ $MaximumBytes = 64KB
 $OversizedLength = $MaximumBytes + 1
 $Contract = [pscustomobject][ordered]@{
     Revision = '1' * 64
-    TargetId = 'x86_64-pc-windows-msvc'
+    PlatformTargetId = 'x86_64-pc-windows-msvc'
     ProductBinary = 'bounds-test.exe'
     MaximumBytes = $MaximumBytes
 }
@@ -95,7 +95,7 @@ try {
 
     $CandidateId = Get-SwawHarnessCandidateId `
         -ContractRevision $Contract.Revision `
-        -TargetId $Contract.TargetId `
+        -PlatformTargetId $Contract.PlatformTargetId `
         -Name $Contract.ProductBinary `
         -Length $OversizedLength `
         -Sha256 $Sha256
@@ -111,7 +111,7 @@ try {
         schema = $script:SwawHarnessCandidateSchema
         candidateId = $CandidateId
         contractRevision = $Contract.Revision
-        targetId = $Contract.TargetId
+        platformTargetId = $Contract.PlatformTargetId
         artifact = [ordered]@{
             name = $Contract.ProductBinary
             length = $OversizedLength
@@ -134,7 +134,7 @@ try {
         -Message 'Candidate reader accepted product maximum + 1 byte'
 
     $Candidate = [pscustomobject][ordered]@{
-        TargetId = $Contract.TargetId
+        PlatformTargetId = $Contract.PlatformTargetId
         Name = $Contract.ProductBinary
         ArtifactPath = $SourcePath
         Length = $OversizedLength
@@ -152,7 +152,7 @@ try {
 
     $ActualSizeRejected = Test-ProductArtifactBoundsRejection {
         $DeclaredWithinLimit = [pscustomobject][ordered]@{
-            TargetId = $Contract.TargetId
+            PlatformTargetId = $Contract.PlatformTargetId
             Name = $Contract.ProductBinary
             ArtifactPath = $SourcePath
             Length = $MaximumBytes
@@ -173,7 +173,7 @@ try {
         -Path $MismatchedSourcePath
     $ActualLengthRejected = Test-ProductArtifactBoundsRejection {
         $MismatchedCandidate = [pscustomobject][ordered]@{
-            TargetId = $Contract.TargetId
+            PlatformTargetId = $Contract.PlatformTargetId
             Name = $Contract.ProductBinary
             ArtifactPath = $MismatchedSourcePath
             Length = 1
@@ -189,7 +189,7 @@ try {
         -Message 'Release staging accepted a mismatched actual artifact length'
 
     $ReleaseId = Get-SwawHarnessReleaseId `
-        -TargetId $Contract.TargetId `
+        -PlatformTargetId $Contract.PlatformTargetId `
         -Artifacts @([pscustomobject]@{
             Name = $Contract.ProductBinary
             Length = $OversizedLength
@@ -205,7 +205,7 @@ try {
     $ReleaseManifest = [ordered]@{
         schema = $script:SwawHarnessReleaseSchema
         releaseId = $ReleaseId
-        targetId = $Contract.TargetId
+        platformTargetId = $Contract.PlatformTargetId
         artifacts = @([ordered]@{
             name = $Contract.ProductBinary
             length = $OversizedLength

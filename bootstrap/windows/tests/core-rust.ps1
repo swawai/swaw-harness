@@ -25,10 +25,10 @@ if ($SetupResults.Count -ne 1 -or
 
 $WorkspaceManifest = Join-Path $RepositoryRoot 'core\Cargo.toml'
 $CargoTargetRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-    "tests\core\$($PlatformContract.TargetId)\cargo-target"
+    "tests\core\$($PlatformContract.PlatformTargetId)\cargo-target"
 )
 $RustTargetConfiguration = (
-    "target.$($PlatformContract.TargetId).rustflags=" +
+    "target.$($PlatformContract.PlatformTargetId).rustflags=" +
     '["-C","target-feature=+crt-static"]'
 )
 $PowerShellPath = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
@@ -47,7 +47,7 @@ $Result = Invoke-SwawHarnessCapturedProcess `
         '--workspace',
         '--locked',
         '--manifest-path', $WorkspaceManifest,
-        '--target', $PlatformContract.TargetId,
+        '--target', $PlatformContract.PlatformTargetId,
         '--target-dir', $CargoTargetRoot
     ) `
     -WorkingDirectory (Join-Path $RepositoryRoot 'core') `

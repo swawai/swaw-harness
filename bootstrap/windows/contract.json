@@ -1,6 +1,6 @@
 {
-  "schema": "swaw.harness.bootstrap.windows/v3",
-  "targetId": "x86_64-pc-windows-msvc",
+  "schema": "swaw.harness.bootstrap.windows/v4",
+  "platformTargetId": "x86_64-pc-windows-msvc",
   "rust": {
     "toolchain": "1.97.1",
     "profile": "minimal",

@@ -115,33 +115,33 @@ try {
         -DataRoot $PublicationDataRoot
     $CoreContract = Read-SwawHarnessWindowsCoreContract `
         -Path (Join-Path $WindowsRoot 'core\contract.json') `
-        -TargetId $PlatformContract.TargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId
     $EntryContract = Read-SwawHarnessWindowsEntryContract `
         -Path (Join-Path $WindowsRoot 'entry\contract.json') `
-        -TargetId $PlatformContract.TargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId
     $EntryManagerContract = Read-SwawHarnessWindowsEntryManagerContract `
         -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
-        -TargetId $PlatformContract.TargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId
     $Definitions = @(
         [pscustomobject]@{
             Name = 'core'
             Contract = $CoreContract
             BuildRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-                "build\core\$($PlatformContract.TargetId)"
+                "build\core\$($PlatformContract.PlatformTargetId)"
             )
         },
         [pscustomobject]@{
             Name = 'entry'
             Contract = $EntryContract
             BuildRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-                "build\entry\$($PlatformContract.TargetId)"
+                "build\entry\$($PlatformContract.PlatformTargetId)"
             )
         },
         [pscustomobject]@{
             Name = 'entry.manager'
             Contract = $EntryManagerContract
             BuildRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-                "build\entry.manager\$($PlatformContract.TargetId)"
+                "build\entry.manager\$($PlatformContract.PlatformTargetId)"
             )
         }
     )
@@ -162,7 +162,7 @@ try {
 
     $Gate = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot (
-            "publish-bootstrap-$($PlatformContract.TargetId).lock"
+            "publish-bootstrap-$($PlatformContract.PlatformTargetId).lock"
         )) `
         -ControlledRoot $Context.BootstrapWindowsRoot `
         -TimeoutSeconds 30
@@ -281,7 +281,7 @@ try {
         -Message 'invalid publication fixture was not rejected'
     $Probe = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot (
-            "publish-bootstrap-$($PlatformContract.TargetId).lock"
+            "publish-bootstrap-$($PlatformContract.PlatformTargetId).lock"
         )) `
         -ControlledRoot $Context.BootstrapWindowsRoot `
         -TimeoutSeconds 2

@@ -5,7 +5,7 @@ Set-StrictMode -Version 2.0
 function Read-SwawHarnessWindowsCoreContract {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$TargetId
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId
     )
 
     $Contract = Read-SwawHarnessJsonFile `
@@ -20,7 +20,7 @@ function Read-SwawHarnessWindowsCoreContract {
     if ([string]$Contract.schema -cne 'swaw.harness.core-build/v1') {
         throw 'Unsupported Windows Core build contract schema.'
     }
-    if ($TargetId -cne 'x86_64-pc-windows-msvc') {
+    if ($PlatformTargetId -cne 'x86_64-pc-windows-msvc') {
         throw 'Windows Core v1 supports x86_64-pc-windows-msvc only.'
     }
     $Package = ([string]$Contract.package).Trim()
@@ -43,7 +43,7 @@ function Read-SwawHarnessWindowsCoreContract {
     return [pscustomobject][ordered]@{
         Schema = [string]$Contract.schema
         Revision = Get-SwawHarnessFileSha256 -Path $Path
-        TargetId = $TargetId
+        PlatformTargetId = $PlatformTargetId
         ProductPackage = $Package
         ProductBinary = $Artifact
         StaticCrt = [bool]$Contract.staticCrt

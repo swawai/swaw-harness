@@ -19,7 +19,7 @@ function Get-SwawHarnessRustAmbientOverrideNames {
 function Get-SwawHarnessRustToolchainName {
     param([Parameter(Mandatory = $true)][object]$Contract)
 
-    return "$($Contract.RustToolchain)-$($Contract.TargetId)"
+    return "$($Contract.RustToolchain)-$($Contract.PlatformTargetId)"
 }
 
 function Get-SwawHarnessRustDefinitionId {
@@ -28,7 +28,7 @@ function Get-SwawHarnessRustDefinitionId {
     return Get-SwawHarnessTextSha256 -Value ([string]::Join("`n", @(
         'swaw.harness.bootstrap.rust-definition/v1'
         "recipe=$script:SwawHarnessRustRecipeVersion"
-        "target=$($Contract.TargetId)"
+        "target=$($Contract.PlatformTargetId)"
         "toolchain=$($Contract.RustToolchain)"
         "profile=$($Contract.RustProfile)"
         "rustupVersion=$($Contract.RustupInitVersion)"
@@ -51,7 +51,7 @@ function Get-SwawHarnessRustRequiredPaths {
         "rustup\toolchains\$ToolchainName\bin\rustdoc.exe"
         (
             "rustup\toolchains\$ToolchainName\lib\rustlib\" +
-            "manifest-rust-std-$($Contract.TargetId)"
+            "manifest-rust-std-$($Contract.PlatformTargetId)"
         )
     )
 }

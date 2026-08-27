@@ -11,7 +11,8 @@ function Publish-SwawHarnessBootstrapRelease {
         [Parameter(Mandatory = $true)][object[]]$Candidates
     )
 
-    $TargetId = Get-SwawHarnessReleaseTargetId -Contracts $Contracts
+    $PlatformTargetId = Get-SwawHarnessReleasePlatformTargetId `
+        -Contracts $Contracts
     if ($Candidates.Count -ne $Contracts.Count) {
         throw 'Bootstrap Release requires one Candidate for every product.'
     }
@@ -26,7 +27,7 @@ function Publish-SwawHarnessBootstrapRelease {
         $Name = [string]$Candidate.Name
         $Length = [long]$Candidate.Length
         $Sha256 = ([string]$Candidate.Sha256).Trim().ToLowerInvariant()
-        if ([string]$Candidate.TargetId -cne $TargetId -or
+        if ([string]$Candidate.PlatformTargetId -cne $PlatformTargetId -or
             $Name -cne [string]$Contract.ProductBinary -or
             $Length -le 0 -or
             $Length -gt [long]$Contract.MaximumBytes -or
@@ -54,11 +55,11 @@ function Publish-SwawHarnessBootstrapRelease {
     }
 
     $ReleaseId = Get-SwawHarnessReleaseId `
-        -TargetId $TargetId `
+        -PlatformTargetId $PlatformTargetId `
         -Artifacts $Artifacts.ToArray()
     $Lock = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot (
-            "publish-bootstrap-$TargetId.lock"
+            "publish-bootstrap-$PlatformTargetId.lock"
         )) `
         -ControlledRoot $Context.BootstrapWindowsRoot `
         -TimeoutSeconds 1800
@@ -122,7 +123,7 @@ function Publish-SwawHarnessBootstrapRelease {
                 $Manifest = [ordered]@{
                     schema = $script:SwawHarnessReleaseSchema
                     releaseId = $ReleaseId
-                    targetId = $TargetId
+                    platformTargetId = $PlatformTargetId
                     artifacts = $ManifestArtifacts.ToArray()
                 }
                 [IO.File]::WriteAllText(
@@ -157,7 +158,7 @@ function Publish-SwawHarnessBootstrapRelease {
             -ReleaseId $ReleaseId `
             -Contracts $Contracts `
             -ReleasesRoot $ReleasesRoot
-        $SelectorPath = Join-Path $ReleasesRoot "current.$TargetId"
+        $SelectorPath = Join-Path $ReleasesRoot "current.$PlatformTargetId"
         $SelectorItem = Get-Item `
             -LiteralPath $SelectorPath `
             -Force `
@@ -173,13 +174,13 @@ function Publish-SwawHarnessBootstrapRelease {
         }
         $SelectorPath = Publish-SwawHarnessReleaseSelector `
             -ReleasesRoot $ReleasesRoot `
-            -TargetId $TargetId `
+            -PlatformTargetId $PlatformTargetId `
             -ReleaseId $ReleaseId
         Write-Host "[PUBLISHED] Bootstrap Release $ReleaseId" `
             -ForegroundColor Green
         return [pscustomobject][ordered]@{
             ReleaseId = $Release.ReleaseId
-            TargetId = $Release.TargetId
+            PlatformTargetId = $Release.PlatformTargetId
             Root = $Release.Root
             ManifestPath = $Release.ManifestPath
             Artifacts = $Release.Artifacts

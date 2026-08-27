@@ -4,16 +4,16 @@ Set-StrictMode -Version 2.0
 
 $script:SwawHarnessReleaseSchema = 'swaw.harness.bootstrap-release/v1'
 
-function Get-SwawHarnessReleaseTargetId {
+function Get-SwawHarnessReleasePlatformTargetId {
     param([Parameter(Mandatory = $true)][object[]]$Contracts)
 
     if ($Contracts.Count -eq 0 -or $Contracts.Count -gt 32) {
         throw 'Bootstrap Release must contain between 1 and 32 products.'
     }
-    $TargetId = [string]$Contracts[0].TargetId
+    $PlatformTargetId = [string]$Contracts[0].PlatformTargetId
     [void](Get-SwawHarnessSafeSegment `
-        -Value $TargetId `
-        -Description 'Bootstrap Release target ID')
+        -Value $PlatformTargetId `
+        -Description 'Bootstrap Release platform target ID')
     $Names = [Collections.Generic.HashSet[string]]::new(
         [StringComparer]::Ordinal
     )
@@ -22,24 +22,24 @@ function Get-SwawHarnessReleaseTargetId {
         [void](Get-SwawHarnessSafeSegment `
             -Value $Name `
             -Description 'Bootstrap Release artifact name')
-        if ([string]$Contract.TargetId -cne $TargetId -or
+        if ([string]$Contract.PlatformTargetId -cne $PlatformTargetId -or
             [long]$Contract.MaximumBytes -le 0 -or
             -not $Names.Add($Name)) {
             throw 'Bootstrap Release product contracts are inconsistent.'
         }
     }
-    return $TargetId
+    return $PlatformTargetId
 }
 
 function Get-SwawHarnessReleaseId {
     param(
-        [Parameter(Mandatory = $true)][string]$TargetId,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId,
         [Parameter(Mandatory = $true)][object[]]$Artifacts
     )
 
     $Lines = [Collections.Generic.List[string]]::new()
     $Lines.Add($script:SwawHarnessReleaseSchema)
-    $Lines.Add("target=$TargetId")
+    $Lines.Add("target=$PlatformTargetId")
     foreach ($Artifact in $Artifacts) {
         $Length = [long]$Artifact.Length
         $Sha256 = ([string]$Artifact.Sha256).Trim().ToLowerInvariant()
@@ -63,7 +63,8 @@ function Read-SwawHarnessRelease {
         [Parameter(Mandatory = $true)][string]$ReleasesRoot
     )
 
-    $TargetId = Get-SwawHarnessReleaseTargetId -Contracts $Contracts
+    $PlatformTargetId = Get-SwawHarnessReleasePlatformTargetId `
+        -Contracts $Contracts
     if ($ReleaseId -cnotmatch '^[a-f0-9]{64}$') {
         throw 'Release ID must be a lowercase SHA-256 digest.'
     }
@@ -105,7 +106,7 @@ function Read-SwawHarnessRelease {
         -Description 'Bootstrap Release manifest'
     Assert-SwawHarnessObjectFields `
         -Value $Manifest `
-        -Expected @('schema', 'releaseId', 'targetId', 'artifacts') `
+        -Expected @('schema', 'releaseId', 'platformTargetId', 'artifacts') `
         -Description 'Bootstrap Release manifest'
     $Records = @($Manifest.artifacts)
     if ($Records.Count -ne $Contracts.Count) {
@@ -147,11 +148,11 @@ function Read-SwawHarnessRelease {
     }
     if ([string]$Manifest.schema -cne $script:SwawHarnessReleaseSchema -or
         [string]$Manifest.releaseId -cne $ReleaseId -or
-        [string]$Manifest.targetId -cne $TargetId) {
+        [string]$Manifest.platformTargetId -cne $PlatformTargetId) {
         throw "Release validation failed: $ReleaseRoot"
     }
     $ComputedId = Get-SwawHarnessReleaseId `
-        -TargetId $TargetId `
+        -PlatformTargetId $PlatformTargetId `
         -Artifacts $Artifacts.ToArray()
     if ($ComputedId -cne $ReleaseId) {
         throw "Release identity does not match its content: $ReleaseRoot"
@@ -159,7 +160,7 @@ function Read-SwawHarnessRelease {
 
     return [pscustomobject][ordered]@{
         ReleaseId = $ReleaseId
-        TargetId = $TargetId
+        PlatformTargetId = $PlatformTargetId
         Root = $ReleaseRoot
         ManifestPath = $ManifestPath
         Artifacts = $Artifacts.ToArray()

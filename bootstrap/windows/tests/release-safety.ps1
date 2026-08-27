@@ -17,7 +17,7 @@ function New-ReleaseSafetyFixture {
         [string]$Name,
         [string]$Content,
         [string]$Root,
-        [string]$TargetId
+        [string]$PlatformTargetId
     )
 
     $Path = Join-Path $Root $Name
@@ -25,12 +25,12 @@ function New-ReleaseSafetyFixture {
     $Item = Get-Item -LiteralPath $Path
     return [pscustomobject][ordered]@{
         Contract = [pscustomobject][ordered]@{
-            TargetId = $TargetId
+            PlatformTargetId = $PlatformTargetId
             ProductBinary = $Name
             MaximumBytes = 1MB
         }
         Candidate = [pscustomobject][ordered]@{
-            TargetId = $TargetId
+            PlatformTargetId = $PlatformTargetId
             Name = $Name
             ArtifactPath = $Path
             Length = [long]$Item.Length
@@ -51,17 +51,17 @@ try {
     $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
     $FixtureRoot = Join-Path $Context.BootstrapWindowsCacheRoot 'fixtures'
     [void][IO.Directory]::CreateDirectory($FixtureRoot)
-    $TargetId = 'x86_64-pc-windows-msvc'
+    $PlatformTargetId = 'x86_64-pc-windows-msvc'
     $Fixtures = @(
         New-ReleaseSafetyFixture `
             -Name 'core.exe' -Content 'core-a' `
-            -Root $FixtureRoot -TargetId $TargetId
+            -Root $FixtureRoot -PlatformTargetId $PlatformTargetId
         New-ReleaseSafetyFixture `
             -Name 'entry.exe' -Content 'entry-a' `
-            -Root $FixtureRoot -TargetId $TargetId
+            -Root $FixtureRoot -PlatformTargetId $PlatformTargetId
         New-ReleaseSafetyFixture `
             -Name 'entry-manager.exe' -Content 'manager-a' `
-            -Root $FixtureRoot -TargetId $TargetId
+            -Root $FixtureRoot -PlatformTargetId $PlatformTargetId
     )
     $Contracts = @($Fixtures | ForEach-Object { $_.Contract })
     $Candidates = @($Fixtures | ForEach-Object { $_.Candidate })
@@ -87,7 +87,7 @@ try {
     $PreviousSelector = [IO.File]::ReadAllText($First.SelectorPath)
     $InvalidCandidates = @($Candidates)
     $InvalidCandidates[2] = [pscustomobject][ordered]@{
-        TargetId = $TargetId
+        PlatformTargetId = $PlatformTargetId
         Name = 'entry-manager.exe'
         ArtifactPath = Join-Path $FixtureRoot 'missing.exe'
         Length = 1

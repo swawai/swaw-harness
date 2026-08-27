@@ -57,10 +57,10 @@ try {
         Select-Object -Last 1
     $EntryContract = Read-SwawHarnessWindowsEntryContract `
         -Path (Join-Path $WindowsRoot 'entry\contract.json') `
-        -TargetId $PlatformContract.TargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId
     $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
     $BuildRoot = Join-Path $TestContext.BootstrapWindowsCacheRoot (
-        "build\entry\$($PlatformContract.TargetId)"
+        "build\entry\$($PlatformContract.PlatformTargetId)"
     )
     $Candidate = Read-SwawHarnessBootstrapCandidate `
         -Path ([string]$CandidatePath) `

@@ -26,7 +26,7 @@ function Get-SwawHarnessEntryContractStrings {
 function Read-SwawHarnessWindowsEntryContract {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$TargetId
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId
     )
 
     $Contract = Read-SwawHarnessJsonFile `
@@ -42,7 +42,7 @@ function Read-SwawHarnessWindowsEntryContract {
     if ([string]$Contract.schema -cne 'swaw.harness.entry-build/v1') {
         throw 'Unsupported Windows Entry executable build contract schema.'
     }
-    if ($TargetId -cne 'x86_64-pc-windows-msvc') {
+    if ($PlatformTargetId -cne 'x86_64-pc-windows-msvc') {
         throw 'Windows Entry executable v1 supports x86_64-pc-windows-msvc only.'
     }
     $Artifact = ([string]$Contract.artifact).Trim()
@@ -73,7 +73,7 @@ function Read-SwawHarnessWindowsEntryContract {
     return [pscustomobject][ordered]@{
         Schema = [string]$Contract.schema
         Revision = Get-SwawHarnessFileSha256 -Path $Path
-        TargetId = $TargetId
+        PlatformTargetId = $PlatformTargetId
         ProductBinary = $Artifact
         Source = $Source
         CompilerArguments = $CompilerArguments

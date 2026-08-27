@@ -13,19 +13,19 @@ $script:SwawHarnessWindowsPublicationRoot = $PSScriptRoot
 function Get-SwawHarnessWindowsProductContracts {
     param(
         [Parameter(Mandatory = $true)][string]$WindowsRoot,
-        [Parameter(Mandatory = $true)][string]$TargetId
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId
     )
 
     return @(
         Read-SwawHarnessWindowsCoreContract `
             -Path (Join-Path $WindowsRoot 'core\contract.json') `
-            -TargetId $TargetId
+            -PlatformTargetId $PlatformTargetId
         Read-SwawHarnessWindowsEntryContract `
             -Path (Join-Path $WindowsRoot 'entry\contract.json') `
-            -TargetId $TargetId
+            -PlatformTargetId $PlatformTargetId
         Read-SwawHarnessWindowsEntryManagerContract `
             -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
-            -TargetId $TargetId
+            -PlatformTargetId $PlatformTargetId
     )
 }
 
@@ -44,7 +44,7 @@ function Publish-SwawHarnessWindowsProducts {
     $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
     $Contracts = @(Get-SwawHarnessWindowsProductContracts `
         -WindowsRoot $WindowsRoot `
-        -TargetId $PlatformContract.TargetId)
+        -PlatformTargetId $PlatformContract.PlatformTargetId)
     $CandidatePaths = @(
         $CoreCandidatePath,
         $EntryCandidatePath,
@@ -54,7 +54,7 @@ function Publish-SwawHarnessWindowsProducts {
     $Candidates = [Collections.Generic.List[object]]::new()
     for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
         $BuildRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-            "build\$($ProductNames[$Index])\$($PlatformContract.TargetId)"
+            "build\$($ProductNames[$Index])\$($PlatformContract.PlatformTargetId)"
         )
         $Candidates.Add((Read-SwawHarnessBootstrapCandidate `
             -Path $CandidatePaths[$Index] `

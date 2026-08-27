@@ -38,7 +38,7 @@ function Read-SwawHarnessWindowsBootstrapContract {
         -Description 'Windows Bootstrap contract'
     Assert-SwawHarnessObjectFields `
         -Value $Contract `
-        -Expected @('schema', 'targetId', 'rust', 'msvc') `
+        -Expected @('schema', 'platformTargetId', 'rust', 'msvc') `
         -Description 'Windows Bootstrap contract'
     Assert-SwawHarnessObjectFields `
         -Value $Contract.rust `
@@ -60,7 +60,7 @@ function Read-SwawHarnessWindowsBootstrapContract {
         -Value $Contract.msvc.manifest `
         -Expected @('url', 'length', 'sha256') `
         -Description 'Windows Bootstrap MSVC manifest contract'
-    $TargetId = ([string]$Contract.targetId).Trim().ToLowerInvariant()
+    $PlatformTargetId = ([string]$Contract.platformTargetId).Trim().ToLowerInvariant()
     $Toolchain = ([string]$Contract.rust.toolchain).Trim().ToLowerInvariant()
     $Profile = ([string]$Contract.rust.profile).Trim().ToLowerInvariant()
     $RustupVersion = ([string]$Contract.rust.rustupInit.version).
@@ -69,14 +69,14 @@ function Read-SwawHarnessWindowsBootstrapContract {
         Trim().ToLowerInvariant()
     $MsvcLicenseAcceptance = ([string]$Contract.msvc.license.acceptance).
         Trim().ToLowerInvariant()
-    if ([string]$Contract.schema -cne 'swaw.harness.bootstrap.windows/v3') {
+    if ([string]$Contract.schema -cne 'swaw.harness.bootstrap.windows/v4') {
         throw 'Unsupported Windows Bootstrap contract schema.'
     }
-    if ($TargetId -cnotmatch '^[a-z0-9][a-z0-9._-]{0,127}$') {
-        throw 'Windows Bootstrap targetId is invalid.'
+    if ($PlatformTargetId -cnotmatch '^[a-z0-9][a-z0-9._-]{0,127}$') {
+        throw 'Windows Bootstrap platformTargetId is invalid.'
     }
-    if ($TargetId -cne 'x86_64-pc-windows-msvc') {
-        throw 'Windows Bootstrap v3 supports x86_64-pc-windows-msvc only.'
+    if ($PlatformTargetId -cne 'x86_64-pc-windows-msvc') {
+        throw 'Windows Bootstrap v4 supports x86_64-pc-windows-msvc only.'
     }
     if ($Toolchain -cnotmatch '^\d+\.\d+\.\d+$') {
         throw 'Windows Bootstrap rust.toolchain must be an exact version.'
@@ -85,10 +85,10 @@ function Read-SwawHarnessWindowsBootstrapContract {
         throw 'Windows Bootstrap rustup-init version must be exact.'
     }
     if ($Profile -cne 'minimal') {
-        throw 'Windows Bootstrap v3 requires the minimal Rust profile.'
+        throw 'Windows Bootstrap v4 requires the minimal Rust profile.'
     }
     if ($MsvcProductLine -cne 'vs2026') {
-        throw 'Windows Bootstrap v3 requires the VS 2026 product line.'
+        throw 'Windows Bootstrap v4 requires the VS 2026 product line.'
     }
     if ($MsvcLicenseAcceptance -cne 'by-bootstrap-invocation') {
         throw 'Windows Bootstrap MSVC license acceptance is invalid.'
@@ -106,7 +106,7 @@ function Read-SwawHarnessWindowsBootstrapContract {
         -ExpectedHost 'static.rust-lang.org' `
         -Description 'rustup-init source'
     $ExpectedRustupPath = (
-        "/rustup/archive/$RustupVersion/$TargetId/rustup-init.exe"
+        "/rustup/archive/$RustupVersion/$PlatformTargetId/rustup-init.exe"
     )
     if (([Uri]$RustupUrl).AbsolutePath -cne $ExpectedRustupPath) {
         throw 'rustup-init source does not match its version and target.'
@@ -131,7 +131,7 @@ function Read-SwawHarnessWindowsBootstrapContract {
 
     return [pscustomobject][ordered]@{
         Schema = [string]$Contract.schema
-        TargetId = $TargetId
+        PlatformTargetId = $PlatformTargetId
         RustToolchain = $Toolchain
         RustProfile = $Profile
         RustupInitVersion = $RustupVersion
