@@ -9,6 +9,7 @@
 - **WIN-BOOT-001 — 平台 Contract 就近归属。** Windows 工具链版本、host target、下载来源与校验事实由 `bootstrap/windows/contract.json` 唯一声明；第二个平台出现真实共同字段前，不建立跨平台 contract 合并或继承体系。
 - **WIN-BOOT-002 — Microsoft 许可非交互接受。** Windows Contract 必须固定 Microsoft Build Tools 许可地址与 `by-bootstrap-invocation` 接受方式；首次获取该工具链载荷前必须输出许可地址，调用 Bootstrap 即表示接受，不得弹出交互确认，MSI 必须显式禁止自动重启。
 - **WIN-BOOT-003 — Windows executable 运行时自包含。** Windows Bootstrap 发布的 Core、Entry executable 与 Entry Manager executable 均不得依赖用户另行安装的 C/C++ runtime；Windows 系统组件不属于该限制。
+- **WIN-BOOT-004 — Windows 便携工具链。** Windows Bootstrap 必须自动下载并设置便携 Rust 与 MSVC 编译环境，无需用户预装、配置或交互干预，即可编译出 Harness 核心。
 
 ## Open
 

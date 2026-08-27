@@ -1,15 +1,19 @@
 [CmdletBinding()]
 param(
-    [string]$RepositoryRoot = (Join-Path $PSScriptRoot '..\..'),
+    [string]$RepositoryRoot,
     [string]$Prefix
 )
 
 $ErrorActionPreference = 'Stop'
 
+if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+    $RepositoryRoot = Join-Path $PSScriptRoot '..\..'
+}
+
 $Root = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $TrackedFiles = @(
     & git -C $Root ls-files --cached --others --exclude-standard -- `
-        'AGENTS.md' ':(glob)**/AGENTS.md' 'docs/swaw-harness-spec.md'
+        '*.md' ':(glob)**/*.md'
 )
 if ($LASTEXITCODE -ne 0) {
     throw 'Cannot enumerate the repository rule files with git.'
@@ -33,7 +37,9 @@ $Owners = [System.Collections.Generic.List[object]]::new()
 
 foreach ($RelativePath in $Files) {
     $Path = Join-Path $Root $RelativePath
-    $Lines = @(Get-Content -LiteralPath $Path)
+    $NormalizedPath = $RelativePath.Replace('\', '/')
+    $IsAgentFile = $NormalizedPath -match '(^|/)AGENTS\.md$'
+    $Lines = @(Get-Content -LiteralPath $Path -Encoding UTF8)
     $Section = ''
     $Heading = ''
     $DeclaredPrefix = $null
@@ -41,7 +47,7 @@ foreach ($RelativePath in $Files) {
     foreach ($Line in $Lines) {
         if ($Line -match '^## (.+)$') {
             $Heading = $Matches[1]
-            if ($Heading -ceq 'Proposed') {
+            if ($IsAgentFile -and $Heading -ceq 'Proposed') {
                 throw "Use Open for unresolved rules: $RelativePath"
             }
             if ($Heading -in @('Accepted', 'Open')) {
@@ -53,7 +59,8 @@ foreach ($RelativePath in $Files) {
             continue
         }
 
-        if ($Line -match 'Rule ID 前缀为 `([A-Z][A-Z0-9-]*)`') {
+        if ($IsAgentFile -and
+            $Line -match 'Rule ID [^`]*`([A-Z][A-Z0-9-]*)`') {
             if ($Heading -cne 'Scope') {
                 throw "The Rule ID prefix must be declared in Scope: $RelativePath"
             }
@@ -64,14 +71,17 @@ foreach ($RelativePath in $Files) {
             $DeclaredPrefix = $Matches[1]
         }
 
-        if ($Line -match '^- \*\*([A-Z][A-Z0-9-]*-[0-9]{3}) — ') {
+        if ($Line -match '^- \*\*([A-Z][A-Z0-9-]*-[0-9]{3}) \p{Pd} ') {
             if ($Section -notin @('Accepted', 'Open')) {
-                throw "Rule declarations are only valid under Accepted or Open: $RelativePath"
+                if ($IsAgentFile) {
+                    throw "Rule declarations are only valid under Accepted or Open: $RelativePath"
+                }
+                continue
             }
             $Rules.Add([pscustomobject]@{
                     Id = $Matches[1]
                     Section = $Section
-                    File = $RelativePath.Replace('\', '/')
+                    File = $NormalizedPath
                 })
         }
     }
@@ -79,7 +89,7 @@ foreach ($RelativePath in $Files) {
     if ($null -ne $DeclaredPrefix) {
         $Owners.Add([pscustomobject]@{
                 Prefix = $DeclaredPrefix
-                File = $RelativePath.Replace('\', '/')
+                File = $NormalizedPath
             })
     }
 }

@@ -11,7 +11,7 @@
 - **Entry**：由 Entry Manager executable 创建的受管运行实体。
 - **EntryId**：Entry Manager 为一个 Entry 确定的文件系统名称；它同时用作 `data.entry/<EntryId>.exe` 的文件名和 `data.entry/<EntryId>/` EntryRoot 的目录名。
 - **EntryRoot**：与一个 Entry 唯一绑定的目录根，由 Entry Manager executable 在创建 Entry 时一并建立。
-- **Bootstrap**：自动下载并设置便携 Rust 与 MSVC 编译环境，并在无需用户干预的情况下编译出 Harness 核心的启动构建流程。
+- **Bootstrap**：无需已编译 Harness 即可运行，自动准备宿主平台声明的便携构建环境，并在无需用户预装、配置或交互干预的情况下编译出 Harness 核心的启动构建流程。
 - **Resource**：在一个资源空间内通过目录树寻址找到并执行操作的对象。
 - **Facet**：对已找到 Resource 执行的具名操作。
 - **资源空间**：具有独立文件系统根、事实来源、生命周期与写入权限边界的一组 Resource；不得简称为含义过宽的 `Space`。
