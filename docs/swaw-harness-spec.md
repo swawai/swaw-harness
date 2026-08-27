@@ -33,36 +33,16 @@
 
 ## Open
 
-- **RF-001 — Resource。** Resource 是具有稳定身份、可被寻址的 subject；它可以由本地或外部事实源提供，不等同于目录、文件或某次返回的数据。
-- **RF-002 — Facet。** Facet 是绑定到 Resource 的原子命名行为，不是类；`operation` 与 `projection` 分别表达有副作用的动作和只读投影，子 Resource 遍历不再作为 Facet 类型。
-- **RF-003 — 最小运行时模型。** Core 只需要 Resource、Facet 与 ResourceRef/Listing；Space 是“可解析直接子 Resource 的 Resource”这一结构角色，不是额外的 nominal ResourceType。
-- **RF-004 — 组合通过 Resource。** Facet 不任意嵌套，任何继续遍历都必须进入下一级 Resource；ResourcePath 只通过 Space child resolver 逐段解析，不再引入 Collection Facet 路由。
-- **RF-005 — Listing 是访问边快照。** ResourceListing 携带 identity、route、space-local selector 与本次 `facetIds` 授权，它是一次查询产生的临时表示，不是 Resource 本体或可长期缓存的执行票据。
-- **RF-006 — 动态 Resource 可重解析。** 动态 Resource 必须跨进程、跨调用重新解析，identity 必须不可变且不可复用；本地 descriptor 是首选实现，只存在于一次查询中的外部计算值只能作为 Projection 值。
-- **RF-007 — 使用点重新验证。** 对动态 Resource 的操作必须重新验证当前 Space membership、Facet grant 与权威对象状态；列表之后对象消失应安全返回 NotFound，而不是依赖旧内存列表继续执行。
 - **RF-008 — 数据不授予代码权力。** 可写 DataRoot 中的目录或文件不能自行声明 executable、Facet 实现或平台能力；执行权只能来自受信的不可变作者声明与 Release。
-- **RF-009 — 文件系统只是 provider。** Core 不隐式扫描任意 CommandDataRoot；file-backed Space 必须被显式声明，并只在受控子树内完成校验、原子发布、边界限制与 ResourceList 投影。
 - **RF-010 — 语法必须自解释。** Resource 选择与 Facet 调用必须在语法上无歧义，parser 不得查询 Catalog 或扫描磁盘猜测某一段的角色；错误层级的协议 marker 必须产生诊断。
 - **RF-011 — 静态子命令也是 Resource。** `.dev/setup` 若拥有自己的 help、runs、execute 或子命令，就必须是 Resource，不能把 `setup` 同时解释为 Facet。
-- **RF-012 — 地址分层。** 短 CLI CommandAddress、完整 Resource/Facet Route、领域存储路径是三种不同标识；它们可以确定性映射，但不得要求字符串或物理路径完全相同。
 - **RF-013 — 统一 marker 后派发。** Facet id 只来自目录名，发现层只精确查找通用 `facet.json` marker；读取 manifest 后按封闭的 `kind`，必要时再按显式、带版本的 `contract` 派发，不按 `help/runs/execute` 扩张 marker 文件名。
 - **RF-014 — 定义不执行。** Facet、可选 Shape/FacetSet 与 contract 只描述结构和语义，Facet binding 才选择 core、built-in 或 sidecar 实现；定义本身不得因“语法糖”获得可执行身份。
 - **RF-015 — 保留 Facet 单调产生。** `/execute`、`/help`、`/subcommands`、`/runs` 等保留 Facet 只能由同一 Resource 辖区内的明确事实单调产生且不可 override，例如存在执行实现才有 `/execute`，明确采用 Journal contract 才有 `/runs`。
-- **RF-016 — Space 与成员 Facet 分离。** Space 自己的 concrete Facets 与直接成员的 sealed `memberFacets` 必须分开声明；`memberFacets` 可内嵌于 Space definition，不必成为独立 InstanceFacetSet，跨 Space 复用时才允许 exact ref。
 - **RF-017 — 禁止命令类型继承。** 静态 Command Resource 直接拥有或由局部事实确定性产生 concrete Facets；不得建立 `CommandType + extends + override/merge` 体系来减少声明文件。
-- **RF-018 — 术语单义。** `kind` 只表达 Facet 的行为类别；静态 command backing、Space member contract 和领域数据 schema 必须使用各自独立的名称。
-- **RF-020 — 定义不制造类型层级。** ResourceDefinition 描述静态 Resource 或 Space，FacetDefinition 描述调用契约与 binding，Space 的 `memberFacets` 描述直接成员能力；这些作者态定义不得演化为 runtime inheritance/override/merge 体系。
 
 - **ENTRY-CORE-001 — Entry selector 的引用形态。** `EntryRoot/releases` 应保存 Core Release 完整副本、硬链接，还是对 `DataRoot/core.release` 的受校验引用，尚未决议；选择必须同时满足 Entry 可搬移性、磁盘去重、原子更新与损坏隔离。
 
-- **LIFE-001 — 本地 descriptor。** 若采用 Materialized Resource Space，当前建议 v1 要求每个可寻址 Resource 拥有本地 descriptor，但不要求 payload 本地化；未 mount/import 的远端搜索结果仍是 Projection 值。
-- **ROUTE-001 — ResourcePath 与 Facet 调用。** 若路径只寻址 Resource，推荐用独立参数表达 Facet，例如 `swaw .contexts/add show` 与 `swaw .contexts add new-id`，从而删除 `::` 且允许 Resource id 为 `add`；若 Facet 继续进入同一条路径，则必须保留 `::` 或另一个显式分隔符。
-- **SPACE-001 — Materialized Resource Space。** 候选主模型是“Space 为有直接子 Resource 的 Resource；直接 child resolve 是寻址结构，`list/find` 是 Space Projection，`add/mount` 是 Space Operation，`show/delete` 是成员 Facet”；Core 只理解空间解析与可信绑定，不理解领域动作。
-- **SHAPE-001 — 成员模板。** 当前倾向删除 named ResourceType 和独立 InstanceFacetSet，由每个 Space definition 直接拥有 sealed `memberFacets`；只有出现真实跨 Space 复用时才抽出 exact-ref FacetSet。
 - **REMOTE-001 — 远端物化。** 远端查询不得在读取时隐式写入本地资源树；显式 `mount/import` 创建只含 provider、稳定 remote ID、revision 与状态的本地 descriptor，cache 与凭据不属于 Resource identity。
-- **LINEAGE-001 — 派生关系。** Source、Release、Run 与 Export 是不同生命周期的 Resource；Operation 在目标 Space 中创建 Resource 并返回 ResourceRef，Space 本身不“派生另一个 Space”，`derivedFrom/producedBy` 等 lineage 必须显式记录。
-- **ROOT-001 — 空间根是 mount。** `.sources`、`.releases`、`.runs`、`.exports` 与 `.contexts` 可以形成一棵统一逻辑观察树，但必须分别挂载作者、不可变发布、审计与可变数据事实源，不能因此合并为一个写权限域。
-- **NAME-001 — 空间用名词，动作作 Facet。** 执行产物空间应命名为 `.releases` 或 `.executables`，`execute` 保留为 Operation；不得用 `.execute` 同时表示空间和动作。
 - **TEMPLATE-001 — Facet template marker。** 待真实约束证明后，再决定模板是否从通用 `facet.json` 分离为 `facet-template.json`；当前不因命名偏好增加协议类型。
-- **RUNS-001 — Runs Space。** 若采用 Space 模型，`.runs/<owner>/<run-id>` 应成为 Run Resource 的唯一规范路径，命令详情中的 Runs 只是对该 Resource 的查询或引用，不再制造第二份 route identity。
 - **BUILD-REPRO-001 — Windows 可复现链接。** 当前 MSVC `link.exe` 的全新构建会把链接时间写入 PE，使同源码与同工具链仍可能产生字节不同但各自内容寻址正确的 Release；是否改用 `lld-link` 或建立更完整的 reproducible-build contract，必须在真实原生依赖样例出现后决议，不能仅追加 `/Brepro` 就宣称可复现。
