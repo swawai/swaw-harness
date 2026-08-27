@@ -19,7 +19,6 @@
 - **BOOT-002 — 冷启动依赖最小化。** Windows Stage-0 只获取构建当前 Rust 产品必需的 minimal Rust 与 MSVC 工具链，不获取 `rustfmt`、Bun 或内置 Pwsh；开发工具与脚本 Facet runtime 由出现真实消费者后的独立 setup 协议负责。
 - **BOOT-003 — 持久清单确定性。** 写入身份或完整性 metadata 的无序集合必须先按协议规定的、与文化和 PowerShell 版本无关的 ordinal 顺序规范化；Windows 路径先按 `OrdinalIgnoreCase`、再按 `Ordinal` 决胜，验证不得依赖文件系统枚举顺序或 `Sort-Object` 默认语义。
 - **BOOT-004 — 构建环境属于子进程。** MSVC、SDK、Rust 与 Cargo 环境只注入实际工具子进程，不修改再恢复父 PowerShell 进程，也不生成需要 dot-source 的环境脚本；工具入口必须使用显式受支持的 executable 映射。
-- **BOOT-005 — 内容寻址安装只前进发布。** Toolchain 与 Candidate 等内容寻址对象只允许从已验证 stage 原子移动到不存在的目标；损坏目标可在同一身份锁内移除后重建，不为不会被合法覆盖的旧对象维护通用 backup/rollback 协议。
 - **BOOT-006 — 仓库根 Windows 构建入口。** 根 `build.cmd` 是无业务逻辑的 Windows 适配器，只以 `<repository>/data` 调用 `bootstrap/windows/main.ps1` 并原样传播退出码；它不得复制 Entry executable、创建 Entry 或输出人工复制指引。
 - **BOOT-007 — Windows Stage-0 作者布局。** `bootstrap/windows/builder` 保存跨产品 Candidate、Release 与基础机制，`toolchain` 独占构建工具链领域，`core`、`entry` 与 `entry.manager` 分别拥有 Core、Entry executable 与 Entry Manager 产品适配器；`main.ps1` 是先构建全部 Candidate、再发布并核验 selector 的唯一多产品编排器。
 - **BOOT-009 — Windows Rust 产品静态 CRT。** Windows Core 与 Entry Manager 的产品 Contract 必须显式要求静态 CRT，构建必须把该要求投影为 Cargo/rustc 命令行配置；验收必须读取发布 PE 的 import table，并拒绝 `VCRUNTIME`、`UCRT` 或其他外部 C/C++ runtime 依赖。
@@ -30,7 +29,6 @@
 
 ## Open
 
-- **RF-008 — 数据不授予代码权力。** 可写 DataRoot 中的目录或文件不能自行声明 executable、Facet 实现或平台能力；执行权只能来自受信的不可变作者声明与 Release。
 - **RF-010 — 语法必须自解释。** Resource 选择与 Facet 调用必须在语法上无歧义，parser 不得查询 Catalog 或扫描磁盘猜测某一段的角色；错误层级的协议 marker 必须产生诊断。
 - **RF-014 — 定义不执行。** Facet、可选 Shape/FacetSet 与 contract 只描述结构和语义，Facet binding 才选择 core、built-in 或 sidecar 实现；定义本身不得因“语法糖”获得可执行身份。
 

@@ -23,6 +23,7 @@
 - **REPO-004 — DataRoot 通用数据空间。** 各领域使用 DataRoot 时必须遵循核心术语定义的用途与仓库内位置，不得将其重新解释为“共享 Core 数据根”或“可配置绝对根”。
 - **REPO-005 — Entry 创建流程。** Entry Manager executable 是创建 Entry 的唯一入口；创建时必须同时建立该 Entry 及与其唯一绑定的 EntryRoot。
 - **REPO-006 — 核心术语统一。** 本文件的“核心术语”是全仓 `AGENTS.md` 的统一用语源；新增或改变核心高频术语必须先更新该段落，下级 `AGENTS.md` 不得自行创造同义词或改变既有含义。
+- **REPO-007 — 内容寻址发布只前进。** 所有模块的发布物必须先在暂存区完整生成并验证，再以内容身份原子发布到尚不存在的不可变目标；需要切换当前版本时，只允许在新目标验证完成后原子更新 selector。不得覆盖已发布目标或为其维护通用 backup/rollback 副本；损坏目标仅可在同一身份锁内删除并按原内容身份重建。
 
 ## Open
 
@@ -39,7 +40,7 @@
 3. 遵循 KISS、YAGNI、AHA > DRY、Single Source of Truth、Core vs Context 和 Locality of Behavior；适度重复优于错误抽象。
 4. 单文件或模块超过 400 行应考虑拆分，超过 500 行必须拆分。
 5. `README.md` 由人类维护，Agent 不主动修改。
-6. 根 `AGENTS.md` 当前不设 `Accepted`、`Open` 数量上限；新建或重构领域 `AGENTS.md` 时使用 `Scope`、`Accepted`、`Open`，仅在存在相应内容时增加 `Maintainer Notes`，且 `Accepted` 最多 5 条、`Open` 最多 3 条，若仍不足以说明，应先按重要性取舍并检查代码组织或架构边界。
+6. 根与 `core/AGENTS.md` 当前不设 `Accepted`、`Open` 数量上限；新建或重构其他领域 `AGENTS.md` 时使用 `Scope`、`Accepted`、`Open`，仅在存在相应内容时增加 `Maintainer Notes`，且 `Accepted` 最多 5 条、`Open` 最多 3 条，若仍不足以说明，应先按重要性取舍并检查代码组织或架构边界。
 
 ## Git 变更协议
 
