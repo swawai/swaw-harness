@@ -48,6 +48,8 @@ function Sort-SwawHarnessPathRecords {
 
     $Sorted = [object[]]@($Records)
     if ($Sorted.Count -gt 1) {
+        # Windows paths compare case-insensitively; the ordinal tie-breaker
+        # keeps inventory hashes stable across PowerShell/.NET runtimes.
         $Comparison = [Comparison[object]]{
             param($Left, $Right)
 

@@ -17,7 +17,6 @@
 - **ENTRY-CACHE-001 — Entry cache 所有者显式。** `EntryRoot/cache` 只保存 Entry-local cache；不得与 `BootstrapWindowsCacheRoot` 隐式 fallback、复制或同步。
 - **CACHE-001 — 不预建全局 Cache。** 当前不存在 `DataRoot/cache`；只有第二个真实消费者出现并共同采用内容身份、原子发布、并发锁与 GC 协议后，才允许建立全局 Artifact Cache。
 - **BOOT-002 — 冷启动依赖最小化。** Windows Stage-0 只获取构建当前 Rust 产品必需的 minimal Rust 与 MSVC 工具链，不获取 `rustfmt`、Bun 或内置 Pwsh；开发工具与脚本 Facet runtime 由出现真实消费者后的独立 setup 协议负责。
-- **BOOT-003 — 持久清单确定性。** 写入身份或完整性 metadata 的无序集合必须先按协议规定的、与文化和 PowerShell 版本无关的 ordinal 顺序规范化；Windows 路径先按 `OrdinalIgnoreCase`、再按 `Ordinal` 决胜，验证不得依赖文件系统枚举顺序或 `Sort-Object` 默认语义。
 - **BOOT-004 — 构建环境属于子进程。** MSVC、SDK、Rust 与 Cargo 环境只注入实际工具子进程，不修改再恢复父 PowerShell 进程，也不生成需要 dot-source 的环境脚本；工具入口必须使用显式受支持的 executable 映射。
 - **BOOT-006 — 仓库根 Windows 构建入口。** 根 `build.cmd` 是无业务逻辑的 Windows 适配器，只以 `<repository>/data` 调用 `bootstrap/windows/main.ps1` 并原样传播退出码；它不得复制 Entry executable、创建 Entry 或输出人工复制指引。
 - **BOOT-007 — Windows Stage-0 作者布局。** `bootstrap/windows/builder` 保存跨产品 Candidate、Release 与基础机制，`toolchain` 独占构建工具链领域，`core`、`entry` 与 `entry.manager` 分别拥有 Core、Entry executable 与 Entry Manager 产品适配器；`main.ps1` 是先构建全部 Candidate、再发布并核验 selector 的唯一多产品编排器。
