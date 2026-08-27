@@ -13,6 +13,11 @@ function Publish-SwawHarnessBootstrapRelease {
 
     $PlatformTargetId = Get-SwawHarnessReleasePlatformTargetId `
         -Contracts $Contracts
+    $StageNamePrefix = ".publish-$PlatformTargetId-"
+    $StageNamePattern = (
+        '^' + [regex]::Escape($StageNamePrefix) +
+        '[a-f0-9]{32}\.tmp$'
+    )
     if ($Candidates.Count -ne $Contracts.Count) {
         throw 'Bootstrap Release requires one Candidate for every product.'
     }
@@ -69,8 +74,7 @@ function Publish-SwawHarnessBootstrapRelease {
             -Root $ReleasesRoot `
             -Description 'Bootstrap Release store')
         foreach ($WorkItem in Get-ChildItem -LiteralPath $ReleasesRoot -Force) {
-            if ([string]$WorkItem.Name -cmatch
-                '^\.publish-[a-f0-9]{32}\.tmp$') {
+            if ([string]$WorkItem.Name -cmatch $StageNamePattern) {
                 Remove-SwawHarnessControlledPathWithRetry `
                     -Path ([string]$WorkItem.FullName) `
                     -ControlledRoot $ReleasesRoot `
@@ -93,7 +97,7 @@ function Publish-SwawHarnessBootstrapRelease {
         }
         if ($null -eq $Release) {
             $StageParent = Join-Path $ReleasesRoot (
-                ".publish-$([Guid]::NewGuid().ToString('N')).tmp"
+                $StageNamePrefix + [Guid]::NewGuid().ToString('N') + '.tmp'
             )
             $StageRoot = Join-Path $StageParent $ReleaseId
             [void][IO.Directory]::CreateDirectory($StageRoot)

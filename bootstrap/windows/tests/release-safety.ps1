@@ -155,18 +155,59 @@ try {
         ) `
         -Message 'an unsafe selector was not replaced with a regular file'
 
+    $OtherPlatformTargetId = 'aarch64-pc-windows-msvc'
     $InterruptedRoot = Join-Path $Context.BootstrapReleaseRoot (
-        '.publish-11111111111111111111111111111111.tmp'
+        ".publish-$PlatformTargetId-11111111111111111111111111111111.tmp"
     )
-    [void][IO.Directory]::CreateDirectory($InterruptedRoot)
-    [IO.File]::WriteAllText((Join-Path $InterruptedRoot 'partial'), 'partial')
+    $OtherInterruptedRoot = Join-Path $Context.BootstrapReleaseRoot (
+        ".publish-$OtherPlatformTargetId-22222222222222222222222222222222.tmp"
+    )
+    foreach ($Path in @($InterruptedRoot, $OtherInterruptedRoot)) {
+        [void][IO.Directory]::CreateDirectory($Path)
+        [IO.File]::WriteAllText((Join-Path $Path 'partial'), 'partial')
+    }
     [void](Publish-SwawHarnessBootstrapRelease `
         -Context $Context `
         -Contracts $Contracts `
         -Candidates $Candidates)
     Assert-ReleaseSafetyTest `
-        -Condition (-not [IO.Directory]::Exists($InterruptedRoot)) `
-        -Message 'interrupted publication work was not cleaned under the lock'
+        -Condition (
+            -not [IO.Directory]::Exists($InterruptedRoot) -and
+            [IO.Directory]::Exists($OtherInterruptedRoot)
+        ) `
+        -Message 'publication cleanup crossed a platform target boundary'
+
+    $OtherFixtureRoot = Join-Path $FixtureRoot $OtherPlatformTargetId
+    [void][IO.Directory]::CreateDirectory($OtherFixtureRoot)
+    $OtherFixtures = @(
+        New-ReleaseSafetyFixture `
+            -Name 'core.exe' -Content 'core-b' `
+            -Root $OtherFixtureRoot `
+            -PlatformTargetId $OtherPlatformTargetId
+        New-ReleaseSafetyFixture `
+            -Name 'entry.exe' -Content 'entry-b' `
+            -Root $OtherFixtureRoot `
+            -PlatformTargetId $OtherPlatformTargetId
+        New-ReleaseSafetyFixture `
+            -Name 'entry-manager.exe' -Content 'manager-b' `
+            -Root $OtherFixtureRoot `
+            -PlatformTargetId $OtherPlatformTargetId
+    )
+    $OtherContracts = @($OtherFixtures | ForEach-Object { $_.Contract })
+    $OtherCandidates = @($OtherFixtures | ForEach-Object { $_.Candidate })
+    $OtherRelease = Publish-SwawHarnessBootstrapRelease `
+        -Context $Context `
+        -Contracts $OtherContracts `
+        -Candidates $OtherCandidates
+    Assert-ReleaseSafetyTest `
+        -Condition (
+            -not [IO.Directory]::Exists($OtherInterruptedRoot) -and
+            [IO.File]::ReadAllText($First.SelectorPath).Trim() -ceq
+                $First.ReleaseId -and
+            [IO.File]::ReadAllText($OtherRelease.SelectorPath).Trim() -ceq
+                $OtherRelease.ReleaseId
+        ) `
+        -Message 'platform-target publication cleanup or selection was not isolated'
 } finally {
     if ([IO.Directory]::Exists($TestRoot)) {
         [IO.Directory]::Delete($TestRoot, $true)
