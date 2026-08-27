@@ -14,11 +14,12 @@
 
 ## Accepted
 
-- **REPO-001 — 领域规则命名空间。** `AGENTS.md` 按目录承载其作用域内的规则；根文件记录全仓规则，稳定领域规则归最近目录并声明全仓唯一前缀。各 `AGENTS.md` 声明前缀内的 `Accepted` 与 `Open` 共用从 `001` 开始的连续序列，新 ID 使用当前最大后缀加一，活动正文始终只有一个所有者；`README.md` 只做人类入口。
-- **REPO-002 — 源码就近归属。** 实现应下沉到最近的稳定领域所有者；放在父领域 crate 可以接受，但必须按领域拆开，不能长期集中在总入口或总 dispatcher。
-- **REPO-003 — DataRoot 通用数据空间。** 各领域使用 DataRoot 时必须遵循核心术语定义的用途与仓库内位置，不得将其重新解释为“共享 Core 数据根”或“可配置绝对根”。
-- **REPO-004 — Entry 创建流程。** Entry Manager executable 是创建 Entry 的唯一入口；创建时必须同时建立该 Entry 及与其唯一绑定的 EntryRoot。
-- **REPO-005 — 核心术语统一。** 本文件的“核心术语”是全仓 `AGENTS.md` 的统一用语源；新增或改变核心高频术语必须先更新该段落，下级 `AGENTS.md` 不得自行创造同义词或改变既有含义。
+- **REPO-001 — 小核心与领域自治。** 核心只保留跨领域稳定且必要的最小机制与薄协议；领域代码、规则、文档及其他资源由各自目录自治，领域间通过显式边界协作，不得把领域逻辑集中到核心或总调度器。新增或扩展领域不得修改核心协议，除非出现新的、稳定的跨领域共同约束。
+- **REPO-002 — 规则就近归属。** 全仓规则写入根 `AGENTS.md`，领域规则写入最近领域目录的 `AGENTS.md`；修改路径时从根向下依次读取并叠加，不得在多个文件重复维护同一规则。
+- **REPO-003 — 代码就近归属。** 代码应归入最近的稳定领域目录；允许父领域承载多个相关模块，但必须保持领域边界，不得长期堆积在总入口或总 dispatcher。
+- **REPO-004 — DataRoot 通用数据空间。** 各领域使用 DataRoot 时必须遵循核心术语定义的用途与仓库内位置，不得将其重新解释为“共享 Core 数据根”或“可配置绝对根”。
+- **REPO-005 — Entry 创建流程。** Entry Manager executable 是创建 Entry 的唯一入口；创建时必须同时建立该 Entry 及与其唯一绑定的 EntryRoot。
+- **REPO-006 — 核心术语统一。** 本文件的“核心术语”是全仓 `AGENTS.md` 的统一用语源；新增或改变核心高频术语必须先更新该段落，下级 `AGENTS.md` 不得自行创造同义词或改变既有含义。
 
 ## Open
 
@@ -35,7 +36,7 @@
 3. 遵循 KISS、YAGNI、AHA > DRY、Single Source of Truth、Core vs Context 和 Locality of Behavior；适度重复优于错误抽象。
 4. 单文件或模块超过 400 行应考虑拆分，超过 500 行必须拆分。
 5. `README.md` 由人类维护，Agent 不主动修改。
-6. 新建或重构领域 `AGENTS.md` 时使用 `Scope`、`Accepted`、`Open`，仅在存在相应内容时增加 `Maintainer Notes`；`Accepted` 最多 5 条，`Open` 最多 3 条，若仍不足以说明，应先按重要性取舍并检查代码组织或架构边界。
+6. 根 `AGENTS.md` 当前不设 `Accepted`、`Open` 数量上限；新建或重构领域 `AGENTS.md` 时使用 `Scope`、`Accepted`、`Open`，仅在存在相应内容时增加 `Maintainer Notes`，且 `Accepted` 最多 5 条、`Open` 最多 3 条，若仍不足以说明，应先按重要性取舍并检查代码组织或架构边界。
 
 ## Git 变更协议
 

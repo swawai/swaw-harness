@@ -6,7 +6,6 @@
 
 ## Accepted
 
-- **ARC-002 — 可独立执行。** 命令领域的核心实现应位于 library API，进程入口保持薄；因此模块可在确有发布或隔离需要时增加独立 executable，而无需重写业务逻辑。
 - **BOOTSTRAP-DATA-001 — Windows Bootstrap 数据空间。** `BootstrapWindowsRoot` 唯一映射为 `DataRoot/bootstrap.windows` 并保存 `toolchains/work/locks/logs`；`BootstrapWindowsCacheRoot` 唯一映射为 `DataRoot/bootstrap.windows.cache` 并保存 `downloads/build/cargo`，两者是独立受控写根。
 - **CORE-RELEASE-001 — Core Release 空间。** `CoreReleaseRoot` 唯一映射为 `DataRoot/core.release`，直接保存共享 Core Release 与 target selector；点号分隔顶层 owner 与 kind，不增加无独立职责的中间层。
 - **ENTRY-RELEASE-001 — Entry executable Release 空间。** `EntryReleaseRoot` 唯一映射为 `DataRoot/entry.release`，只保存内容寻址的 `swaw-harness-entry.exe` Release 与 target selector；它是 Entry Manager 的分发源，不是 Entry 实例数据。
@@ -52,7 +51,6 @@
 - **RF-016 — Space 与成员 Facet 分离。** Space 自己的 concrete Facets 与直接成员的 sealed `memberFacets` 必须分开声明；`memberFacets` 可内嵌于 Space definition，不必成为独立 InstanceFacetSet，跨 Space 复用时才允许 exact ref。
 - **RF-017 — 禁止命令类型继承。** 静态 Command Resource 直接拥有或由局部事实确定性产生 concrete Facets；不得建立 `CommandType + extends + override/merge` 体系来减少声明文件。
 - **RF-018 — 术语单义。** `kind` 只表达 Facet 的行为类别；静态 command backing、Space member contract 和领域数据 schema 必须使用各自独立的名称。
-- **RF-019 — 核心抽象有边界。** Resource–Facet 统一产品可见的寻址、能力、依赖与编排语义，但不替代 Rust crate 图、进程边界、存储事务或发布拓扑。
 - **RF-020 — 定义不制造类型层级。** ResourceDefinition 描述静态 Resource 或 Space，FacetDefinition 描述调用契约与 binding，Space 的 `memberFacets` 描述直接成员能力；这些作者态定义不得演化为 runtime inheritance/override/merge 体系。
 
 - **ENTRY-CORE-001 — Entry selector 的引用形态。** `EntryRoot/releases` 应保存 Core Release 完整副本、硬链接，还是对 `DataRoot/core.release` 的受校验引用，尚未决议；选择必须同时满足 Entry 可搬移性、磁盘去重、原子更新与损坏隔离。
