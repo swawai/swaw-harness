@@ -24,17 +24,17 @@ function Publish-SwawHarnessWindowsProducts {
     $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
     $CoreContract = Read-SwawHarnessWindowsCoreContract `
         -Path (Join-Path $WindowsRoot 'core\contract.json') `
-        -TargetId $PlatformContract.TargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId
     $EntryContract = Read-SwawHarnessWindowsEntryContract `
         -Path (Join-Path $WindowsRoot 'entry\contract.json') `
-        -TargetId $PlatformContract.TargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId
     $EntryManagerContract = Read-SwawHarnessWindowsEntryManagerContract `
         -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
-        -TargetId $PlatformContract.TargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId
 
     $PublicationLock = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot (
-            "publish-harness-$($PlatformContract.TargetId).lock"
+            "publish-harness-$($PlatformContract.PlatformTargetId).lock"
         )) `
         -ControlledRoot $Context.BootstrapWindowsRoot `
         -TimeoutSeconds 1800

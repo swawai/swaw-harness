@@ -27,7 +27,7 @@ function New-ReleaseSafetyCandidate {
     $Sha256 = Get-SwawHarnessFileSha256 -Path $SourcePath
     $CandidateId = Get-SwawHarnessCandidateId `
         -ContractRevision ([string]$Contract.Revision) `
-        -TargetId ([string]$Contract.TargetId) `
+        -PlatformTargetId ([string]$Contract.PlatformTargetId) `
         -Name ([string]$Contract.ProductBinary) `
         -Length ([long]$Item.Length) `
         -Sha256 $Sha256
@@ -43,7 +43,7 @@ function New-ReleaseSafetyCandidate {
         schema = $script:SwawHarnessCandidateSchema
         candidateId = $CandidateId
         contractRevision = [string]$Contract.Revision
-        targetId = [string]$Contract.TargetId
+        platformTargetId = [string]$Contract.PlatformTargetId
         artifact = [ordered]@{
             name = [string]$Contract.ProductBinary
             length = [long]$Item.Length
@@ -98,7 +98,7 @@ try {
         -Path (Join-Path $WindowsRoot 'contract.json')
     $Contract = Read-SwawHarnessWindowsCoreContract `
         -Path (Join-Path $WindowsRoot 'core\contract.json') `
-        -TargetId $PlatformContract.TargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId
 
     $CandidatePath = New-ReleaseSafetyCandidate `
         -SourcePath (Join-Path $env:SystemRoot 'System32\cmd.exe') `
@@ -170,7 +170,7 @@ try {
     )
     [void](Publish-SwawHarnessReleaseSelector `
         -ReleasesRoot $CoreReleaseRoot `
-        -TargetId $Contract.TargetId `
+        -PlatformTargetId $Contract.PlatformTargetId `
         -ReleaseId $Second.ReleaseId)
     $SelectedAfterEmptySelector = Read-SwawHarnessSelectedRelease `
         -ReleasesRoot $CoreReleaseRoot `
@@ -199,7 +199,7 @@ try {
         -Message 'an oversized Release selector passed framing validation'
     [void](Publish-SwawHarnessReleaseSelector `
         -ReleasesRoot $CoreReleaseRoot `
-        -TargetId $Contract.TargetId `
+        -PlatformTargetId $Contract.PlatformTargetId `
         -ReleaseId $Second.ReleaseId)
     $SelectorBeforeFailure = [IO.File]::ReadAllText(
         [string]$Second.SelectorPath,
@@ -301,7 +301,7 @@ try {
     try {
         [void](Publish-SwawHarnessReleaseSelector `
             -ReleasesRoot $CoreReleaseRoot `
-            -TargetId $Contract.TargetId `
+            -PlatformTargetId $Contract.PlatformTargetId `
             -ReleaseId ('a' * 64))
     } catch {
         $AtomicFailureReported = $_.Exception.Message -like '*Recovery files*'

@@ -21,11 +21,11 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot '..\contract.json')
 $Contract = Read-SwawHarnessWindowsEntryContract `
     -Path (Join-Path $PSScriptRoot 'contract.json') `
-    -TargetId $PlatformContract.TargetId
+    -PlatformTargetId $PlatformContract.PlatformTargetId
 $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
 $BootstrapWindowsCacheRoot = $Context.BootstrapWindowsCacheRoot
 $BuildRoot = Join-Path $BootstrapWindowsCacheRoot (
-    "build\entry\$($Contract.TargetId)"
+    "build\entry\$($Contract.PlatformTargetId)"
 )
 $BuildRoot = Assert-SwawHarnessPathInsideRoot `
     -Path $BuildRoot `
@@ -44,7 +44,7 @@ $LinkerPath = Get-SwawHarnessFullPath -Path $LinkerPath
 
 $Lock = Enter-SwawHarnessFileLock `
     -Path (Join-Path $Context.LockRoot (
-        "build-entry-$($Contract.TargetId).lock"
+        "build-entry-$($Contract.PlatformTargetId).lock"
     )) `
     -ControlledRoot $Context.BootstrapWindowsRoot `
     -TimeoutSeconds 1800

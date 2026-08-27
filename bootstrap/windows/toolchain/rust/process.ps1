@@ -37,7 +37,7 @@ function Invoke-SwawHarnessRustupInstaller {
         -Executable $InstallerPath `
         -Arguments @(
             '-y',
-            '--default-host', [string]$Contract.TargetId,
+            '--default-host', [string]$Contract.PlatformTargetId,
             '--no-modify-path',
             '--profile', [string]$Contract.RustProfile,
             '--default-toolchain', [string]$Contract.RustToolchain
@@ -120,7 +120,7 @@ function Get-SwawHarnessRustProbe {
             [string]$Contract.RustupInitVersion -or
         $ReleaseMatch.Groups[1].Value -cne
             [string]$Contract.RustToolchain -or
-        $HostMatch.Groups[1].Value -cne [string]$Contract.TargetId) {
+        $HostMatch.Groups[1].Value -cne [string]$Contract.PlatformTargetId) {
         throw 'The installed Rust toolchain reported an unexpected identity.'
     }
     return [pscustomobject][ordered]@{
