@@ -10,7 +10,7 @@
 - **WIN-BOOT-002 — Microsoft 许可非交互接受。** Windows Contract 必须固定 Microsoft Build Tools 许可地址与 `by-bootstrap-invocation` 接受方式；首次获取该工具链载荷前必须输出许可地址，调用 Bootstrap 即表示接受，不得弹出交互确认，MSI 必须显式禁止自动重启。
 - **WIN-BOOT-003 — VS 产品线显式固定。** Windows Bootstrap v3 固定使用 VS 2026 stable 产品线及一个经长度与 SHA-256 锚定的精确 package manifest；不得在运行时解析 `latest`，升级必须同时修改 Contract、安装 recipe 与验收测试。
 - **WIN-BOOT-004 — Windows 路径预算。** Windows Bootstrap v3 的规范化 DataRoot 最长 50 个 UTF-16 code unit，必须在下载或安装前拒绝超限路径；该上限与缩短后的物理布局共同保持原有最坏绝对路径预算不变。
-- **WIN-BOOT-005 — 显式 Bootstrap 发布三种产品。** `bootstrap/windows/main.ps1` 每次调用都先构建 Core、Entry executable 与 Entry Manager 的全部 Candidate，再分别发布到各自 ReleaseRoot；已有 selector 不得跳过构建，内容未改变时复用 ReleaseId。
+- **WIN-BOOT-005 — Windows 三产品自包含发布。** `bootstrap/windows/main.ps1` 每次调用都先构建 Core、Entry executable 与 Entry Manager 的全部 Candidate，再分别发布到各自 ReleaseRoot；已有 selector 不得跳过构建，内容未改变时复用 ReleaseId。三个产品的 Windows executable 均不得依赖用户另行安装的 C/C++ runtime；Windows 系统组件不属于该限制。
 
 ## Open
 

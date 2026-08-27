@@ -4,10 +4,6 @@
 
 状态：`Accepted` 表示已经完成决议并形成当前可验证的实现约束，不要求永久不变，也不自动表示目标能力已经交付；过渡边界只有同时声明当前约束与明确退出条件时才可接受，纯进度事实属于 `Maintainer Notes`。`Open` 是唯一的未决规则状态且不具有实现约束；当前协议文件只保留这两种规则，Git 保存退出规则与基线前编号的历史。当前规范树中的完整 Rule ID 与领域前缀必须唯一，同一前缀的序列从 `001` 连续开始，新 ID 使用当前最大后缀加一。
 
-## Accepted
-
-- **BOOT-009 — Windows Rust 产品静态 CRT。** Windows Core 与 Entry Manager 的产品 Contract 必须显式要求静态 CRT，构建必须把该要求投影为 Cargo/rustc 命令行配置；验收必须读取发布 PE 的 import table，并拒绝 `VCRUNTIME`、`UCRT` 或其他外部 C/C++ runtime 依赖。
-
 ## Open
 
 - **REMOTE-001 — 远端物化。** 远端查询不得在读取时隐式写入本地资源树；显式 `mount/import` 创建只含 provider、稳定 remote ID、revision 与状态的本地 descriptor，cache 与凭据不属于 Resource identity。
