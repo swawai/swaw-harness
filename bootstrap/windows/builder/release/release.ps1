@@ -2,11 +2,11 @@ Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot '..\foundation.ps1')
 
-$script:SwawHarnessReleaseSchema = 'swaw.harness.release/v1'
+$script:SwawHarnessReleaseSchema = 'swaw.harness.release/v2'
 
 function Get-SwawHarnessReleaseId {
     param(
-        [Parameter(Mandatory = $true)][string]$TargetId,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId,
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][long]$Length,
         [Parameter(Mandatory = $true)][string]$Sha256
@@ -17,7 +17,7 @@ function Get-SwawHarnessReleaseId {
     )
     return Get-SwawHarnessTextSha256 -Value ([string]::Join("`n", @(
         $script:SwawHarnessReleaseSchema,
-        "target=$TargetId",
+        "target=$PlatformTargetId",
         "artifact=$Name",
         "length=$LengthText",
         "sha256=$Sha256"
@@ -71,7 +71,7 @@ function Read-SwawHarnessRelease {
         -Description 'Release manifest'
     Assert-SwawHarnessObjectFields `
         -Value $Manifest `
-        -Expected @('schema', 'releaseId', 'targetId', 'artifacts') `
+        -Expected @('schema', 'releaseId', 'platformTargetId', 'artifacts') `
         -Description 'Release manifest'
     $Artifacts = @($Manifest.artifacts)
     if ($Artifacts.Count -ne 1) {
@@ -97,7 +97,7 @@ function Read-SwawHarnessRelease {
     $Sha256 = ([string]$Record.sha256).Trim().ToLowerInvariant()
     if ([string]$Manifest.schema -cne $script:SwawHarnessReleaseSchema -or
         [string]$Manifest.releaseId -cne $ReleaseId -or
-        [string]$Manifest.targetId -cne [string]$Contract.TargetId -or
+        [string]$Manifest.platformTargetId -cne [string]$Contract.PlatformTargetId -or
         $ArtifactName -cne [string]$Contract.ProductBinary -or
         [long]$Record.length -ne [long]$Item.Length -or
         $Sha256 -cnotmatch '^[a-f0-9]{64}$' -or
@@ -105,7 +105,7 @@ function Read-SwawHarnessRelease {
         throw "Release validation failed: $ReleaseRoot"
     }
     $ComputedId = Get-SwawHarnessReleaseId `
-        -TargetId ([string]$Manifest.targetId) `
+        -PlatformTargetId ([string]$Manifest.platformTargetId) `
         -Name $ArtifactName `
         -Length ([long]$Record.length) `
         -Sha256 $Sha256
@@ -115,7 +115,7 @@ function Read-SwawHarnessRelease {
 
     return [pscustomobject][ordered]@{
         ReleaseId = $ReleaseId
-        TargetId = [string]$Manifest.targetId
+        PlatformTargetId = [string]$Manifest.platformTargetId
         Root = $ReleaseRoot
         ManifestPath = $ManifestPath
         ArtifactPath = $ArtifactPath

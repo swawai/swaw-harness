@@ -79,7 +79,7 @@ try {
             -Contract $Contract)
     } catch {
         $PathBudgetRejected = $_.Exception.Message -like (
-            'Windows Bootstrap v3 requires a DataRoot path no longer than*'
+            'Windows Bootstrap v4 requires a DataRoot path no longer than*'
         )
     }
     Assert-ToolchainTest `
@@ -118,7 +118,7 @@ try {
         rustcVersion = [string]$Contract.RustToolchain
         rustcCommit = '1111111111111111111111111111111111111111'
         cargoVersion = [string]$Contract.RustToolchain
-        host = [string]$Contract.TargetId
+        host = [string]$Contract.PlatformTargetId
     }
     $RustRecord = New-SwawHarnessRustInstallRecord `
         -Contract $Contract `
@@ -170,9 +170,9 @@ try {
         -MsvcRoot $MsvcRoot `
         -ControlledRoot $Context.BootstrapWindowsRoot
     $Metadata = [ordered]@{
-        schema = 'swaw.harness.bootstrap.toolchain/v2'
+        schema = 'swaw.harness.bootstrap.toolchain/v3'
         toolchainId = Get-SwawHarnessToolchainId -Contract $Contract
-        targetId = [string]$Contract.TargetId
+        platformTargetId = [string]$Contract.PlatformTargetId
         rust = $RustRecord
         msvc = $MsvcRecord
     }

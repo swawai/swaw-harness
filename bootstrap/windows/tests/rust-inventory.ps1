@@ -77,7 +77,7 @@ try {
         rustcVersion = [string]$Contract.RustToolchain
         rustcCommit = '1111111111111111111111111111111111111111'
         cargoVersion = '1.97.1'
-        host = [string]$Contract.TargetId
+        host = [string]$Contract.PlatformTargetId
     }
     $Record = New-SwawHarnessRustInstallRecord `
         -Contract $Contract `

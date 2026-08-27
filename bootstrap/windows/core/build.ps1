@@ -21,12 +21,12 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path $ContractPath
 $Contract = Read-SwawHarnessWindowsCoreContract `
     -Path (Join-Path $PSScriptRoot 'contract.json') `
-    -TargetId $PlatformContract.TargetId
+    -PlatformTargetId $PlatformContract.PlatformTargetId
 $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
 $BootstrapWindowsRoot = $Context.BootstrapWindowsRoot
 $BootstrapWindowsCacheRoot = $Context.BootstrapWindowsCacheRoot
 $BuildRoot = Join-Path $BootstrapWindowsCacheRoot (
-    "build\core\$($Contract.TargetId)"
+    "build\core\$($Contract.PlatformTargetId)"
 )
 $BuildRoot = Assert-SwawHarnessPathInsideRoot `
     -Path $BuildRoot `
@@ -46,14 +46,14 @@ $WorkspaceManifest = Join-Path $RepositoryRoot 'core\Cargo.toml'
 
 $BuildLock = Enter-SwawHarnessFileLock `
     -Path (Join-Path $Context.LockRoot (
-        "build-core-$($Contract.TargetId).lock"
+        "build-core-$($Contract.PlatformTargetId).lock"
     )) `
     -ControlledRoot $BootstrapWindowsRoot `
     -TimeoutSeconds 1800
 try {
     $CargoTargetRoot = Join-Path $BuildRoot 'cargo-target'
     $RustTargetConfiguration = (
-        "target.$($Contract.TargetId).rustflags=" +
+        "target.$($Contract.PlatformTargetId).rustflags=" +
         '["-C","target-feature=+crt-static"]'
     )
     $Arguments = @(
@@ -67,7 +67,7 @@ try {
         '--manifest-path',
         $WorkspaceManifest,
         '--target',
-        $Contract.TargetId,
+        $Contract.PlatformTargetId,
         '--target-dir',
         $CargoTargetRoot
     )
@@ -86,7 +86,7 @@ try {
     }
 
     $ArtifactPath = Join-Path $CargoTargetRoot (
-        "$($Contract.TargetId)\release\$($Contract.ProductBinary)"
+        "$($Contract.PlatformTargetId)\release\$($Contract.ProductBinary)"
     )
     [void](Assert-SwawHarnessRegularFile `
         -Path $ArtifactPath `

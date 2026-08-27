@@ -66,7 +66,7 @@ try {
 
     $EntryManagerContract = Read-SwawHarnessWindowsEntryManagerContract `
         -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
-        -TargetId $PlatformContract.TargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId
     $Selected = Read-SwawHarnessSelectedRelease `
         -ReleasesRoot (Join-Path $TestRoot 'entry.manager.release') `
         -Contract $EntryManagerContract

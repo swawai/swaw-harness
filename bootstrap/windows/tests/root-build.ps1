@@ -29,21 +29,21 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
 $CoreContract = Read-SwawHarnessWindowsCoreContract `
     -Path (Join-Path $WindowsRoot 'core\contract.json') `
-    -TargetId $PlatformContract.TargetId
+    -PlatformTargetId $PlatformContract.PlatformTargetId
 $CoreReleasesRoot = Join-Path $RepositoryRoot 'data\core.release'
 $CoreRelease = Read-SwawHarnessSelectedRelease `
     -ReleasesRoot $CoreReleasesRoot `
     -Contract $CoreContract
 $EntryContract = Read-SwawHarnessWindowsEntryContract `
     -Path (Join-Path $WindowsRoot 'entry\contract.json') `
-    -TargetId $PlatformContract.TargetId
+    -PlatformTargetId $PlatformContract.PlatformTargetId
 $EntryReleasesRoot = Join-Path $RepositoryRoot 'data\entry.release'
 $EntryRelease = Read-SwawHarnessSelectedRelease `
     -ReleasesRoot $EntryReleasesRoot `
     -Contract $EntryContract
 $EntryManagerContract = Read-SwawHarnessWindowsEntryManagerContract `
     -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
-    -TargetId $PlatformContract.TargetId
+    -PlatformTargetId $PlatformContract.PlatformTargetId
 $EntryManagerReleasesRoot = Join-Path $RepositoryRoot 'data\entry.manager.release'
 $EntryManagerRelease = Read-SwawHarnessSelectedRelease `
     -ReleasesRoot $EntryManagerReleasesRoot `

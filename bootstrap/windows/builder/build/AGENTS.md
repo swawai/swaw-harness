@@ -4,7 +4,7 @@
 
 本目录拥有跨产品的不可变 Candidate（候选发布物）构建机制，不拥有产品编译适配器或 Release 发布。
 
-Candidate 是 Build 完成后固化在 `<repository>/data/bootstrap.windows.cache/build/<product>/<TargetId>/candidates/<CandidateId>/` 中、已经验证且不可变的发布输入，目录内保存产物和 `candidate.json`。CandidateId 是该目录的名称，由 `candidate.json` 的 schema、Contract revision、TargetId、产物名称、产物长度与产物内容 SHA-256 共同确定。
+Candidate 是 Build 完成后固化在 `<repository>/data/bootstrap.windows.cache/build/<product>/<PlatformTargetId>/candidates/<CandidateId>/` 中、已经验证且不可变的发布输入，目录内保存产物和 `candidate.json`。CandidateId 是该目录的名称，由 `candidate.json` 的 schema、Contract revision、PlatformTargetId、产物名称、产物长度与产物内容 SHA-256 共同确定。
 
 Rule ID 前缀为 `WIN-CANDIDATE`。
 

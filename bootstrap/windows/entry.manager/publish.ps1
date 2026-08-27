@@ -17,10 +17,10 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot '..\contract.json')
 $Contract = Read-SwawHarnessWindowsEntryManagerContract `
     -Path (Join-Path $PSScriptRoot 'contract.json') `
-    -TargetId $PlatformContract.TargetId
+    -PlatformTargetId $PlatformContract.PlatformTargetId
 $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
 $BuildRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-    "build\entry.manager\$($Contract.TargetId)"
+    "build\entry.manager\$($Contract.PlatformTargetId)"
 )
 $Candidate = Read-SwawHarnessBootstrapCandidate `
     -Path $CandidatePath `

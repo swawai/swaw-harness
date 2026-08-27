@@ -36,7 +36,7 @@ function Get-SwawHarnessMsvcDefinitionId {
     return Get-SwawHarnessTextSha256 -Value ([string]::Join("`n", @(
         'swaw.harness.bootstrap.msvc-definition/v2'
         "recipe=$script:SwawHarnessMsvcRecipeVersion"
-        "target=$($Contract.TargetId)"
+        "target=$($Contract.PlatformTargetId)"
         "productLine=$($Contract.MsvcProductLine)"
         "licenseUrl=$($Contract.MsvcLicenseUrl)"
         "licenseAcceptance=$($Contract.MsvcLicenseAcceptance)"

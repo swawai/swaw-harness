@@ -166,7 +166,7 @@ function New-SwawHarnessRustInstallRecord {
         declaredToolchain = [string]$Contract.RustToolchain
         toolchainName = Get-SwawHarnessRustToolchainName -Contract $Contract
         profile = [string]$Contract.RustProfile
-        host = [string]$Contract.TargetId
+        host = [string]$Contract.PlatformTargetId
         rustupInit = [pscustomobject][ordered]@{
             version = [string]$Contract.RustupInitVersion
             url = [string]$Contract.RustupInitUrl
@@ -220,7 +220,7 @@ function Test-SwawHarnessRustInstallRecord {
             [string]$Record.toolchainName -cne
                 (Get-SwawHarnessRustToolchainName -Contract $Contract) -or
             [string]$Record.profile -cne [string]$Contract.RustProfile -or
-            [string]$Record.host -cne [string]$Contract.TargetId -or
+            [string]$Record.host -cne [string]$Contract.PlatformTargetId -or
             [string]$Record.rustupInit.version -cne
                 [string]$Contract.RustupInitVersion -or
             [string]$Record.rustupInit.url -cne
@@ -235,7 +235,7 @@ function Test-SwawHarnessRustInstallRecord {
                 [string]$Contract.RustToolchain -or
             [string]$Record.probe.rustcCommit -cnotmatch '^[a-f0-9]{40}$' -or
             [string]$Record.probe.cargoVersion -cnotmatch '^\d+\.\d+\.\d+' -or
-            [string]$Record.probe.host -cne [string]$Contract.TargetId) {
+            [string]$Record.probe.host -cne [string]$Contract.PlatformTargetId) {
             throw 'Rust install identity record is inconsistent.'
         }
 

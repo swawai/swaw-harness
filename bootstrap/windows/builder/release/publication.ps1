@@ -20,7 +20,7 @@ function Publish-SwawHarnessRelease {
     $CandidateName = [string]$Candidate.Name
     $CandidateLength = [long]$Candidate.Length
     $CandidateSha256 = ([string]$Candidate.Sha256).Trim().ToLowerInvariant()
-    if ([string]$Candidate.TargetId -cne [string]$Contract.TargetId -or
+    if ([string]$Candidate.PlatformTargetId -cne [string]$Contract.PlatformTargetId -or
         $CandidateName -cne [string]$Contract.ProductBinary -or
         $CandidateLength -le 0 -or
         $CandidateLength -gt [long]$Contract.MaximumBytes -or
@@ -43,7 +43,7 @@ function Publish-SwawHarnessRelease {
         -Root $ReleasesRoot `
         -Description 'Release store')
     $ReleaseId = Get-SwawHarnessReleaseId `
-        -TargetId ([string]$Candidate.TargetId) `
+        -PlatformTargetId ([string]$Candidate.PlatformTargetId) `
         -Name $CandidateName `
         -Length $CandidateLength `
         -Sha256 $CandidateSha256
@@ -98,7 +98,7 @@ function Publish-SwawHarnessRelease {
                 $Manifest = [ordered]@{
                     schema = $script:SwawHarnessReleaseSchema
                     releaseId = [string]$ReleaseId
-                    targetId = [string]$Contract.TargetId
+                    platformTargetId = [string]$Contract.PlatformTargetId
                     artifacts = @([ordered]@{
                         name = $CandidateName
                         length = $CandidateLength
@@ -138,7 +138,7 @@ function Publish-SwawHarnessRelease {
             -Contract $Contract `
             -ReleasesRoot $ReleasesRoot
         $SelectorPath = Join-Path $ReleasesRoot (
-            "current.$($Contract.TargetId)"
+            "current.$($Contract.PlatformTargetId)"
         )
         $SelectorItem = Get-Item `
             -LiteralPath $SelectorPath `
@@ -155,7 +155,7 @@ function Publish-SwawHarnessRelease {
         }
         $SelectorPath = Publish-SwawHarnessReleaseSelector `
             -ReleasesRoot $ReleasesRoot `
-            -TargetId ([string]$Contract.TargetId) `
+            -PlatformTargetId ([string]$Contract.PlatformTargetId) `
             -ReleaseId ([string]$Release.ReleaseId)
         return [pscustomobject][ordered]@{
             ReleaseId = [string]$Release.ReleaseId

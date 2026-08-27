@@ -10,9 +10,9 @@ function Get-SwawHarnessToolchainId {
     param([Parameter(Mandatory = $true)][object]$Contract)
 
     return Get-SwawHarnessTextSha256 -Value ([string]::Join("`n", @(
-        'swaw.harness.bootstrap.toolchain/v2'
+        'swaw.harness.bootstrap.toolchain/v3'
         "recipe=$script:SwawHarnessToolchainRecipeVersion"
-        "target=$($Contract.TargetId)"
+        "target=$($Contract.PlatformTargetId)"
         "rust=$(Get-SwawHarnessRustDefinitionId -Contract $Contract)"
         "msvc=$(Get-SwawHarnessMsvcDefinitionId -Contract $Contract)"
     )))
@@ -126,13 +126,13 @@ function Get-SwawHarnessValidToolchain {
             -MaximumBytes 32MB
         Assert-SwawHarnessObjectFields `
             -Value $Metadata `
-            -Expected @('schema', 'toolchainId', 'targetId', 'rust', 'msvc') `
+            -Expected @('schema', 'toolchainId', 'platformTargetId', 'rust', 'msvc') `
             -Description 'Bootstrap toolchain metadata'
         if ([string]$Metadata.schema -cne
-                'swaw.harness.bootstrap.toolchain/v2' -or
+                'swaw.harness.bootstrap.toolchain/v3' -or
             [string]$Metadata.toolchainId -cne
                 (Get-SwawHarnessToolchainId -Contract $Contract) -or
-            [string]$Metadata.targetId -cne [string]$Contract.TargetId) {
+            [string]$Metadata.platformTargetId -cne [string]$Contract.PlatformTargetId) {
             return $null
         }
         $RustRoot = Join-Path $InstallRoot 'rust'
@@ -234,7 +234,7 @@ function Get-SwawHarnessBootstrapToolchain {
 
     if ($Context.DataRoot.Length -gt 50) {
         throw (
-            'Windows Bootstrap v3 requires a DataRoot path no longer than ' +
+            'Windows Bootstrap v4 requires a DataRoot path no longer than ' +
             "50 characters: $($Context.DataRoot)"
         )
     }
@@ -295,9 +295,9 @@ function Get-SwawHarnessBootstrapToolchain {
                 -Contract $Contract `
                 -StagedToolchainRoot $StagedRoot
             $Metadata = [ordered]@{
-                schema = 'swaw.harness.bootstrap.toolchain/v2'
+                schema = 'swaw.harness.bootstrap.toolchain/v3'
                 toolchainId = $ToolchainId
-                targetId = [string]$Contract.TargetId
+                platformTargetId = [string]$Contract.PlatformTargetId
                 rust = $RustRecord
                 msvc = $MsvcRecord
             }

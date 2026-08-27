@@ -92,7 +92,7 @@ try {
             rustcVersion = [string]$Contract.RustToolchain
             rustcCommit = '1111111111111111111111111111111111111111'
             cargoVersion = [string]$Contract.RustToolchain
-            host = [string]$Contract.TargetId
+            host = [string]$Contract.PlatformTargetId
         }) `
         -RustRoot $RustRoot `
         -ControlledRoot $ControlledRoot

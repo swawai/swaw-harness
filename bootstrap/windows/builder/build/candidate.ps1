@@ -3,12 +3,12 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot '..\foundation.ps1')
 . (Join-Path $PSScriptRoot '..\filesystem.ps1')
 
-$script:SwawHarnessCandidateSchema = 'swaw.harness.bootstrap-candidate/v2'
+$script:SwawHarnessCandidateSchema = 'swaw.harness.bootstrap-candidate/v3'
 
 function Get-SwawHarnessCandidateId {
     param(
         [Parameter(Mandatory = $true)][string]$ContractRevision,
-        [Parameter(Mandatory = $true)][string]$TargetId,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId,
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][long]$Length,
         [Parameter(Mandatory = $true)][string]$Sha256
@@ -20,7 +20,7 @@ function Get-SwawHarnessCandidateId {
     return Get-SwawHarnessTextSha256 -Value ([string]::Join("`n", @(
         $script:SwawHarnessCandidateSchema,
         "contract=$ContractRevision",
-        "target=$TargetId",
+        "target=$PlatformTargetId",
         "artifact=$Name",
         "length=$LengthText",
         "sha256=$Sha256"
@@ -85,7 +85,7 @@ function Read-SwawHarnessBootstrapCandidate {
     Assert-SwawHarnessObjectFields `
         -Value $Candidate `
         -Expected @(
-            'schema', 'candidateId', 'contractRevision', 'targetId', 'artifact'
+            'schema', 'candidateId', 'contractRevision', 'platformTargetId', 'artifact'
         ) `
         -Description 'Bootstrap candidate'
     Assert-SwawHarnessObjectFields `
@@ -108,7 +108,7 @@ function Read-SwawHarnessBootstrapCandidate {
     $Sha256 = ([string]$Candidate.artifact.sha256).Trim().ToLowerInvariant()
     $ComputedCandidateId = Get-SwawHarnessCandidateId `
         -ContractRevision ([string]$Candidate.contractRevision) `
-        -TargetId ([string]$Candidate.targetId) `
+        -PlatformTargetId ([string]$Candidate.platformTargetId) `
         -Name $ArtifactName `
         -Length ([long]$Candidate.artifact.length) `
         -Sha256 $Sha256
@@ -116,7 +116,7 @@ function Read-SwawHarnessBootstrapCandidate {
         [string]$Candidate.candidateId -cne $CandidateId -or
         $ComputedCandidateId -cne $CandidateId -or
         [string]$Candidate.contractRevision -cne [string]$Contract.Revision -or
-        [string]$Candidate.targetId -cne [string]$Contract.TargetId -or
+        [string]$Candidate.platformTargetId -cne [string]$Contract.PlatformTargetId -or
         $ArtifactName -cne [string]$Contract.ProductBinary -or
         [long]$Candidate.artifact.length -ne [long]$Item.Length -or
         $Sha256 -cnotmatch '^[a-f0-9]{64}$' -or
@@ -128,7 +128,7 @@ function Read-SwawHarnessBootstrapCandidate {
         Path = $Path
         CandidateId = $CandidateId
         Root = $CandidateRoot
-        TargetId = [string]$Contract.TargetId
+        PlatformTargetId = [string]$Contract.PlatformTargetId
         Name = [string]$Contract.ProductBinary
         ArtifactPath = $ArtifactPath
         Length = [long]$Item.Length
@@ -166,7 +166,7 @@ function Publish-SwawHarnessBootstrapCandidate {
     $ArtifactSha256 = Get-SwawHarnessFileSha256 -Path $ArtifactPath
     $CandidateId = Get-SwawHarnessCandidateId `
         -ContractRevision ([string]$Contract.Revision) `
-        -TargetId ([string]$Contract.TargetId) `
+        -PlatformTargetId ([string]$Contract.PlatformTargetId) `
         -Name ([string]$Contract.ProductBinary) `
         -Length ([long]$Item.Length) `
         -Sha256 $ArtifactSha256
@@ -201,7 +201,7 @@ function Publish-SwawHarnessBootstrapCandidate {
             schema = $script:SwawHarnessCandidateSchema
             candidateId = $CandidateId
             contractRevision = [string]$Contract.Revision
-            targetId = [string]$Contract.TargetId
+            platformTargetId = [string]$Contract.PlatformTargetId
             artifact = [ordered]@{
                 name = [string]$Contract.ProductBinary
                 length = [long]$Item.Length

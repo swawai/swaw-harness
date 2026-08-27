@@ -35,7 +35,7 @@ try {
         -Path (Join-Path $WindowsRoot 'contract.json')
     $CoreContract = Read-SwawHarnessWindowsCoreContract `
         -Path (Join-Path $WindowsRoot 'core\contract.json') `
-        -TargetId $PlatformContract.TargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId
     $InstallRoot = Get-SwawHarnessToolchainTargetPath `
         -Context $Context `
         -Contract $PlatformContract
