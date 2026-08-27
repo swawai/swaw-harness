@@ -1,17 +1,13 @@
 # Swaw Harness 核心架构规范
 
-本文是 Swaw Harness 的仓库级规范与领域规范索引；与下列目录内 `SPEC.md` 共同构成架构与协议的唯一事实源。每条规则正文只由一个文件拥有，验收脚本只引用稳定规则 ID，不从散文推断要求。
+本文是 Swaw Harness 架构与协议的唯一事实源。每条规则保持一至两句话；未来验收脚本只引用稳定规则 ID，不从散文推断要求。
 
 状态：`Accepted` 表示设计或当前能力已确认并约束实现，但不自动表示目标能力已经交付；每条规则必须明确自己描述当前能力还是已接受的目标。`Proposed` 表示建议方案；`Open` 表示仍需决议；`Superseded` 表示已被新规则替代。
-
-## Domain specifications
-
-- [Windows MSVC Bootstrap](../bootstrap/windows/toolchain/msvc/SPEC.md)
 
 ## Accepted
 
 - **HAR-001 — 独立产品仓库。** `swaw-harness` 是 Swaw 品牌下的独立产品仓库，必须脱离 `swaw-kit` 的父目录和源码树独立构建、测试、打包与发布。
-- **HAR-003 — 规范树职责单一。** 本文件记录仓库级规则并索引领域 `SPEC.md`；领域规则由最近的稳定领域拥有，`AGENTS.md` 只记录维护规则，`README.md` 只做人类入口，各载体不得复制同一规范正文。
+- **HAR-002 — 文档职责单一。** 本文件记录架构与协议，`AGENTS.md` 记录维护规则，`README.md` 只做人类入口；三者不得复制同一规范正文。
 - **ARC-002 — 源码就近归属。** 实现应下沉到最近的稳定领域所有者；放在父领域 crate 可以接受，但必须按领域拆开，不能长期集中在总入口或总 dispatcher。
 - **ARC-003 — 可独立执行。** 命令领域的核心实现应位于 library API，进程入口保持薄；因此模块可在确有发布或隔离需要时增加独立 executable，而无需重写业务逻辑。
 - **ARC-004 — 边界按代价建立。** CLI 目录不等于 Cargo package 或进程边界；只有稳定领域、独立依赖、独立发布或故障隔离需求成立时才拆 crate/executable。
@@ -46,6 +42,8 @@
 - **BOOT-022 — 工具链由 Contract 选择。** Bootstrap 工具链是由平台 Contract、target 与安装 recipe 共同确定的不可变构建输入；不得再用 mutable `current.*` 或生成脚本中的硬编码 ToolchainId 建立第二选择源。
 - **BOOT-024 — 构建环境属于子进程。** MSVC、SDK、Rust 与 Cargo 环境只注入实际工具子进程，不修改再恢复父 PowerShell 进程，也不生成需要 dot-source 的环境脚本；工具入口必须使用显式受支持的 executable 映射。
 - **BOOT-025 — 内容寻址安装只前进发布。** Toolchain 与 Candidate 等内容寻址对象只允许从已验证 stage 原子移动到不存在的目标；损坏目标可在同一身份锁内移除后重建，不为不会被合法覆盖的旧对象维护通用 backup/rollback 协议。
+- **BOOT-027 — Microsoft 许可非交互接受。** Windows Contract 必须固定 Microsoft Build Tools 许可地址与 `by-bootstrap-invocation` 接受方式；首次获取该工具链载荷前必须输出许可地址，调用 Bootstrap 即表示接受，不得弹出交互确认，MSI 必须显式禁止自动重启。
+- **BOOT-028 — VS 产品线显式固定。** Windows Bootstrap v3 固定使用 VS 2026 stable 产品线及一个经长度与 SHA-256 锚定的精确 package manifest；不得在运行时解析 `latest`，升级必须同时修改 Contract、安装 recipe 与验收测试。
 - **BOOT-045 — 仓库根 Windows 构建入口。** 根 `build.cmd` 是无业务逻辑的 Windows 适配器，只以 `<repository>/data` 调用 `bootstrap/windows/main.ps1` 并原样传播退出码；它不得复制 Entry executable、创建 Entry 或输出人工复制指引。
 - **BOOT-050 — 显式 Bootstrap 发布三种产品。** `bootstrap/windows/main.ps1` 每次调用都先构建 Core、Entry executable 与 Entry Manager 的全部 Candidate，再分别发布到各自 ReleaseRoot；已有 selector 不得跳过构建，内容未改变时复用 ReleaseId。
 - **BOOT-049 — Windows Stage-0 作者布局。** `bootstrap/windows/builder` 保存跨产品 Candidate、Release 与基础机制，`toolchain` 独占构建工具链领域，`core`、`entry` 与 `entry.manager` 分别拥有 Core、Entry executable 与 Entry Manager 产品适配器；`main.ps1` 是先构建全部 Candidate、再发布并核验 selector 的唯一多产品编排器。
@@ -104,8 +102,6 @@
 - **BUILD-REPRO-001 — Windows 可复现链接。** 当前 MSVC `link.exe` 的全新构建会把链接时间写入 PE，使同源码与同工具链仍可能产生字节不同但各自内容寻址正确的 Release；是否改用 `lld-link` 或建立更完整的 reproducible-build contract，必须在真实原生依赖样例出现后决议，不能仅追加 `/Brepro` 就宣称可复现。
 
 ## Superseded
-
-- **HAR-002 — 文档职责单一。** 本规则曾由单一中央文件拥有全部架构与协议；当前规范树的单一所有权由 `HAR-003` 取代。
 
 - **LAUNCHER-RELEASE-002 — Launcher Release 空间。** 本规则曾使用 `LauncherReleaseRoot` 与 `DataRoot/launcher.release`；当前实体名、路径与产物名已由 `TERM-001`、`ENTRY-RELEASE-001` 取代。
 - **LAUNCH-006 — Launcher 运行协议暂缓。** 本规则曾用旧产品名和 `template.harness.exe` 描述占位产物；当前名称与产物由 `ENTRY-EXEC-001` 取代。
