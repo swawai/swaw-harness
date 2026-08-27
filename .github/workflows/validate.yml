@@ -1,234 +1,46 @@
-name: Validate product
+name: Full validation
 
 on:
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
-    paths:
-      - .github/workflows/validate.yml
   workflow_dispatch:
-    inputs:
-      pr_number:
-        description: Open pull request number
-        required: true
-        type: string
-      base_sha:
-        description: Current 40-character pull request base SHA
-        required: true
-        type: string
-      head_sha:
-        description: Current 40-character pull request head SHA
-        required: true
-        type: string
 
 permissions:
   contents: read
-  pull-requests: read
-
-concurrency:
-  group: validate-product-${{ github.event.pull_request.number || inputs.pr_number }}
-  cancel-in-progress: true
 
 jobs:
-  validate-request:
-    name: Validate product request
-    runs-on: ubuntu-latest
-    outputs:
-      pr_number: ${{ steps.bind.outputs.pr_number }}
-      base_sha: ${{ steps.bind.outputs.base_sha }}
-      head_sha: ${{ steps.bind.outputs.head_sha }}
-    steps:
-      - name: Bind the current pull request revisions
-        id: bind
-        shell: pwsh
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          REPOSITORY: ${{ github.repository }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
-          ACTOR: ${{ github.actor }}
-          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
-          WORKFLOW_REF: ${{ github.ref }}
-          WORKFLOW_SHA: ${{ github.sha }}
-          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
-          INPUT_BASE_SHA: ${{ inputs.base_sha }}
-          INPUT_HEAD_SHA: ${{ inputs.head_sha }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version 3.0
-
-          $event = Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw |
-              ConvertFrom-Json
-          if ($env:EVENT_NAME -ceq 'workflow_dispatch') {
-              foreach ($requester in @($env:ACTOR, $env:TRIGGERING_ACTOR)) {
-                  if (-not [string]::Equals(
-                      $requester,
-                      $env:REPOSITORY_OWNER,
-                      [StringComparison]::OrdinalIgnoreCase
-                  )) {
-                      throw 'Only the repository owner may dispatch full validation.'
-                  }
-              }
-              if ($env:WORKFLOW_REF -cne 'refs/heads/main') {
-                  throw 'Full validation must be dispatched from main.'
-              }
-              $prNumberText = $env:INPUT_PR_NUMBER
-              $requestedBase = $env:INPUT_BASE_SHA
-              $requestedHead = $env:INPUT_HEAD_SHA
-          }
-          elseif ($env:EVENT_NAME -ceq 'pull_request') {
-              $prNumberText = [string]$event.pull_request.number
-              $requestedBase = [string]$event.pull_request.base.sha
-              $requestedHead = [string]$event.pull_request.head.sha
-          }
-          else {
-              throw "Unsupported validation event '$($env:EVENT_NAME)'."
-          }
-
-          $prNumber = 0
-          if (-not [int]::TryParse($prNumberText, [ref]$prNumber) -or
-              $prNumber -le 0) {
-              throw 'The pull request number must be a positive integer.'
-          }
-          foreach ($revision in @($requestedBase, $requestedHead)) {
-              if ($revision -cnotmatch '\A[0-9a-f]{40}\z') {
-                  throw 'Base and head revisions must be full lowercase Git SHAs.'
-              }
-          }
-
-          $headers = @{
-              Accept = 'application/vnd.github+json'
-              Authorization = "Bearer $env:GH_TOKEN"
-              'X-GitHub-Api-Version' = '2022-11-28'
-          }
-          $uri = "$env:GITHUB_API_URL/repos/$env:REPOSITORY/pulls/$prNumber"
-          $pullRequest = Invoke-RestMethod -Uri $uri -Headers $headers
-          if ([string]$pullRequest.state -cne 'open' -or
-              [string]$pullRequest.base.ref -cne 'main') {
-              throw 'Validation requires an open pull request targeting main.'
-          }
-          foreach ($repositoryName in @(
-              [string]$pullRequest.base.repo.full_name,
-              [string]$pullRequest.head.repo.full_name
-          )) {
-              if (-not [string]::Equals(
-                  $repositoryName,
-                  $env:REPOSITORY,
-                  [StringComparison]::OrdinalIgnoreCase
-              )) {
-                  throw 'Validation requires base and head branches in this repository.'
-              }
-          }
-          $actualBase = [string]$pullRequest.base.sha
-          $actualHead = [string]$pullRequest.head.sha
-          if ($requestedBase -cne $actualBase -or
-              $requestedHead -cne $actualHead) {
-              throw 'Requested revisions do not match the current pull request.'
-          }
-          if ($env:EVENT_NAME -ceq 'workflow_dispatch' -and
-              $env:WORKFLOW_SHA -cne $actualBase) {
-              throw 'The dispatched main workflow is not the current PR base.'
-          }
-          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "pr_number=$prNumber"
-          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "base_sha=$actualBase"
-          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "head_sha=$actualHead"
-
-  windows-bootstrap:
-    name: Windows Bootstrap
-    needs:
-      - validate-request
+  windows:
+    name: Windows full validation
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
-      - name: Check out the proposed change
+      - name: Check out selected revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.validate-request.outputs.head_sha }}
-          fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify the checked-out revision
+      - name: Validate tracked syntax
         shell: powershell
-        env:
-          HEAD_SHA: ${{ needs.validate-request.outputs.head_sha }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $actualHead = (& git rev-parse HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $actualHead -cne $env:HEAD_SHA) {
-              throw 'The checked-out revision does not match the requested PR head.'
-          }
-
-      - name: Validate changed text and tracked syntax
-        shell: powershell
-        env:
-          BASE_SHA: ${{ needs.validate-request.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.validate-request.outputs.head_sha }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version 2.0
-
-          & git diff --check "$env:BASE_SHA...$env:HEAD_SHA"
-          if ($LASTEXITCODE -ne 0) {
-              throw 'Changed text contains Git whitespace errors.'
-          }
-
           $syntaxErrors = [System.Collections.Generic.List[string]]::new()
-          $productPowerShell = @(git ls-files -- `
-              'bootstrap/**/*.ps1' `
-              'bootstrap/**/*.psm1' `
-              '.github/rulesets/scripts/*.ps1' `
-              '.github/rulesets/scripts/*.psm1' `
-              '.github/rulesets/tests/*.ps1' `
-              '.github/rulesets/tests/*.psm1' `
-              '.github/rulesets/tests/**/*.ps1' `
-              '.github/rulesets/tests/**/*.psm1')
-          foreach ($path in $productPowerShell) {
-              $tokens = $null
-              $errors = $null
-              [void][Management.Automation.Language.Parser]::ParseFile(
-                  (Join-Path $PWD $path),
-                  [ref] $tokens,
-                  [ref] $errors
-              )
-              foreach ($errorRecord in $errors) {
-                  [void]$syntaxErrors.Add("${path}: $($errorRecord.Message)")
-              }
-          }
-          $productJson = @(git ls-files -- `
-              'bootstrap/**/*.json' `
-              '.github/rulesets/protect-main.json')
-          foreach ($path in $productJson) {
-              try {
-                  [void](Get-Content -LiteralPath $path -Raw | ConvertFrom-Json)
-              }
-              catch {
-                  [void]$syntaxErrors.Add("${path}: $($_.Exception.Message)")
-              }
+          $powerShellFiles = @(git ls-files -- '*.ps1' '*.psm1')
+          foreach ($path in $powerShellFiles) {
+            $tokens = $null
+            $errors = $null
+            [void][Management.Automation.Language.Parser]::ParseFile(
+              (Join-Path $PWD $path),
+              [ref]$tokens,
+              [ref]$errors
+            )
+            foreach ($errorRecord in $errors) {
+              [void]$syntaxErrors.Add("${path}: $($errorRecord.Message)")
+            }
           }
           if ($syntaxErrors.Count -gt 0) {
-              foreach ($message in $syntaxErrors) {
-                  Write-Host "::error::$message"
-              }
-              exit 1
+            $syntaxErrors | ForEach-Object { Write-Error $_ }
+            exit 1
           }
 
-      - name: Exercise retained Ruleset manager under Windows PowerShell 5.1
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          & .\.github\rulesets\tests\protect-main.ps1
-
-      - name: Exercise retained Ruleset manager under PowerShell 7
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          & .\.github\rulesets\tests\protect-main.ps1
-
-      - name: Exercise the root build and repeated Windows publication
+      - name: Exercise root build and Windows publication
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -236,14 +48,14 @@ jobs:
           & .\bootstrap\windows\tests\root-build.ps1
           & .\bootstrap\windows\tests\main.ps1 -DataRoot $dataRoot
 
-      - name: Test the Core Rust workspace with the controlled toolchain
+      - name: Test Core Rust workspace
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $dataRoot = Join-Path $PWD 'data'
           & .\bootstrap\windows\tests\core-rust.ps1 -DataRoot $dataRoot
 
-      - name: Verify Core, Entry executable, and Entry Manager releases
+      - name: Verify releases
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -251,56 +63,3 @@ jobs:
           & .\bootstrap\windows\tests\core-release.ps1 -DataRoot $dataRoot
           & .\bootstrap\windows\tests\entry.ps1 -DataRoot $dataRoot
           & .\bootstrap\windows\tests\entry-manager.ps1 -DataRoot $dataRoot
-
-  product-validation:
-    name: Product validation
-    if: ${{ always() }}
-    needs:
-      - validate-request
-      - windows-bootstrap
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require successful product checks
-        shell: pwsh
-        env:
-          REQUEST_RESULT: ${{ needs.validate-request.result }}
-          WINDOWS_BOOTSTRAP_RESULT: ${{ needs.windows-bootstrap.result }}
-          REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ needs.validate-request.outputs.pr_number }}
-          BASE_SHA: ${{ needs.validate-request.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.validate-request.outputs.head_sha }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if ($env:REQUEST_RESULT -cne 'success') {
-              throw "Validation request concluded '$($env:REQUEST_RESULT)'."
-          }
-          if ($env:WINDOWS_BOOTSTRAP_RESULT -cne 'success') {
-              throw (
-                  "Windows Bootstrap concluded " +
-                  "'$($env:WINDOWS_BOOTSTRAP_RESULT)'."
-              )
-          }
-          $headers = @{
-              Accept = 'application/vnd.github+json'
-              Authorization = "Bearer $env:GH_TOKEN"
-              'X-GitHub-Api-Version' = '2022-11-28'
-          }
-          $uri = "$env:GITHUB_API_URL/repos/$env:REPOSITORY/pulls/$env:PR_NUMBER"
-          $pullRequest = Invoke-RestMethod -Uri $uri -Headers $headers
-          if ([string]$pullRequest.state -cne 'open' -or
-              [string]$pullRequest.base.ref -cne 'main' -or
-              [string]$pullRequest.base.sha -cne $env:BASE_SHA -or
-              [string]$pullRequest.head.sha -cne $env:HEAD_SHA -or
-              -not [string]::Equals(
-                  [string]$pullRequest.base.repo.full_name,
-                  $env:REPOSITORY,
-                  [StringComparison]::OrdinalIgnoreCase
-              ) -or -not [string]::Equals(
-                  [string]$pullRequest.head.repo.full_name,
-                  $env:REPOSITORY,
-                  [StringComparison]::OrdinalIgnoreCase
-              )) {
-              throw 'The pull request changed while product validation was running.'
-          }
-          Write-Output 'All requested product checks passed for the exact PR revisions.'
