@@ -12,13 +12,12 @@
 - **EntryId**：Entry Manager 为一个 Entry 确定的文件系统名称；它同时用作 `data.entry/<EntryId>.exe` 的文件名和 `data.entry/<EntryId>/` EntryRoot 的目录名。
 - **EntryRoot**：与一个 Entry 唯一绑定的目录根，由 Entry Manager executable 在创建 Entry 时一并建立。
 - **Bootstrap**：自动下载并设置便携 Rust 与 MSVC 编译环境，并在无需用户干预的情况下编译出 Harness 核心的启动构建流程。
-- **Resource**：在一个资源空间内按文件系统路径寻找并执行操作的对象。
+- **Resource**：在一个资源空间内通过目录树寻址找到并执行操作的对象。
 - **Facet**：对已找到 Resource 执行的具名操作。
 - **资源空间**：具有独立文件系统根、事实来源、生命周期与写入权限边界的一组 Resource；不得简称为含义过宽的 `Space`。
 - **基础资源空间**：无需通过 Facet、export 或 mount 建立即可直接选择的资源空间；当前包括作者（源代码）、运行（发布）、runs（logs）和 context 模块专用上下文记录空间。
-- **派生资源空间**：由领域或用户机制通过 export、远端 mount 等方式建立的资源空间；它具有自己的文件系统根，并使用与基础资源空间相同的路径寻址与 Facet 操作模型。
-- **Candidate（候选发布物）**：Build 完成后固化在 `<repository>/data/bootstrap.windows.cache/build/<product>/<TargetId>/candidates/<CandidateId>/` 中、已经验证且不可变的发布输入；目录内保存产物和 `candidate.json`，它不是构建暂存目录。
-- **CandidateId**：Candidate 目录的名称，由 `candidate.json` 的 schema、Contract revision、TargetId、产物名称、产物长度与产物内容 SHA-256 共同确定；这些输入相同时复用同一 Candidate。
+- **派生资源空间**：由领域或用户机制通过 export、远端 mount 等方式建立的资源空间；它具有自己的文件系统根，并使用与基础资源空间相同的目录树寻址与 Facet 操作模型。
+- **目录树寻址**：每个资源空间以其文件系统目录树作为地址域；选择资源空间后，使用该目录树根下规范化的相对文件系统路径寻找 Resource，不另建逻辑 Route 或其他地址模型。
 - **ReleaseId**：产品发布根下 `<ReleaseId>/` 不可变发布目录的名称，由发布目标与发布物内容的哈希确定；发布目标与内容均相同时复用同一目录。
 - **selector**：产品发布根下名为 `current.<TargetId>` 的普通文本文件；它是指向 `<ReleaseId>/` 的逻辑文件指针，以原子替换完成当前版本切换。
 
