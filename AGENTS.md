@@ -1,5 +1,24 @@
 # Swaw Harness 仓库规则
 
+## Scope
+
+本文件适用于整个仓库，Rule ID 前缀为 `REPO`。
+
+## Accepted
+
+- **REPO-001 — 领域规则命名空间。** `AGENTS.md` 按目录承载其作用域内的规则；根文件记录全仓规则，稳定领域规则归最近目录并声明全仓唯一前缀。各 `AGENTS.md` 声明前缀内的 `Accepted` 与 `Open` 共用从 `001` 开始的连续序列，新 ID 使用当前最大后缀加一，活动正文始终只有一个所有者；`README.md` 只做人类入口。
+- **REPO-002 — 源码就近归属。** 实现应下沉到最近的稳定领域所有者；放在父领域 crate 可以接受，但必须按领域拆开，不能长期集中在总入口或总 dispatcher。
+
+## Open
+
+当前无。
+
+## Maintainer Notes
+
+- 待办（原 `HAR-001`）：验证并实现 `swaw-harness` 脱离 `swaw-kit` 父目录和源码树后仍可独立构建、测试、打包与发布；完成前不得将其表述为当前能力。
+
+## Agent 工作约束
+
 1. 在中心规范逐步迁回目录规则并退场前，修改仓库必须先读取 `docs/swaw-harness-spec.md`，再读取从仓库根到目标路径沿途的全部 `AGENTS.md`；近目录规则只可补充或收紧上层规则。
 2. 必须区分已确认事实、目标状态和推断，不得把尚未完成的迁移写成当前能力。
 3. 遵循 KISS、YAGNI、AHA > DRY、Single Source of Truth、Core vs Context 和 Locality of Behavior；适度重复优于错误抽象。

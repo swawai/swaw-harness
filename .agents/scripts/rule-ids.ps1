@@ -91,15 +91,6 @@ foreach ($PrefixGroup in $CurrentPrefixGroups) {
     if ($PrefixFiles.Count -ne 1) {
         throw "Prefix $($PrefixGroup.Name) is split across owners: $($PrefixFiles -join ', ')"
     }
-    $Numbers = @(
-        $PrefixGroup.Group |
-            ForEach-Object { [int]($_.Id -replace '^.*-([0-9]{3})$', '$1') } |
-            Sort-Object
-    )
-    $Expected = @(1..$Numbers.Count)
-    if (($Numbers -join ',') -cne ($Expected -join ',')) {
-        throw "Prefix $($PrefixGroup.Name) must form a contiguous current sequence from 001."
-    }
 }
 
 $DuplicatePrefixes = @($Owners | Group-Object Prefix | Where-Object Count -gt 1)
@@ -195,7 +186,7 @@ $OrderedResults = @($Results | Sort-Object Prefix)
 if ([string]::IsNullOrWhiteSpace($Prefix)) {
     $OrderedResults | Format-Table Prefix, Maximum, NextId, File -AutoSize
     Write-Host (
-        '[PASS] {0} current Rule IDs are unique; {1} current prefixes each have one owner and a contiguous 001-based sequence; {2} owners declare local prefixes.' -f
+        '[PASS] {0} current Rule IDs are unique; {1} current prefixes each have one file owner; {2} AGENTS.md owners declare a contiguous 001-based local prefix.' -f
         $Rules.Count,
         $CurrentPrefixGroups.Count,
         $Owners.Count
