@@ -10,6 +10,7 @@
 - **WIN-BOOT-002 — Microsoft 许可非交互接受。** Windows Contract 必须固定 Microsoft Build Tools 许可地址与 `by-bootstrap-invocation` 接受方式；首次获取该工具链载荷前必须输出许可地址，调用 Bootstrap 即表示接受，不得弹出交互确认，MSI 必须显式禁止自动重启。
 - **WIN-BOOT-003 — Windows executable 运行时自包含。** Windows Bootstrap 发布的 Core、Entry executable 与 Entry Manager executable 均不得依赖用户另行安装的 C/C++ runtime；Windows 系统组件不属于该限制。
 - **WIN-BOOT-004 — Windows 便携工具链。** Windows Bootstrap 必须自动下载并设置便携 Rust 与 MSVC 编译环境，无需用户预装、配置或交互干预，即可编译出 Harness 核心。
+- **WIN-BOOT-005 — 构建环境只进入工具子进程。** `bootstrap/windows/toolchain/environment.ps1` 只生成环境计划，`bootstrap/windows/builder/process.ps1` 只把该计划注入实际工具子进程；不得修改后再恢复父 PowerShell 进程，也不得生成要求调用者 dot-source 的环境脚本，工具入口必须使用明确支持的 executable 路径。
 
 ## Open
 

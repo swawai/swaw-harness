@@ -38,19 +38,19 @@ $Owners = [System.Collections.Generic.List[object]]::new()
 foreach ($RelativePath in $Files) {
     $Path = Join-Path $Root $RelativePath
     $NormalizedPath = $RelativePath.Replace('\', '/')
-    $IsAgentFile = $NormalizedPath -match '(^|/)AGENTS\.md$'
+    $IsAgentFile = $NormalizedPath -cmatch '(^|/)AGENTS\.md$'
     $Lines = @(Get-Content -LiteralPath $Path -Encoding UTF8)
     $Section = ''
     $Heading = ''
     $DeclaredPrefix = $null
 
     foreach ($Line in $Lines) {
-        if ($Line -match '^## (.+)$') {
+        if ($Line -cmatch '^## (.+)$') {
             $Heading = $Matches[1]
             if ($IsAgentFile -and $Heading -ceq 'Proposed') {
                 throw "Use Open for unresolved rules: $RelativePath"
             }
-            if ($Heading -in @('Accepted', 'Open')) {
+            if ($Heading -cin @('Accepted', 'Open')) {
                 $Section = $Heading
             }
             else {
@@ -60,26 +60,35 @@ foreach ($RelativePath in $Files) {
         }
 
         if ($IsAgentFile -and
-            $Line -match 'Rule ID [^`]*`([A-Z][A-Z0-9-]*)`') {
+            $Line -cmatch 'Rule ID [^`]*`([A-Za-z][A-Za-z0-9-]*)`') {
+            $CandidatePrefix = $Matches[1]
+            if ($CandidatePrefix -cnotmatch '^[A-Z][A-Z0-9-]*$') {
+                throw "Rule ID prefixes must use uppercase ASCII: $RelativePath"
+            }
             if ($Heading -cne 'Scope') {
                 throw "The Rule ID prefix must be declared in Scope: $RelativePath"
             }
             if ($null -ne $DeclaredPrefix -and
-                $DeclaredPrefix -cne $Matches[1]) {
+                $DeclaredPrefix -cne $CandidatePrefix) {
                 throw "Multiple Rule ID prefixes are declared in $RelativePath."
             }
-            $DeclaredPrefix = $Matches[1]
+            $DeclaredPrefix = $CandidatePrefix
         }
 
-        if ($Line -match '^- \*\*([A-Z][A-Z0-9-]*-[0-9]{3}) \p{Pd} ') {
-            if ($Section -notin @('Accepted', 'Open')) {
+        if ($Line -cmatch
+            '^- \*\*([A-Za-z][A-Za-z0-9-]*-[0-9]{3}) \p{Pd} ') {
+            $RuleId = $Matches[1]
+            if ($RuleId -cnotmatch '^[A-Z][A-Z0-9-]*-[0-9]{3}$') {
+                throw "Rule IDs must use uppercase ASCII: $RelativePath"
+            }
+            if ($Section -cnotin @('Accepted', 'Open')) {
                 if ($IsAgentFile) {
                     throw "Rule declarations are only valid under Accepted or Open: $RelativePath"
                 }
                 continue
             }
             $Rules.Add([pscustomobject]@{
-                    Id = $Matches[1]
+                    Id = $RuleId
                     Section = $Section
                     File = $NormalizedPath
                 })
@@ -119,7 +128,7 @@ if ($DuplicatePrefixes.Count -gt 0) {
 $OwnerFiles = @($Owners | Select-Object -ExpandProperty File)
 $NonAgentRuleFiles = @(
     $Rules |
-        Where-Object { $_.File -notmatch '(^|/)AGENTS\.md$' } |
+        Where-Object { $_.File -cnotmatch '(^|/)AGENTS\.md$' } |
         Select-Object -ExpandProperty File -Unique
 )
 if ($NonAgentRuleFiles.Count -gt 0) {
