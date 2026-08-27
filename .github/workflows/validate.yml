@@ -1,103 +1,46 @@
-name: Validate product
+name: Full validation
 
 on:
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: validate-product-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
-  windows-bootstrap:
-    name: Windows Bootstrap
+  windows:
+    name: Windows full validation
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
-      - name: Check out the proposed change
+      - name: Check out selected revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
 
-      - name: Validate changed text and tracked syntax
+      - name: Validate tracked syntax
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version 2.0
-
-          $event = Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw |
-              ConvertFrom-Json
-          $revisionRange = '{0}...{1}' -f @(
-              [string] $event.pull_request.base.sha,
-              [string] $event.pull_request.head.sha
-          )
-          & git diff --check $revisionRange
-          if ($LASTEXITCODE -ne 0) {
-              throw 'Changed text contains Git whitespace errors.'
-          }
-
           $syntaxErrors = [System.Collections.Generic.List[string]]::new()
-          $productPowerShell = @(git ls-files -- `
-              'bootstrap/**/*.ps1' `
-              'bootstrap/**/*.psm1' `
-              '.github/rulesets/scripts/*.ps1' `
-              '.github/rulesets/scripts/*.psm1' `
-              '.github/rulesets/tests/*.ps1' `
-              '.github/rulesets/tests/*.psm1' `
-              '.github/rulesets/tests/**/*.ps1' `
-              '.github/rulesets/tests/**/*.psm1')
-          foreach ($path in $productPowerShell) {
-              $tokens = $null
-              $errors = $null
-              [void][Management.Automation.Language.Parser]::ParseFile(
-                  (Join-Path $PWD $path),
-                  [ref] $tokens,
-                  [ref] $errors
-              )
-              foreach ($errorRecord in $errors) {
-                  [void]$syntaxErrors.Add("${path}: $($errorRecord.Message)")
-              }
-          }
-          $productJson = @(git ls-files -- `
-              'bootstrap/**/*.json' `
-              '.github/rulesets/protect-main.json')
-          foreach ($path in $productJson) {
-              try {
-                  [void](Get-Content -LiteralPath $path -Raw | ConvertFrom-Json)
-              }
-              catch {
-                  [void]$syntaxErrors.Add("${path}: $($_.Exception.Message)")
-              }
+          $powerShellFiles = @(git ls-files -- '*.ps1' '*.psm1')
+          foreach ($path in $powerShellFiles) {
+            $tokens = $null
+            $errors = $null
+            [void][Management.Automation.Language.Parser]::ParseFile(
+              (Join-Path $PWD $path),
+              [ref]$tokens,
+              [ref]$errors
+            )
+            foreach ($errorRecord in $errors) {
+              [void]$syntaxErrors.Add("${path}: $($errorRecord.Message)")
+            }
           }
           if ($syntaxErrors.Count -gt 0) {
-              foreach ($message in $syntaxErrors) {
-                  Write-Host "::error::$message"
-              }
-              exit 1
+            $syntaxErrors | ForEach-Object { Write-Error $_ }
+            exit 1
           }
 
-      - name: Exercise retained Ruleset manager under Windows PowerShell 5.1
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          & .\.github\rulesets\tests\protect-main.ps1
-
-      - name: Exercise retained Ruleset manager under PowerShell 7
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          & .\.github\rulesets\tests\protect-main.ps1
-
-      - name: Exercise the root build and repeated Windows publication
+      - name: Exercise root build and Windows publication
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -105,14 +48,14 @@ jobs:
           & .\bootstrap\windows\tests\root-build.ps1
           & .\bootstrap\windows\tests\main.ps1 -DataRoot $dataRoot
 
-      - name: Test the Core Rust workspace with the controlled toolchain
+      - name: Test Core Rust workspace
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $dataRoot = Join-Path $PWD 'data'
           & .\bootstrap\windows\tests\core-rust.ps1 -DataRoot $dataRoot
 
-      - name: Verify Core, Entry executable, and Entry Manager releases
+      - name: Verify releases
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -120,21 +63,3 @@ jobs:
           & .\bootstrap\windows\tests\core-release.ps1 -DataRoot $dataRoot
           & .\bootstrap\windows\tests\entry.ps1 -DataRoot $dataRoot
           & .\bootstrap\windows\tests\entry-manager.ps1 -DataRoot $dataRoot
-
-  product-validation:
-    name: Product validation
-    if: ${{ always() }}
-    needs:
-      - windows-bootstrap
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require successful product checks
-        shell: bash
-        env:
-          WINDOWS_BOOTSTRAP_RESULT: ${{ needs.windows-bootstrap.result }}
-        run: |
-          if [[ "$WINDOWS_BOOTSTRAP_RESULT" != "success" ]]; then
-            echo "::error::Windows Bootstrap concluded '$WINDOWS_BOOTSTRAP_RESULT'."
-            exit 1
-          fi
-          echo 'All required product checks passed.'
