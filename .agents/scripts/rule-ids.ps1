@@ -15,7 +15,15 @@ if ($LASTEXITCODE -ne 0) {
     throw 'Cannot enumerate the repository rule files with git.'
 }
 
-$Files = @($TrackedFiles | Sort-Object -Unique)
+$Files = @(
+    $TrackedFiles |
+        Where-Object {
+            Test-Path `
+                -LiteralPath (Join-Path $Root $_) `
+                -PathType Leaf
+        } |
+        Sort-Object -Unique
+)
 if ($Files.Count -eq 0) {
     throw 'No repository rule files were found.'
 }
@@ -99,11 +107,18 @@ if ($DuplicatePrefixes.Count -gt 0) {
 }
 
 $OwnerFiles = @($Owners | Select-Object -ExpandProperty File)
+$NonAgentRuleFiles = @(
+    $Rules |
+        Where-Object { $_.File -notmatch '(^|/)AGENTS\.md$' } |
+        Select-Object -ExpandProperty File -Unique
+)
+if ($NonAgentRuleFiles.Count -gt 0) {
+    throw "Active rules may only be declared in AGENTS.md: $($NonAgentRuleFiles -join ', ')"
+}
+
 $UnownedLocalFiles = @(
     $Rules |
         Where-Object {
-            $_.File -like '*AGENTS.md' -and
-            $_.Section -in @('Accepted', 'Open') -and
             $_.File -notin $OwnerFiles
         } |
         Select-Object -ExpandProperty File -Unique
