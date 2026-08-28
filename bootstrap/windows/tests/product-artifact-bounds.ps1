@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([string]$DataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -35,9 +35,11 @@ $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $WindowsRoot 'builder\release\publication.ps1')
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$TestRoot = Join-Path $RepositoryRoot (
-    "data\_test\product-artifact-bounds-$([Guid]::NewGuid().ToString('N'))"
-)
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 $BootstrapWindowsRoot = Join-Path $TestRoot 'bootstrap.windows'
 $BootstrapWindowsCacheRoot = Join-Path $TestRoot 'bootstrap.windows.cache'
 $BuildRoot = Join-Path $BootstrapWindowsCacheRoot 'build\bounds-test'

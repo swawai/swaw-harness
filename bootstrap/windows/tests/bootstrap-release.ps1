@@ -14,9 +14,6 @@ function Assert-BootstrapReleaseTest {
 
 $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-if ([string]::IsNullOrWhiteSpace($DataRoot)) {
-    $DataRoot = Join-Path $RepositoryRoot 'data'
-}
 . (Join-Path $WindowsRoot 'builder\context.ps1')
 . (Join-Path $WindowsRoot 'builder\contract.ps1')
 . (Join-Path $WindowsRoot 'builder\release\selector.ps1')
@@ -24,10 +21,12 @@ if ([string]::IsNullOrWhiteSpace($DataRoot)) {
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'pe-imports.ps1')
+. (Join-Path $PSScriptRoot 'paths.ps1')
 
-$TestRoot = Join-Path $RepositoryRoot (
-    "data\_test\bootstrap-release-$([Guid]::NewGuid().ToString('N'))"
-)
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 try {
     $SharedContext = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `

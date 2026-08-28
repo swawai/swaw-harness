@@ -55,15 +55,12 @@ $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
 . (Join-Path $WindowsRoot 'entry\contract.ps1')
 . (Join-Path $WindowsRoot 'entry.manager\contract.ps1')
 . (Join-Path $WindowsRoot 'publication.ps1')
-if ([string]::IsNullOrWhiteSpace($DataRoot)) {
-    $DataRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..\data'))
-}
-$DataRoot = [IO.Path]::GetFullPath($DataRoot)
-[void][IO.Directory]::CreateDirectory($DataRoot)
-$TestRoot = Join-Path $DataRoot (
-    'bootstrap.windows.cache\_test\publication-concurrency-' +
-    [Guid]::NewGuid().ToString('N')
-)
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 $PublicationDataRoot = Join-Path $TestRoot 'data'
 $FixtureRoot = Join-Path $TestRoot 'artifacts'
 [void][IO.Directory]::CreateDirectory($FixtureRoot)

@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([string]$DataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -14,9 +14,11 @@ function Assert-ProcessTest {
 $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $WindowsRoot 'builder\process.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$TestRoot = Join-Path $RepositoryRoot (
-    "data\bootstrap.windows.cache\_test\process-$([Guid]::NewGuid().ToString('N'))"
-)
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 
 try {
     [void][IO.Directory]::CreateDirectory($TestRoot)

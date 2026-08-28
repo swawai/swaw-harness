@@ -1,3 +1,6 @@
+[CmdletBinding()]
+param([string]$DataRoot = '')
+
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
@@ -17,12 +20,12 @@ function Assert-MsvcAssemblyTest {
 }
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$TestBase = Join-Path $RepositoryRoot 'data\bootstrap.windows.cache\_test'
-[void][IO.Directory]::CreateDirectory($TestBase)
-$TestRoot = Join-Path $TestBase (
-    "msvc-assembly-$([Guid]::NewGuid().ToString('N'))"
-)
-[void][IO.Directory]::CreateDirectory($TestRoot)
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestBase = Split-Path -Path $TestRoot -Parent
 try {
     $ToolVersion = '14.51.36231'
     $SdkVersion = '10.0.28000.0'

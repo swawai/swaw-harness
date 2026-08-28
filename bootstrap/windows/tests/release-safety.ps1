@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([string]$DataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -44,9 +44,11 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\context.ps1')
 . (Join-Path $WindowsRoot 'builder\release\publication.ps1')
 
-$TestRoot = Join-Path $RepositoryRoot (
-    "data\_test\release-safety-$([Guid]::NewGuid().ToString('N'))"
-)
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 try {
     $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
     $FixtureRoot = Join-Path $Context.BootstrapWindowsCacheRoot 'fixtures'

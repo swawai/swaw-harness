@@ -14,9 +14,11 @@ function Assert-ToolchainCommandTest {
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
 . (Join-Path $WindowsRoot 'builder\process.ps1')
-if ([string]::IsNullOrWhiteSpace($DataRoot)) {
-    $DataRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..\data'))
-}
+$RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
 $Before = [Environment]::GetEnvironmentVariable('RUSTFLAGS', 'Process')
 [Environment]::SetEnvironmentVariable('RUSTFLAGS', 'ambient-test', 'Process')
 try {

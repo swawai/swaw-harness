@@ -1,3 +1,6 @@
+[CmdletBinding()]
+param([string]$DataRoot = '')
+
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
@@ -23,11 +26,12 @@ function Write-CrossRuntimeFile {
 }
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$TestBase = Join-Path $RepositoryRoot 'data\bootstrap.windows.cache\_test'
-[void][IO.Directory]::CreateDirectory($TestBase)
-$TestRoot = Join-Path $TestBase (
-    "cross-runtime-$([Guid]::NewGuid().ToString('N'))"
-)
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestBase = Split-Path -Path $TestRoot -Parent
 $ControlledRoot = Join-Path $TestRoot 'controlled'
 $RustRoot = Join-Path $ControlledRoot 'rust'
 $MsvcRoot = Join-Path $ControlledRoot 'msvc'
