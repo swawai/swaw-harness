@@ -24,9 +24,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
     -DataRoot $DataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot `
-    -DataRoot $DataRoot `
-    -Name 'msvc-assembly'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 $TestBase = Split-Path -Path $TestRoot -Parent
 try {
     $ToolVersion = '14.51.36231'

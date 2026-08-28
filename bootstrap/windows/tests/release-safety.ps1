@@ -48,9 +48,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
     -DataRoot $DataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot `
-    -DataRoot $DataRoot `
-    -Name 'release-safety'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 try {
     $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
     $FixtureRoot = Join-Path $Context.BootstrapWindowsCacheRoot 'fixtures'

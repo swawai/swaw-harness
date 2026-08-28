@@ -30,9 +30,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
     -DataRoot $DataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot `
-    -DataRoot $DataRoot `
-    -Name 'rust-inventory'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 $ControlledRoot = Join-Path $TestRoot 'controlled'
 $RustRoot = Join-Path $ControlledRoot 'rust'
 $JunctionPath = ''

@@ -31,9 +31,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
     -DataRoot $DataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot `
-    -DataRoot $DataRoot `
-    -Name 'install-publish'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 try {
     $ValidateGood = {
         param($Root)

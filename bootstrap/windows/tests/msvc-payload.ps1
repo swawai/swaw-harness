@@ -66,9 +66,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
     -DataRoot $DataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot `
-    -DataRoot $DataRoot `
-    -Name 'msvc-payload'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 $TestBase = Split-Path -Path $TestRoot -Parent
 try {
     $ArchivePath = Join-Path $TestRoot 'valid.vsix'

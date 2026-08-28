@@ -60,9 +60,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
     -DataRoot $DataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot `
-    -DataRoot $DataRoot `
-    -Name 'publication-concurrency'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 $PublicationDataRoot = Join-Path $TestRoot 'data'
 $FixtureRoot = Join-Path $TestRoot 'artifacts'
 [void][IO.Directory]::CreateDirectory($FixtureRoot)

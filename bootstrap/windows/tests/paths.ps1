@@ -21,20 +21,14 @@ function Get-SwawHarnessWindowsTestCacheRoot {
 }
 
 function New-SwawHarnessWindowsTestRunRoot {
-    param(
-        [Parameter(Mandatory = $true)][string]$DataRoot,
-        [Parameter(Mandatory = $true)][string]$Name
-    )
+    param([Parameter(Mandatory = $true)][string]$DataRoot)
 
-    if ($Name -cnotmatch '^[a-z0-9][a-z0-9.-]*$') {
-        throw "Invalid Windows Bootstrap test run name '$Name'."
-    }
     $RunsRoot = Join-Path `
         (Get-SwawHarnessWindowsTestCacheRoot -DataRoot $DataRoot) `
         'runs'
     [void][IO.Directory]::CreateDirectory($RunsRoot)
     $RunToken = [Guid]::NewGuid().ToString('N').Substring(0, 16)
-    $RunRoot = Join-Path $RunsRoot "$Name-$RunToken"
+    $RunRoot = Join-Path $RunsRoot $RunToken
     [void][IO.Directory]::CreateDirectory($RunRoot)
     return $RunRoot
 }

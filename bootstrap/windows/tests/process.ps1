@@ -18,9 +18,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
     -DataRoot $DataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot `
-    -DataRoot $DataRoot `
-    -Name 'process'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 
 try {
     [void][IO.Directory]::CreateDirectory($TestRoot)

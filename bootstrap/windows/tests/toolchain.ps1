@@ -38,9 +38,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
     -DataRoot $DataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot `
-    -DataRoot $DataRoot `
-    -Name 'toolchain'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 $PreviousRustFlags = [Environment]::GetEnvironmentVariable('RUSTFLAGS', 'Process')
 try {
     $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot

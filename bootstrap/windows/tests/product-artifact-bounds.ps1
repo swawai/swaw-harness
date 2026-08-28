@@ -39,9 +39,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 $DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
     -DataRoot $DataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot `
-    -DataRoot $DataRoot `
-    -Name 'product-artifact-bounds'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
 $BootstrapWindowsRoot = Join-Path $TestRoot 'bootstrap.windows'
 $BootstrapWindowsCacheRoot = Join-Path $TestRoot 'bootstrap.windows.cache'
 $BuildRoot = Join-Path $BootstrapWindowsCacheRoot 'build\bounds-test'
