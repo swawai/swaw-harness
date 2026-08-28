@@ -1,59 +1,12 @@
-use std::fmt;
-use std::str::FromStr;
+mod identity;
+mod layout;
+mod lifecycle;
+mod record;
 
-pub const CONTROL_PANEL_PENDING: &str =
-    "Swaw Harness Entry Manager control panel is not implemented yet; \
+pub use identity::{EntryId, EntryIdError, MAX_ENTRY_ID_BYTES};
+pub use layout::EntryLayout;
+pub use lifecycle::EntryLifecycleState;
+pub use record::{ENTRY_RECORD_SCHEMA, EntryRecord, EntryRecordError};
+
+pub const CONTROL_PANEL_PENDING: &str = "Swaw Harness Entry Manager control panel is not implemented yet; \
      this artifact currently validates its independent build and release.";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EntryLifecycleState {
-    Provisioning,
-    Active,
-    Deleting,
-}
-
-impl EntryLifecycleState {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Provisioning => "provisioning",
-            Self::Active => "active",
-            Self::Deleting => "deleting",
-        }
-    }
-}
-
-impl fmt::Display for EntryLifecycleState {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.as_str())
-    }
-}
-
-impl FromStr for EntryLifecycleState {
-    type Err = &'static str;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "provisioning" => Ok(Self::Provisioning),
-            "active" => Ok(Self::Active),
-            "deleting" => Ok(Self::Deleting),
-            _ => Err("unsupported Entry lifecycle state"),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn lifecycle_names_are_closed_and_canonical() {
-        for state in [
-            EntryLifecycleState::Provisioning,
-            EntryLifecycleState::Active,
-            EntryLifecycleState::Deleting,
-        ] {
-            assert_eq!(state.as_str().parse(), Ok(state));
-        }
-        assert!("ready".parse::<EntryLifecycleState>().is_err());
-    }
-}
