@@ -6,7 +6,7 @@
 
 ## Accepted
 
-- **ENTRY-MANAGEMENT-001 — Entry 存储布局。** `<HarnessRoot>/data` 是可独立复制运行的 DataRoot；每个 Entry 由同级的 `data/<EntryId>.exe` 与 `data/<EntryId>/` 组成，后者是 EntryRoot，其 `entry.json` 保存受管身份与生命周期，文件和目录不承诺文件系统级原子出现；Entry 不得依赖 `<repository>/data.repo`。
+- **ENTRY-MANAGEMENT-001 — Entry 存储布局。** `<HarnessRoot>/data` 是 DataHome；每个 Entry 由同级的 `data/<EntryId>.exe` 与 `data/<EntryId>/` 组成，后者是 EntryRoot，其 `entry.json` 保存受管身份与生命周期，文件和目录不承诺文件系统级原子出现；Entry 不得依赖 `<repository>/data.repo`。
 
 ## Open
 
