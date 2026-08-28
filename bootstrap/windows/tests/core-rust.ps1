@@ -9,10 +9,11 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\context.ps1')
 . (Join-Path $WindowsRoot 'builder\contract.ps1')
 . (Join-Path $WindowsRoot 'builder\process.ps1')
+. (Join-Path $PSScriptRoot 'paths.ps1')
 
-if ([string]::IsNullOrWhiteSpace($DataRoot)) {
-    $DataRoot = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'data'))
-}
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
 $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
 $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
@@ -24,8 +25,10 @@ if ($SetupResults.Count -ne 1 -or
 }
 
 $WorkspaceManifest = Join-Path $RepositoryRoot 'core\Cargo.toml'
-$CargoTargetRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-    "tests\core\$($PlatformContract.PlatformTargetId)\cargo-target"
+$CargoTargetRoot = Join-Path (
+    Get-SwawHarnessWindowsTestBuildRoot -DataRoot $Context.DataRoot
+) (
+    "core\$($PlatformContract.PlatformTargetId)\cargo-target"
 )
 $RustTargetConfiguration = (
     "target.$($PlatformContract.PlatformTargetId).rustflags=" +

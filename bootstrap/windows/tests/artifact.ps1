@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([string]$DataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -14,9 +14,13 @@ function Assert-ArtifactTest {
 $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $WindowsRoot 'toolchain\download-cache.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$TestRoot = Join-Path $RepositoryRoot (
-    "data\bootstrap.windows.cache\_test\artifact-$([Guid]::NewGuid().ToString('N'))"
-)
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot `
+    -DataRoot $DataRoot `
+    -Name 'artifact'
 $OwnerRoot = Join-Path $TestRoot 'bootstrap.windows'
 $CacheRoot = Join-Path $TestRoot 'bootstrap.windows.cache'
 $SourceRoot = Join-Path $TestRoot 'source'

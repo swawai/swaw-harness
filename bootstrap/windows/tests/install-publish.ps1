@@ -1,3 +1,6 @@
+[CmdletBinding()]
+param([string]$DataRoot = '')
+
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
@@ -24,10 +27,13 @@ function New-InstallPublishFixture {
 }
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$TestRoot = Join-Path $RepositoryRoot (
-    "data\bootstrap.windows.cache\_test\install-publish-$([Guid]::NewGuid().ToString('N'))"
-)
-[void][IO.Directory]::CreateDirectory($TestRoot)
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot `
+    -DataRoot $DataRoot `
+    -Name 'install-publish'
 try {
     $ValidateGood = {
         param($Root)

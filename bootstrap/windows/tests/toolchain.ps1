@@ -1,3 +1,6 @@
+[CmdletBinding()]
+param([string]$DataRoot = '')
+
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
@@ -31,18 +34,21 @@ function Write-ToolchainFixtureFile {
 }
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$DataRoot = Join-Path $RepositoryRoot (
-    "data\bootstrap.windows.cache\_test\toolchain-$([Guid]::NewGuid().ToString('N'))"
-)
-[void][IO.Directory]::CreateDirectory($DataRoot)
+. (Join-Path $PSScriptRoot 'paths.ps1')
+$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
+    -DataRoot $DataRoot `
+    -RepositoryRoot $RepositoryRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot `
+    -DataRoot $DataRoot `
+    -Name 'toolchain'
 $PreviousRustFlags = [Environment]::GetEnvironmentVariable('RUSTFLAGS', 'Process')
 try {
-    $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
+    $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
     $ExpectedOwnerRoot = [IO.Path]::GetFullPath(
-        (Join-Path $DataRoot 'bootstrap.windows')
+        (Join-Path $TestRoot 'bootstrap.windows')
     )
     $ExpectedCacheRoot = [IO.Path]::GetFullPath(
-        (Join-Path $DataRoot 'bootstrap.windows.cache')
+        (Join-Path $TestRoot 'bootstrap.windows.cache')
     )
     Assert-ToolchainTest `
         -Condition (
@@ -62,8 +68,8 @@ try {
             [string]$Context.CargoHome -ceq
                 (Join-Path $ExpectedCacheRoot 'cargo') -and
             [string]$Context.BootstrapReleaseRoot -ceq
-                (Join-Path $DataRoot 'bootstrap.release') -and
-            -not (Test-Path -LiteralPath (Join-Path $DataRoot 'cache'))
+                (Join-Path $TestRoot 'bootstrap.release') -and
+            -not (Test-Path -LiteralPath (Join-Path $TestRoot 'cache'))
         ) `
         -Message 'Bootstrap state and cache roots were not kept distinct'
     $Contract = Read-SwawHarnessWindowsBootstrapContract `
@@ -248,7 +254,7 @@ try {
         $PreviousRustFlags,
         'Process'
     )
-    if ([IO.Directory]::Exists($DataRoot)) {
-        [IO.Directory]::Delete($DataRoot, $true)
+    if ([IO.Directory]::Exists($TestRoot)) {
+        [IO.Directory]::Delete($TestRoot, $true)
     }
 }
