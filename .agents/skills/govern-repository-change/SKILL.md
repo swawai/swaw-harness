@@ -15,13 +15,26 @@ Use one lightweight path for changes intended to enter the repository.
 
    ```powershell
    ghswaw issue develop N --repo <owner>/<repository> --base main --name <branch> --checkout
-   ghswaw issue develop --list N --repo <owner>/<repository>
+   if ($LASTEXITCODE -ne 0) {
+       throw 'Issue-linked branch creation or checkout failed.'
+   }
+
+   $linkedBranches = @(ghswaw issue develop --list N --repo <owner>/<repository>)
+   if ($LASTEXITCODE -ne 0) {
+       throw 'Issue-linked branch readback failed.'
+   }
+
+   $currentBranch = (& git branch --show-current)
+   if ($LASTEXITCODE -ne 0 -or $currentBranch.Trim() -cne '<branch>') {
+       throw "Expected checked-out branch '<branch>'."
+   }
    ```
 
-   Verify the exact branch in the list before editing files. An ordinary Git
-   branch or generic remote-branch creation does not establish this GitHub
-   Development relationship and must not substitute for `issue develop`. Keep
-   the Issue, branch, and PR focused on the same change.
+   Verify that `$linkedBranches` contains the exact branch before editing files.
+   An ordinary Git branch or generic remote-branch creation does not establish
+   this GitHub Development relationship and must not substitute for the GitHub
+   CLI `issue develop` operation. Keep the Issue, branch, and PR focused on the
+   same change.
 3. Implement and commit coherent changes. Use `ghswaw` for GitHub Issue and PR
    operations and ordinary `git` commands for local work. Send multiline Issue
    and PR bodies through UTF-8 `--body-file` or JSON input, never inline; read
