@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$RepositoryDataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -19,8 +19,8 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
-$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
-    -RepositoryDataRoot $RepositoryDataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
 $SetupPath = Join-Path $WindowsRoot 'toolchain-setup.ps1'
 $Jobs = @(1..2 | ForEach-Object {
@@ -31,13 +31,13 @@ $Jobs = @(1..2 | ForEach-Object {
             -NoLogo `
             -NoProfile `
             -File $ScriptPath `
-            -RepositoryDataRoot $Root `
+            -DataRepo $Root `
             2>&1)
         [pscustomobject]@{
             ExitCode = $LASTEXITCODE
             Output = [string]::Join("`n", [string[]]$Output)
         }
-    } -ArgumentList $SetupPath, $RepositoryDataRoot
+    } -ArgumentList $SetupPath, $DataRepo
 })
 try {
     [void](Wait-Job -Job $Jobs -Timeout 1800)
@@ -52,7 +52,7 @@ try {
             [string]::Join(' | ', [string[]]@($Results.Output))
         )
 
-    $Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
+    $Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
     $Contract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $ToolchainId = Get-SwawHarnessToolchainId -Contract $Contract

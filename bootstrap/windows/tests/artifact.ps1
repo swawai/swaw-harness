@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$RepositoryDataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -15,10 +15,10 @@ $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $WindowsRoot 'toolchain\download-cache.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
-    -RepositoryDataRoot $RepositoryDataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 $OwnerRoot = $TestRoot
 $CacheRoot = Join-Path $TestRoot 'windows.cache'
 $SourceRoot = Join-Path $TestRoot 'source'
@@ -29,7 +29,7 @@ try {
     [void][IO.Directory]::CreateDirectory($CacheRoot)
     [void][IO.Directory]::CreateDirectory($SourceRoot)
     $Context = [pscustomobject]@{
-        RepositoryDataRoot = $OwnerRoot
+        DataRepo = $OwnerRoot
         CacheRoot = $CacheRoot
         DownloadRoot = Join-Path $CacheRoot 'downloads'
         LockRoot = Join-Path $OwnerRoot 'windows.locks'

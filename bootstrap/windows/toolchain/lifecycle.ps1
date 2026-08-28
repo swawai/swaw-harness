@@ -221,7 +221,7 @@ function Get-SwawHarnessBootstrapToolchain {
         $Locator = [string]$Selection.Locator
         $Lock = Enter-SwawHarnessFileLock `
             -Path (Join-Path $Context.LockRoot "toolchain-$Locator.lock") `
-            -ControlledRoot $Context.RepositoryDataRoot `
+            -ControlledRoot $Context.DataRepo `
             -TimeoutSeconds 1800
         try {
             $ExistingId = Get-SwawHarnessToolchainLocatorIdentity `
@@ -304,7 +304,7 @@ function Get-SwawHarnessBootstrapToolchain {
                 Publish-SwawHarnessInstallDirectory `
                     -StagedPath $StagedRoot `
                     -TargetPath $TargetPath `
-                    -ControlledRoot $Context.RepositoryDataRoot `
+                    -ControlledRoot $Context.DataRepo `
                     -Name 'Bootstrap toolchain' `
                     -Validate $Validate
                 if ($null -eq $Validation.Value -or

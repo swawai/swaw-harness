@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$RepositoryDataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -57,11 +57,11 @@ $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
 . (Join-Path $WindowsRoot 'publication.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
-    -RepositoryDataRoot $RepositoryDataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
-$PublicationRepositoryDataRoot = Join-Path $TestRoot 'data.repo'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
+$PublicationDataRepo = Join-Path $TestRoot 'data.repo'
 $FixtureRoot = Join-Path $TestRoot 'artifacts'
 [void][IO.Directory]::CreateDirectory($FixtureRoot)
 $RunnerPath = Join-Path $TestRoot 'invoke-publication.ps1'
@@ -69,7 +69,7 @@ $RunnerSource = @'
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$WindowsRoot,
-    [Parameter(Mandatory = $true)][string]$RepositoryDataRoot,
+    [Parameter(Mandatory = $true)][string]$DataRepo,
     [Parameter(Mandatory = $true)][string]$CoreCandidatePath,
     [Parameter(Mandatory = $true)][string]$EntryCandidatePath,
     [Parameter(Mandatory = $true)][string]$EntryManagerCandidatePath,
@@ -87,7 +87,7 @@ Set-StrictMode -Version 2.0
     [Text.UTF8Encoding]::new($false)
 )
 $Results = @(Publish-SwawHarnessWindowsProducts `
-    -RepositoryDataRoot $RepositoryDataRoot `
+    -DataRepo $DataRepo `
     -CoreCandidatePath $CoreCandidatePath `
     -EntryCandidatePath $EntryCandidatePath `
     -EntryManagerCandidatePath $EntryManagerCandidatePath)
@@ -109,7 +109,7 @@ try {
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $Context = New-SwawHarnessWindowsBootstrapContext `
-        -RepositoryDataRoot $PublicationRepositoryDataRoot
+        -DataRepo $PublicationDataRepo
     $CoreContract = Read-SwawHarnessWindowsCoreContract `
         -Path (Join-Path $WindowsRoot 'core\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId
@@ -155,7 +155,7 @@ try {
         -Path (Join-Path $Context.LockRoot (
             "publish-bootstrap-$($PlatformContract.PlatformTargetId).lock"
         )) `
-        -ControlledRoot $Context.RepositoryDataRoot `
+        -ControlledRoot $Context.DataRepo `
         -TimeoutSeconds 30
     $HostPath = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
     foreach ($SetName in @('A', 'B')) {
@@ -167,7 +167,7 @@ try {
             '-NoProfile', '-ExecutionPolicy', 'Bypass',
             '-File', $RunnerPath,
             '-WindowsRoot', $WindowsRoot,
-            '-RepositoryDataRoot', $PublicationRepositoryDataRoot,
+            '-DataRepo', $PublicationDataRepo,
             '-CoreCandidatePath', $CandidateSets[$SetName]['core'],
             '-EntryCandidatePath', $CandidateSets[$SetName]['entry'],
             '-EntryManagerCandidatePath',
@@ -175,7 +175,7 @@ try {
             '-ReadyPath', $ReadyPath,
             '-ResultPath', $ResultPath
         )
-        $Info.WorkingDirectory = $PublicationRepositoryDataRoot
+        $Info.WorkingDirectory = $PublicationDataRepo
         $Info.UseShellExecute = $false
         $Info.CreateNoWindow = $true
         $Info.RedirectStandardOutput = $true
@@ -259,7 +259,7 @@ try {
     $Rejected = $false
     try {
         Publish-SwawHarnessWindowsProducts `
-            -RepositoryDataRoot $PublicationRepositoryDataRoot `
+            -DataRepo $PublicationDataRepo `
             -CoreCandidatePath (Join-Path $TestRoot 'missing-candidate.json') `
             -EntryCandidatePath $CandidateSets['A']['entry'] `
             -EntryManagerCandidatePath $CandidateSets['A']['manager'] |
@@ -274,11 +274,11 @@ try {
         -Path (Join-Path $Context.LockRoot (
             "publish-bootstrap-$($PlatformContract.PlatformTargetId).lock"
         )) `
-        -ControlledRoot $Context.RepositoryDataRoot `
+        -ControlledRoot $Context.DataRepo `
         -TimeoutSeconds 2
     $Probe.Dispose()
     $AfterFailure = @(Publish-SwawHarnessWindowsProducts `
-        -RepositoryDataRoot $PublicationRepositoryDataRoot `
+        -DataRepo $PublicationDataRepo `
         -CoreCandidatePath $CandidateSets['B']['core'] `
         -EntryCandidatePath $CandidateSets['B']['entry'] `
         -EntryManagerCandidatePath $CandidateSets['B']['manager'])

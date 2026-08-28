@@ -44,42 +44,42 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $repositoryDataRoot = Join-Path $PWD 'data.repo'
+          $dataRepo = Join-Path $PWD 'data.repo'
           & .\bootstrap\windows\tests\root-build.ps1
           & .\bootstrap\windows\tests\main.ps1 `
-            -RepositoryDataRoot $repositoryDataRoot
+            -DataRepo $dataRepo
 
       - name: Verify bounded native paths and toolchain locators
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $repositoryDataRoot = Join-Path $PWD 'data.repo'
+          $dataRepo = Join-Path $PWD 'data.repo'
           & .\bootstrap\windows\tests\path-budget.ps1
           & .\bootstrap\windows\tests\process.ps1 `
-            -RepositoryDataRoot $repositoryDataRoot
+            -DataRepo $dataRepo
           & .\bootstrap\windows\tests\toolchain-locator.ps1 `
-            -RepositoryDataRoot $repositoryDataRoot
+            -DataRepo $dataRepo
           & .\bootstrap\windows\tests\toolchain-concurrency.ps1 `
-            -RepositoryDataRoot $repositoryDataRoot
+            -DataRepo $dataRepo
           & .\bootstrap\windows\tests\deep-path.ps1 `
-            -RepositoryDataRoot $repositoryDataRoot
+            -DataRepo $dataRepo
 
       - name: Test Core Rust workspace
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $repositoryDataRoot = Join-Path $PWD 'data.repo'
+          $dataRepo = Join-Path $PWD 'data.repo'
           & .\bootstrap\windows\tests\core-rust.ps1 `
-            -RepositoryDataRoot $repositoryDataRoot
+            -DataRepo $dataRepo
 
       - name: Verify Bootstrap release and product builds
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $repositoryDataRoot = Join-Path $PWD 'data.repo'
+          $dataRepo = Join-Path $PWD 'data.repo'
           & .\bootstrap\windows\tests\bootstrap-release.ps1 `
-            -RepositoryDataRoot $repositoryDataRoot
+            -DataRepo $dataRepo
           & .\bootstrap\windows\tests\entry.ps1 `
-            -RepositoryDataRoot $repositoryDataRoot
+            -DataRepo $dataRepo
           & .\bootstrap\windows\tests\entry-manager.ps1 `
-            -RepositoryDataRoot $repositoryDataRoot
+            -DataRepo $dataRepo

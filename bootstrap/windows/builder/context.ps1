@@ -6,17 +6,17 @@ Set-StrictMode -Version 2.0
 function New-SwawHarnessWindowsBootstrapContext {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$RepositoryDataRoot
+        [string]$DataRepo
     )
 
     Assert-SwawHarnessWindowsX64
-    $RepositoryDataRoot = Assert-SwawHarnessControlledRoot `
-        -Root $RepositoryDataRoot `
-        -Description 'RepositoryDataRoot'
-    [void][IO.Directory]::CreateDirectory($RepositoryDataRoot)
+    $DataRepo = Assert-SwawHarnessControlledRoot `
+        -Root $DataRepo `
+        -Description 'DataRepo'
+    [void][IO.Directory]::CreateDirectory($DataRepo)
     [void](Assert-SwawHarnessControlledRoot `
-        -Root $RepositoryDataRoot `
-        -Description 'RepositoryDataRoot')
+        -Root $DataRepo `
+        -Description 'DataRepo')
 
     $Roots = [ordered]@{
         BootstrapReleaseRoot = 'windows.release'
@@ -29,8 +29,8 @@ function New-SwawHarnessWindowsBootstrapContext {
     }
     foreach ($Name in @($Roots.Keys)) {
         $Roots[$Name] = Assert-SwawHarnessPathInsideRoot `
-            -Path (Join-Path $RepositoryDataRoot $Roots[$Name]) `
-            -Root $RepositoryDataRoot `
+            -Path (Join-Path $DataRepo $Roots[$Name]) `
+            -Root $DataRepo `
             -Activity "using Windows Bootstrap $Name"
         if ([IO.Directory]::Exists($Roots[$Name])) {
             [void](Assert-SwawHarnessControlledRoot `
@@ -42,8 +42,8 @@ function New-SwawHarnessWindowsBootstrapContext {
     }
 
     return [pscustomobject][ordered]@{
-        HarnessRoot = Split-Path -Path $RepositoryDataRoot -Parent
-        RepositoryDataRoot = $RepositoryDataRoot
+        HarnessRoot = Split-Path -Path $DataRepo -Parent
+        DataRepo = $DataRepo
         BootstrapReleaseRoot = $Roots.BootstrapReleaseRoot
         BuildRoot = $Roots.BuildRoot
         ToolchainRoot = $Roots.ToolchainRoot

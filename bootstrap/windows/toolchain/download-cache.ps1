@@ -290,7 +290,7 @@ function Get-SwawHarnessVerifiedArtifact {
     $Path = Join-Path $ArtifactRoot $Name
     $Lock = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot "artifact-$ExpectedSha256.lock") `
-        -ControlledRoot $Context.RepositoryDataRoot
+        -ControlledRoot $Context.DataRepo
     try {
         if ([IO.File]::Exists($ArtifactRoot)) {
             Remove-SwawHarnessControlledPath `

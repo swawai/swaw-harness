@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$RepositoryDataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -15,10 +15,10 @@ $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $WindowsRoot 'builder\process.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
-    -RepositoryDataRoot $RepositoryDataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 
 try {
     [void][IO.Directory]::CreateDirectory($TestRoot)

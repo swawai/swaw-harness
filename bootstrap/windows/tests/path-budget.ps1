@@ -21,13 +21,13 @@ $Contract = Read-SwawHarnessWindowsBootstrapContract `
 $RepositoryRoot = 'C:\' + ('a' * 57)
 [void](Assert-SwawHarnessRepositoryRootPathBudget `
     -RepositoryRoot $RepositoryRoot)
-$RepositoryDataRoot = Join-Path $RepositoryRoot 'data.repo'
+$DataRepo = Join-Path $RepositoryRoot 'data.repo'
 $Context = [pscustomobject][ordered]@{
     HarnessRoot = $RepositoryRoot
-    RepositoryDataRoot = $RepositoryDataRoot
-    RustupStageRoot = Join-Path $RepositoryDataRoot 'windows.stage\rustup'
-    ToolchainRoot = Join-Path $RepositoryDataRoot 'windows.tool'
-    StageRoot = Join-Path $RepositoryDataRoot 'windows.stage'
+    DataRepo = $DataRepo
+    RustupStageRoot = Join-Path $DataRepo 'windows.stage\rustup'
+    ToolchainRoot = Join-Path $DataRepo 'windows.tool'
+    StageRoot = Join-Path $DataRepo 'windows.stage'
 }
 $ToolchainId = Get-SwawHarnessToolchainId -Contract $Contract
 Assert-SwawHarnessToolchainInstallPathBudget `
@@ -51,7 +51,7 @@ foreach ($Build in @(
     [pscustomobject]@{ Contract = $CoreContract; Product = 'core' }
     [pscustomobject]@{ Contract = $EntryManagerContract; Product = 'manager' }
 )) {
-    $TargetRoot = Join-Path $RepositoryDataRoot (
+    $TargetRoot = Join-Path $DataRepo (
         "windows.build\$($Build.Product)"
     )
     [void](Assert-SwawHarnessNativePathBudget `

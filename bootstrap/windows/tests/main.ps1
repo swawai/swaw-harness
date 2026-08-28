@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$RepositoryDataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -13,18 +13,18 @@ function Assert-MainTest {
 }
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
-if ([string]::IsNullOrWhiteSpace($RepositoryDataRoot)) {
-    $RepositoryDataRoot = [IO.Path]::GetFullPath((
+if ([string]::IsNullOrWhiteSpace($DataRepo)) {
+    $DataRepo = [IO.Path]::GetFullPath((
         Join-Path $WindowsRoot '..\..\data.repo'
     ))
 }
-$FirstResults = @(& (Join-Path $WindowsRoot 'main.ps1') -RepositoryDataRoot $RepositoryDataRoot)
+$FirstResults = @(& (Join-Path $WindowsRoot 'main.ps1') -DataRepo $DataRepo)
 Assert-MainTest `
     -Condition ($FirstResults.Count -eq 1) `
     -Message 'first invocation did not return exactly one Bootstrap Release'
 $First = $FirstResults[0]
 $ExpectedReleaseRoot = [IO.Path]::GetFullPath(
-    (Join-Path $RepositoryDataRoot 'windows.release')
+    (Join-Path $DataRepo 'windows.release')
 )
 Assert-MainTest `
     -Condition (
@@ -37,7 +37,7 @@ Assert-MainTest `
     -Message 'main did not publish one complete Bootstrap Release'
 
 $SecondInvocation = @(
-    & (Join-Path $WindowsRoot 'main.ps1') -RepositoryDataRoot $RepositoryDataRoot 6>&1
+    & (Join-Path $WindowsRoot 'main.ps1') -DataRepo $DataRepo 6>&1
 )
 $SecondResults = @($SecondInvocation | Where-Object {
     $_ -isnot [Management.Automation.InformationRecord]

@@ -55,7 +55,7 @@ function Get-SwawHarnessToolchainTargetSelection {
     }
     $ToolchainRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $Context.ToolchainRoot `
-        -Root $Context.RepositoryDataRoot `
+        -Root $Context.DataRepo `
         -Activity 'using the Bootstrap toolchain store'
     [void][IO.Directory]::CreateDirectory($ToolchainRoot)
     [void](Assert-SwawHarnessControlledRoot `

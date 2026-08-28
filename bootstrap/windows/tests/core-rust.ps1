@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$RepositoryDataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -11,14 +11,14 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\process.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
-$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
-    -RepositoryDataRoot $RepositoryDataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
 $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
-$Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
+$Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
 $SetupResults = @(& (Join-Path $WindowsRoot 'toolchain-setup.ps1') `
-    -RepositoryDataRoot $Context.RepositoryDataRoot)
+    -DataRepo $Context.DataRepo)
 if ($SetupResults.Count -ne 1 -or
     -not [IO.Directory]::Exists([string]$SetupResults[0].Root)) {
     throw 'Core Rust tests require one valid controlled toolchain.'
@@ -39,7 +39,7 @@ $Result = Invoke-SwawHarnessCapturedProcess `
         '-NonInteractive',
         '-ExecutionPolicy', 'Bypass',
         '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
-        '-RepositoryDataRoot', $Context.RepositoryDataRoot,
+        '-DataRepo', $Context.DataRepo,
         'cargo',
         '--config', $RustTargetConfiguration,
         'test',

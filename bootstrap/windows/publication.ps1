@@ -32,7 +32,7 @@ function Get-SwawHarnessWindowsProductContracts {
 function Publish-SwawHarnessWindowsProducts {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)][string]$RepositoryDataRoot,
+        [Parameter(Mandatory = $true)][string]$DataRepo,
         [Parameter(Mandatory = $true)][string]$CoreCandidatePath,
         [Parameter(Mandatory = $true)][string]$EntryCandidatePath,
         [Parameter(Mandatory = $true)][string]$EntryManagerCandidatePath
@@ -41,7 +41,7 @@ function Publish-SwawHarnessWindowsProducts {
     $WindowsRoot = $script:SwawHarnessWindowsPublicationRoot
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
-    $Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
+    $Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
     $Contracts = @(Get-SwawHarnessWindowsProductContracts `
         -WindowsRoot $WindowsRoot `
         -PlatformTargetId $PlatformContract.PlatformTargetId)

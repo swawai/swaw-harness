@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$RepositoryDataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -35,22 +35,22 @@ function Write-ToolchainFixtureFile {
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
-    -RepositoryDataRoot $RepositoryDataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 $PreviousRustFlags = [Environment]::GetEnvironmentVariable('RUSTFLAGS', 'Process')
 try {
-    $Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $TestRoot
+    $Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
     Assert-ToolchainTest `
         -Condition (
             (Split-Path -Path $TestRoot -Parent) -ceq
-                (Join-Path $RepositoryDataRoot 'windows.test\runs')
+                (Join-Path $DataRepo 'windows.test\runs')
         ) `
         -Message 'test run was not isolated below windows.test'
     Assert-ToolchainTest `
         -Condition (
-            [string]$Context.RepositoryDataRoot -ceq
+            [string]$Context.DataRepo -ceq
                 [IO.Path]::GetFullPath($TestRoot) -and
             [string]$Context.BootstrapReleaseRoot -ceq
                 (Join-Path $TestRoot 'windows.release') -and
@@ -77,7 +77,7 @@ try {
                 Join-Path $TestRoot 'bootstrap.windows'
             ))
         ) `
-        -Message 'flat RepositoryDataRoot layout is invalid'
+        -Message 'flat DataRepo layout is invalid'
     $Contract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $PathBudgetAccepted = $false
@@ -157,7 +157,7 @@ try {
         -Contract $Contract `
         -Probe $Probe `
         -RustRoot $RustRoot `
-        -ControlledRoot $Context.RepositoryDataRoot
+        -ControlledRoot $Context.DataRepo
 
     $ToolVersion = '14.51.36231'
     $SdkVersion = '10.0.28000.0'
@@ -201,7 +201,7 @@ try {
         }) `
         -UsedPayloads @($MsvcPayload) `
         -MsvcRoot $MsvcRoot `
-        -ControlledRoot $Context.RepositoryDataRoot
+        -ControlledRoot $Context.DataRepo
     $Metadata = [ordered]@{
         schema = 'swaw.harness.bootstrap.toolchain/v4'
         toolchainId = $ToolchainId

@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$RepositoryDataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -21,10 +21,10 @@ function Assert-MsvcAssemblyTest {
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
-    -RepositoryDataRoot $RepositoryDataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 $TestBase = Split-Path -Path $TestRoot -Parent
 try {
     $ToolVersion = '14.51.36231'
@@ -57,7 +57,7 @@ try {
         [Text.UTF8Encoding]::new($false)
     )
     $Context = [pscustomobject]@{
-        RepositoryDataRoot = $TestBase
+        DataRepo = $TestBase
         StageRoot = $TestBase
         LogRoot = $TestBase
     }

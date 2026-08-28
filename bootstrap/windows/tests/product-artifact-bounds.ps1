@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$RepositoryDataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -36,10 +36,10 @@ $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
-    -RepositoryDataRoot $RepositoryDataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 $WindowsBuildRoot = Join-Path $TestRoot 'windows.build'
 $BuildRoot = Join-Path $WindowsBuildRoot 'bounds-test'
 $LockRoot = Join-Path $TestRoot 'windows.locks'
@@ -53,7 +53,7 @@ $Contract = [pscustomobject][ordered]@{
     MaximumBytes = $MaximumBytes
 }
 $Context = [pscustomobject][ordered]@{
-    RepositoryDataRoot = $TestRoot
+    DataRepo = $TestRoot
     BuildRoot = $WindowsBuildRoot
     BootstrapReleaseRoot = $ReleasesRoot
     LockRoot = $LockRoot

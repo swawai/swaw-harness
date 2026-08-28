@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$RepositoryDataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -110,10 +110,10 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
-$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
-    -RepositoryDataRoot $RepositoryDataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$SourceContext = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
+$SourceContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
 $SourceToolchainRoot = Get-SwawHarnessToolchainTargetPath `
@@ -151,9 +151,9 @@ try {
     Copy-DeepPathSourceTree `
         -SourceRoot $RepositoryRoot `
         -DestinationRoot $DeepRoot
-    $DeepRepositoryDataRoot = Join-Path $DeepRoot 'data.repo'
+    $DeepDataRepo = Join-Path $DeepRoot 'data.repo'
     $DeepContext = New-SwawHarnessWindowsBootstrapContext `
-        -RepositoryDataRoot $DeepRepositoryDataRoot
+        -DataRepo $DeepDataRepo
     $DeepToolchainRoot = Join-Path $DeepContext.ToolchainRoot (
         [IO.Path]::GetFileName($SourceToolchain.Root)
     )
@@ -162,13 +162,13 @@ try {
         -DestinationRoot $DeepToolchainRoot
 
     $Results = @(& (Join-Path $DeepRoot 'bootstrap\windows\main.ps1') `
-        -RepositoryDataRoot $DeepRepositoryDataRoot)
+        -DataRepo $DeepDataRepo)
     Assert-DeepPathTest `
         -Condition ($Results.Count -eq 1) `
         -Message 'deep Bootstrap did not return exactly one Release'
     $Release = $Results[0]
     $LongestNativePath = Assert-SwawHarnessNativeTreePathBudget `
-        -Root $DeepContext.RepositoryDataRoot `
+        -Root $DeepContext.DataRepo `
         -Description 'Deep-path native tree'
     Assert-DeepPathTest `
         -Condition (
@@ -187,7 +187,7 @@ try {
         if (Test-SwawHarnessPathExists -Path $MutableRoot) {
             Remove-SwawHarnessControlledPathWithRetry `
                 -Path $MutableRoot `
-                -ControlledRoot $DeepRepositoryDataRoot `
+                -ControlledRoot $DeepDataRepo `
                 -Activity 'making deep native build data unavailable at runtime'
         }
     }

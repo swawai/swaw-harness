@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$RepositoryDataRoot,
+    [Parameter(Mandatory = $true)][string]$DataRepo,
     [Parameter(Mandatory = $true)][string]$CargoPath,
     [Collections.IDictionary]$EnvironmentVariables = @{},
     [string[]]$UnsetEnvironmentVariables = @()
@@ -25,7 +25,7 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
 $Contract = Read-SwawHarnessWindowsEntryManagerContract `
     -Path (Join-Path $PSScriptRoot 'contract.json') `
     -PlatformTargetId $PlatformContract.PlatformTargetId
-$Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
+$Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
 $BuildRoot = Join-Path $Context.BuildRoot 'manager'
 $BuildRoot = Assert-SwawHarnessPathInsideRoot `
     -Path $BuildRoot `
@@ -52,7 +52,7 @@ $BuildLock = Enter-SwawHarnessFileLock `
     -Path (Join-Path $Context.LockRoot (
         "build-entry-manager-$($Contract.PlatformTargetId).lock"
     )) `
-    -ControlledRoot $Context.RepositoryDataRoot `
+    -ControlledRoot $Context.DataRepo `
     -TimeoutSeconds 1800
 try {
     $CargoTargetRoot = $BuildRoot

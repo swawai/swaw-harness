@@ -32,7 +32,7 @@ function Install-SwawHarnessRustIntoToolchainStage {
         -Activity 'installing a normalized Rust toolchain'
     $InstallLock = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot 'rust-install.lock') `
-        -ControlledRoot $Context.RepositoryDataRoot `
+        -ControlledRoot $Context.DataRepo `
         -TimeoutSeconds 1800
     try {
         if (Test-SwawHarnessPathExists -Path $RustInstallRoot) {
