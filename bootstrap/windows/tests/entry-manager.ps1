@@ -47,6 +47,33 @@ try {
         -Context $SharedContext `
         -Contract $PlatformContract `
         -Toolchain $Toolchain
+    $ManifestPath = Join-Path $WindowsRoot 'entry.manager\Cargo.toml'
+    $CargoTestTargetRoot = Join-Path $TestRoot 'cargo-test-target'
+    $RustTargetConfiguration = (
+        "target.$($PlatformContract.PlatformTargetId).rustflags=" +
+        '["-C","target-feature=+crt-static"]'
+    )
+    $TestResult = Invoke-SwawHarnessCapturedProcess `
+        -Executable $Plan.CargoPath `
+        -Arguments @(
+            '--config', $RustTargetConfiguration,
+            'test',
+            '--locked',
+            '--manifest-path', $ManifestPath,
+            '--target', $PlatformContract.PlatformTargetId,
+            '--target-dir', $CargoTestTargetRoot
+        ) `
+        -WorkingDirectory (Join-Path $WindowsRoot 'entry.manager') `
+        -EnvironmentVariables $Plan.EnvironmentVariables `
+        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables `
+        -TimeoutSeconds 1800
+    if ($TestResult.ExitCode -ne 0) {
+        throw (
+            "Entry Manager Cargo tests failed with exit code " +
+            "$($TestResult.ExitCode). $($TestResult.Error) " +
+            $TestResult.Output
+        ).Trim()
+    }
     $CandidatePath = & (Join-Path $WindowsRoot 'entry.manager\build.ps1') `
         -DataRoot $TestRoot `
         -CargoPath $Plan.CargoPath `
@@ -100,5 +127,5 @@ try {
     }
 }
 
-Write-Host '[PASS] Windows Entry Manager build' `
+Write-Host '[PASS] Windows Entry Manager tests and build' `
     -ForegroundColor Green
