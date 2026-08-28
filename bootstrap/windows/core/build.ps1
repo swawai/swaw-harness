@@ -12,10 +12,13 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot '..\builder\context.ps1')
 . (Join-Path $PSScriptRoot '..\builder\contract.ps1')
 . (Join-Path $PSScriptRoot '..\builder\process.ps1')
+. (Join-Path $PSScriptRoot '..\builder\path-budget.ps1')
 . (Join-Path $PSScriptRoot '..\builder\build\candidate.ps1')
 . (Join-Path $PSScriptRoot 'contract.ps1')
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
+$RepositoryRoot = Assert-SwawHarnessRepositoryRootPathBudget `
+    -RepositoryRoot $RepositoryRoot
 $ContractPath = Join-Path $PSScriptRoot '..\contract.json'
 $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path $ContractPath
@@ -33,6 +36,11 @@ $BuildRoot = Assert-SwawHarnessPathInsideRoot `
     -Root $BootstrapWindowsCacheRoot `
     -Activity 'building the Windows Core candidate'
 [void][IO.Directory]::CreateDirectory($BuildRoot)
+$NativeBuildRoot = Assert-SwawHarnessPathInsideRoot `
+    -Path (Join-Path $Context.NativeBuildRoot 'c') `
+    -Root $Context.NativeRoot `
+    -Activity 'building the Windows Core candidate'
+[void][IO.Directory]::CreateDirectory($NativeBuildRoot)
 
 $CargoPath = Get-SwawHarnessFullPath -Path $CargoPath
 [void](Assert-SwawHarnessRegularFile `
@@ -51,7 +59,13 @@ $BuildLock = Enter-SwawHarnessFileLock `
     -ControlledRoot $BootstrapWindowsRoot `
     -TimeoutSeconds 1800
 try {
-    $CargoTargetRoot = Join-Path $BuildRoot 'cargo-target'
+    $CargoTargetRoot = $NativeBuildRoot
+    Assert-SwawHarnessCargoBuildPathBudget `
+        -TargetRoot $CargoTargetRoot `
+        -Contract $Contract `
+        -CargoPath $CargoPath `
+        -ManifestPath $WorkspaceManifest `
+        -WorkingDirectory (Join-Path $RepositoryRoot 'core')
     $RustTargetConfiguration = (
         "target.$($Contract.PlatformTargetId).rustflags=" +
         '["-C","target-feature=+crt-static"]'
@@ -84,6 +98,9 @@ try {
             "$($Result.Error) $($Result.Output)"
         ).Trim()
     }
+    [void](Assert-SwawHarnessNativeTreePathBudget `
+        -Root $CargoTargetRoot `
+        -Description 'Core Cargo output path')
 
     $ArtifactPath = Join-Path $CargoTargetRoot (
         "$($Contract.PlatformTargetId)\release\$($Contract.ProductBinary)"

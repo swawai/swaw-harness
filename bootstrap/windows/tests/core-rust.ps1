@@ -25,11 +25,7 @@ if ($SetupResults.Count -ne 1 -or
 }
 
 $WorkspaceManifest = Join-Path $RepositoryRoot 'core\Cargo.toml'
-$CargoTargetRoot = Join-Path (
-    Get-SwawHarnessWindowsTestBuildRoot -DataRoot $Context.DataRoot
-) (
-    "core\$($PlatformContract.PlatformTargetId)\cargo-target"
-)
+$CargoTargetRoot = Join-Path $Context.NativeRoot 'x\core'
 $RustTargetConfiguration = (
     "target.$($PlatformContract.PlatformTargetId).rustflags=" +
     '["-C","target-feature=+crt-static"]'

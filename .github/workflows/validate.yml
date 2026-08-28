@@ -48,6 +48,17 @@ jobs:
           & .\bootstrap\windows\tests\root-build.ps1
           & .\bootstrap\windows\tests\main.ps1 -DataRoot $dataRoot
 
+      - name: Verify bounded native paths and toolchain locators
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dataRoot = Join-Path $PWD 'data'
+          & .\bootstrap\windows\tests\path-budget.ps1
+          & .\bootstrap\windows\tests\process.ps1 -DataRoot $dataRoot
+          & .\bootstrap\windows\tests\toolchain-locator.ps1 -DataRoot $dataRoot
+          & .\bootstrap\windows\tests\toolchain-concurrency.ps1 -DataRoot $dataRoot
+          & .\bootstrap\windows\tests\deep-path.ps1 -DataRoot $dataRoot
+
       - name: Test Core Rust workspace
         shell: powershell
         run: |

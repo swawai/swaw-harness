@@ -32,15 +32,27 @@ function New-SwawHarnessWindowsBootstrapContext {
         -Root $BootstrapWindowsCacheRoot `
         -Description 'BootstrapWindowsCacheRoot')
 
+    $NativeRoot = Assert-SwawHarnessPathInsideRoot `
+        -Path (Join-Path $DataRoot 'n') `
+        -Root $DataRoot `
+        -Activity 'using Windows Bootstrap native data'
+    [void][IO.Directory]::CreateDirectory($NativeRoot)
+    [void](Assert-SwawHarnessControlledRoot `
+        -Root $NativeRoot `
+        -Description 'NativeRoot')
+
     return [pscustomobject][ordered]@{
         DataRoot = $DataRoot
         BootstrapWindowsRoot = $BootstrapWindowsRoot
         BootstrapWindowsCacheRoot = $BootstrapWindowsCacheRoot
+        NativeRoot = $NativeRoot
+        NativeInstallRoot = Join-Path $DataRoot 'i'
         BootstrapReleaseRoot = Join-Path $DataRoot 'bootstrap.release'
         DownloadRoot = Join-Path $BootstrapWindowsCacheRoot 'downloads'
-        ToolchainRoot = Join-Path $BootstrapWindowsRoot 'toolchains'
-        WorkRoot = Join-Path $BootstrapWindowsRoot 'work'
-        CargoHome = Join-Path $BootstrapWindowsCacheRoot 'cargo'
+        ToolchainRoot = Join-Path $NativeRoot 't'
+        WorkRoot = Join-Path $NativeRoot 'w'
+        NativeBuildRoot = Join-Path $NativeRoot 'b'
+        CargoHome = Join-Path $NativeRoot 'c'
         LockRoot = Join-Path $BootstrapWindowsRoot 'locks'
         LogRoot = Join-Path $BootstrapWindowsRoot 'logs'
     }

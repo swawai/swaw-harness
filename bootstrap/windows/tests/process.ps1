@@ -49,6 +49,19 @@ try {
                 'alpha|space value|quote"value|trail\|') `
         -Message 'Windows native argument encoding changed an argument'
 
+    $OverlongArgumentRejected = $false
+    try {
+        [void](Invoke-SwawHarnessCapturedProcess `
+            -Executable $PowerShell `
+            -Arguments @('/out:' + 'C:\' + ('a' * 238)) `
+            -WorkingDirectory $TestRoot)
+    } catch {
+        $OverlongArgumentRejected = $_.Exception.Message -match 'measured 241'
+    }
+    Assert-ProcessTest `
+        -Condition $OverlongArgumentRejected `
+        -Message 'external process accepted an over-budget embedded path'
+
     $Marker = Join-Path $TestRoot 'child-survived.txt'
     $ParentScript = Join-Path $TestRoot 'parent.ps1'
     $ChildScript = Join-Path $TestRoot 'child.ps1'

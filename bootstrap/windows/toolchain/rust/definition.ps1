@@ -2,7 +2,7 @@ Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot '..\..\builder\foundation.ps1')
 
-$script:SwawHarnessRustRecipeVersion = '1'
+$script:SwawHarnessRustRecipeVersion = '2'
 
 function Get-SwawHarnessRustAmbientOverrideNames {
     return [string[]]@(
@@ -41,16 +41,12 @@ function Get-SwawHarnessRustDefinitionId {
 function Get-SwawHarnessRustRequiredPaths {
     param([Parameter(Mandatory = $true)][object]$Contract)
 
-    $ToolchainName = Get-SwawHarnessRustToolchainName -Contract $Contract
     return [string[]]@(
-        'cargo\bin\rustup.exe'
-        'cargo\bin\rustc.exe'
-        'cargo\bin\cargo.exe'
-        "rustup\toolchains\$ToolchainName\bin\rustc.exe"
-        "rustup\toolchains\$ToolchainName\bin\cargo.exe"
-        "rustup\toolchains\$ToolchainName\bin\rustdoc.exe"
+        'bin\rustc.exe'
+        'bin\cargo.exe'
+        'bin\rustdoc.exe'
         (
-            "rustup\toolchains\$ToolchainName\lib\rustlib\" +
+            'lib\rustlib\' +
             "manifest-rust-std-$($Contract.PlatformTargetId)"
         )
     )

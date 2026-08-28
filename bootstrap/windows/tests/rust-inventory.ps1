@@ -40,39 +40,17 @@ try {
     $Contract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $RustupContent = 'rustup fixture bytes'
-    Write-RustInventoryFixtureFile `
-        -Root $RustRoot `
-        -RelativePath 'cargo\bin\rustup.exe' `
-        -Content $RustupContent
-    $RustupPath = Join-Path $RustRoot 'cargo\bin\rustup.exe'
-    $Contract.RustupInitLength = (Get-Item -LiteralPath $RustupPath).Length
-    $Contract.RustupInitSha256 = Get-SwawHarnessFileSha256 -Path $RustupPath
+    $Contract.RustupInitLength = [Text.Encoding]::UTF8.GetByteCount(
+        $RustupContent
+    )
+    $Contract.RustupInitSha256 = Get-SwawHarnessTextSha256 `
+        -Value $RustupContent
     foreach ($RelativePath in Get-SwawHarnessRustRequiredPaths `
         -Contract $Contract) {
-        if ($RelativePath -ceq 'cargo\bin\rustup.exe') {
-            continue
-        }
         Write-RustInventoryFixtureFile `
             -Root $RustRoot `
             -RelativePath $RelativePath `
             -Content "fixture:$RelativePath"
-    }
-    foreach ($ProxyName in @('cargo.exe', 'cargo-miri.exe', 'rustc.exe')) {
-        $ProxyPath = Join-Path $RustRoot "cargo\bin\$ProxyName"
-        if ([IO.File]::Exists($ProxyPath)) {
-            [IO.File]::Delete($ProxyPath)
-        }
-        Push-Location (Split-Path $ProxyPath -Parent)
-        try {
-            & $env:ComSpec /d /c (
-                "mklink `"$ProxyName`" rustup.exe"
-            ) | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-                throw "Cannot create Rust proxy fixture: $ProxyName"
-            }
-        } finally {
-            Pop-Location
-        }
     }
     $Probe = [pscustomobject][ordered]@{
         rustupVersion = [string]$Contract.RustupInitVersion
@@ -114,7 +92,7 @@ try {
         ).Count -eq 0) `
         -Message 'cold Rust contract still requires rustfmt'
 
-    $CargoPath = Join-Path $RustRoot 'cargo\bin\cargo.exe'
+    $CargoPath = Join-Path $RustRoot 'bin\cargo.exe'
     $CargoOriginal = [IO.File]::ReadAllText($CargoPath)
     [IO.File]::WriteAllText($CargoPath, 'tampered')
     Assert-RustInventoryTest `
@@ -165,7 +143,7 @@ try {
     [void][IO.Directory]::CreateDirectory($ExternalRoot)
     $Sentinel = Join-Path $ExternalRoot 'sentinel.txt'
     [IO.File]::WriteAllText($Sentinel, 'preserve')
-    $JunctionPath = Join-Path $RustRoot 'rustup\linked'
+    $JunctionPath = Join-Path $RustRoot 'linked'
     [void](New-Item `
         -ItemType Junction `
         -Path $JunctionPath `

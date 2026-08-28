@@ -13,9 +13,14 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot '..\builder\context.ps1')
 . (Join-Path $PSScriptRoot '..\builder\contract.ps1')
 . (Join-Path $PSScriptRoot '..\builder\process.ps1')
+. (Join-Path $PSScriptRoot '..\builder\path-budget.ps1')
 . (Join-Path $PSScriptRoot '..\builder\build\candidate.ps1')
 . (Join-Path $PSScriptRoot '..\builder\filesystem.ps1')
 . (Join-Path $PSScriptRoot 'contract.ps1')
+
+$RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
+$RepositoryRoot = Assert-SwawHarnessRepositoryRootPathBudget `
+    -RepositoryRoot $RepositoryRoot
 
 $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot '..\contract.json')
@@ -32,6 +37,11 @@ $BuildRoot = Assert-SwawHarnessPathInsideRoot `
     -Root $BootstrapWindowsCacheRoot `
     -Activity 'building the Windows Entry executable candidate'
 [void][IO.Directory]::CreateDirectory($BuildRoot)
+$NativeBuildRoot = Assert-SwawHarnessPathInsideRoot `
+    -Path (Join-Path $Context.NativeBuildRoot 'e') `
+    -Root $Context.NativeRoot `
+    -Activity 'building the Windows Entry executable candidate'
+[void][IO.Directory]::CreateDirectory($NativeBuildRoot)
 
 $CompilerPath = Get-SwawHarnessFullPath -Path $CompilerPath
 $LinkerPath = Get-SwawHarnessFullPath -Path $LinkerPath
@@ -49,7 +59,7 @@ $Lock = Enter-SwawHarnessFileLock `
     -ControlledRoot $Context.BootstrapWindowsRoot `
     -TimeoutSeconds 1800
 try {
-    $OutputRoot = Join-Path $BuildRoot 'output'
+    $OutputRoot = $NativeBuildRoot
     [void][IO.Directory]::CreateDirectory($OutputRoot)
     $ObjectPath = Join-Path $OutputRoot 'entry.obj'
     $ArtifactPath = Join-Path $OutputRoot $Contract.ProductBinary
@@ -57,7 +67,7 @@ try {
         if (Test-SwawHarnessPathExists -Path $OutputPath) {
             Remove-SwawHarnessControlledPathWithRetry `
                 -Path $OutputPath `
-                -ControlledRoot $BootstrapWindowsCacheRoot `
+                -ControlledRoot $Context.NativeRoot `
                 -Activity 'replacing an Entry executable build output'
         }
     }
@@ -70,6 +80,12 @@ try {
         -Path $SourcePath `
         -Description 'Windows Entry executable source' `
         -MaximumBytes 1MB)
+    [void](Assert-SwawHarnessNativePathBudget `
+        -Paths @(
+            $CompilerPath, $LinkerPath, $SourcePath,
+            $ObjectPath, $ArtifactPath, $OutputRoot
+        ) `
+        -Description 'Planned Entry native build path')
     $CompileResult = Invoke-SwawHarnessCapturedProcess `
         -Executable $CompilerPath `
         -Arguments @(
@@ -110,6 +126,9 @@ try {
             "$($LinkResult.Error) $($LinkResult.Output)"
         ).Trim()
     }
+    [void](Assert-SwawHarnessNativeTreePathBudget `
+        -Root $OutputRoot `
+        -Description 'Entry native output path')
     $Artifact = Assert-SwawHarnessRegularFile `
         -Path $ArtifactPath `
         -Description 'Built Windows Entry executable' `

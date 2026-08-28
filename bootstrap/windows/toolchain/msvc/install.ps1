@@ -32,8 +32,8 @@ function Install-SwawHarnessMsvcIntoToolchainStage {
     )
 
     $MsvcRoot = Assert-SwawHarnessPathInsideRoot `
-        -Path (Join-Path $StagedToolchainRoot 'msvc') `
-        -Root $Context.BootstrapWindowsRoot `
+        -Path (Join-Path $StagedToolchainRoot 'm') `
+        -Root $Context.NativeRoot `
         -Activity 'staging the MSVC toolchain'
     if (Test-SwawHarnessPathExists -Path $MsvcRoot) {
         throw "MSVC stage must not already exist: $MsvcRoot"
@@ -53,7 +53,7 @@ function Install-SwawHarnessMsvcIntoToolchainStage {
 
     $MsiSourceRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $MsiSourceRoot `
-        -Root $Context.BootstrapWindowsRoot `
+        -Root $Context.NativeRoot `
         -Activity 'staging Windows SDK installer sources'
     if (Test-SwawHarnessPathExists -Path $MsiSourceRoot) {
         throw "MSVC source stage must not already exist: $MsiSourceRoot"
@@ -70,7 +70,7 @@ function Install-SwawHarnessMsvcIntoToolchainStage {
             Expand-SwawHarnessMsvcVsix `
                 -ArchivePath ([string]$Verified.Path) `
                 -Destination $MsvcRoot `
-                -ControlledRoot $Context.BootstrapWindowsRoot
+                -ControlledRoot $Context.NativeRoot
         }
 
         $MsiPaths = [Collections.Generic.List[string]]::new()
@@ -139,12 +139,12 @@ function Install-SwawHarnessMsvcIntoToolchainStage {
             -Versions $Versions `
             -UsedPayloads ([object[]]$UsedPayloads.ToArray()) `
             -MsvcRoot $MsvcRoot `
-            -ControlledRoot $Context.BootstrapWindowsRoot
+            -ControlledRoot $Context.NativeRoot
         if (-not (Test-SwawHarnessMsvcInstallRecord `
             -Record $Record `
             -Contract $Contract `
             -MsvcRoot $MsvcRoot `
-            -ControlledRoot $Context.BootstrapWindowsRoot `
+            -ControlledRoot $Context.NativeRoot `
             -Detailed
         )) {
             throw 'Staged MSVC installation failed its receipt check.'
@@ -152,7 +152,7 @@ function Install-SwawHarnessMsvcIntoToolchainStage {
         return $Record
     } finally {
         Remove-SwawHarnessControlledResidues `
-            -ControlledRoot $Context.BootstrapWindowsRoot `
+            -ControlledRoot $Context.NativeRoot `
             -Paths @($MsiSourceRoot) `
             -Activity 'cleaning MSVC installation work data'
     }

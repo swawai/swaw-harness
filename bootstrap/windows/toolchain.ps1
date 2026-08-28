@@ -14,6 +14,7 @@ Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot 'builder\context.ps1')
 . (Join-Path $PSScriptRoot 'builder\contract.ps1')
+. (Join-Path $PSScriptRoot 'builder\path-budget.ps1')
 . (Join-Path $PSScriptRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'builder\process.ps1')
@@ -23,6 +24,8 @@ if ([string]::IsNullOrWhiteSpace($DataRoot)) {
 }
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot 'contract.json')
+[void](Assert-SwawHarnessRepositoryRootPathBudget `
+    -RepositoryRoot (Join-Path $PSScriptRoot '..\..'))
 $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
 $InstallRoot = Get-SwawHarnessToolchainTargetPath `
     -Context $Context `

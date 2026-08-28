@@ -10,40 +10,14 @@ function Get-SwawHarnessRustFileShape {
         [Parameter(Mandatory = $true)][string]$RelativePath
     )
 
-    $Kind = 'file'
-    $Target = ''
     if (($Item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-        $AllowedProxies = [string[]]@(
-            'cargo.exe', 'cargo-clippy.exe', 'cargo-fmt.exe', 'cargo-miri.exe',
-            'clippy-driver.exe', 'rls.exe', 'rust-analyzer.exe',
-            'rust-gdb.exe', 'rust-gdbgui.exe', 'rust-lldb.exe',
-            'rustc.exe', 'rustdoc.exe', 'rustfmt.exe'
-        )
-        $Parent = Split-Path -Path $RelativePath -Parent
-        $Leaf = [IO.Path]::GetFileName($RelativePath)
-        $LinkType = $Item.PSObject.Properties['LinkType']
-        $TargetProperty = $Item.PSObject.Properties['Target']
-        $Targets = @(if ($null -eq $TargetProperty) {
-            @()
-        } else {
-            @($TargetProperty.Value)
-        })
-        if ($Parent -cne 'cargo\bin' -or
-            $AllowedProxies -cnotcontains $Leaf -or
-            $null -eq $LinkType -or
-            [string]$LinkType.Value -cne 'SymbolicLink' -or
-            $Targets.Count -ne 1 -or
-            [string]$Targets[0] -cne 'rustup.exe') {
-            throw "Rust link is not an owned rustup proxy: $RelativePath"
-        }
-        $Kind = 'symlink'
-        $Target = [string]$Targets[0]
+        throw "Normalized Rust sysroot contains a reparse point: $RelativePath"
     } elseif ($Item.Length -le 0 -or $Item.Length -gt 4GB) {
         throw "Rust installed file is empty or oversized: $RelativePath"
     }
     return [pscustomobject][ordered]@{
-        kind = $Kind
-        target = $Target
+        kind = 'file'
+        target = ''
         length = [long]$Item.Length
     }
 }
@@ -152,16 +126,8 @@ function New-SwawHarnessRustInstallRecord {
         -Records $Files `
         -RequiredPaths $RequiredPaths `
         -Description 'Rust installation')
-    $RustupRecord = @($CriticalFiles | Where-Object {
-        [string]$_.path -ieq 'cargo\bin\rustup.exe'
-    })
-    if ($RustupRecord.Count -ne 1 -or
-        [string]$RustupRecord[0].sha256 -cne
-            [string]$Contract.RustupInitSha256) {
-        throw 'Installed rustup.exe does not match the pinned initializer.'
-    }
     return [pscustomobject][ordered]@{
-        schema = 'swaw.harness.bootstrap.rust-install/v2'
+        schema = 'swaw.harness.bootstrap.rust-install/v3'
         definitionId = Get-SwawHarnessRustDefinitionId -Contract $Contract
         declaredToolchain = [string]$Contract.RustToolchain
         toolchainName = Get-SwawHarnessRustToolchainName -Contract $Contract
@@ -212,7 +178,7 @@ function Test-SwawHarnessRustInstallRecord {
             ) `
             -Description 'Rust probe record'
         if ([string]$Record.schema -cne
-                'swaw.harness.bootstrap.rust-install/v2' -or
+                'swaw.harness.bootstrap.rust-install/v3' -or
             [string]$Record.definitionId -cne
                 (Get-SwawHarnessRustDefinitionId -Contract $Contract) -or
             [string]$Record.declaredToolchain -cne

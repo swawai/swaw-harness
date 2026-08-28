@@ -58,6 +58,7 @@ try {
     )
     $Context = [pscustomobject]@{
         BootstrapWindowsRoot = $TestBase
+        NativeRoot = $TestBase
     }
     $Versions = Complete-SwawHarnessMsvcAssembly `
         -Context $Context `

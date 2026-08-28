@@ -1,5 +1,7 @@
 Set-StrictMode -Version 2.0
 
+. (Join-Path $PSScriptRoot 'path-budget.ps1')
+
 function ConvertTo-SwawHarnessWindowsArgument {
     param(
         [Parameter(Mandatory = $true)]
@@ -97,6 +99,11 @@ function Invoke-SwawHarnessCapturedProcess {
     if ($TimeoutSeconds -le 0) {
         throw 'Process timeout must be positive.'
     }
+    Assert-SwawHarnessExternalProcessPathBudget `
+        -Executable $Executable `
+        -Arguments $Arguments `
+        -WorkingDirectory $WorkingDirectory `
+        -EnvironmentVariables $EnvironmentVariables
     $Info = [Diagnostics.ProcessStartInfo]::new()
     $Info.FileName = $Executable
     $Info.Arguments = ConvertTo-SwawHarnessWindowsArguments `
@@ -155,6 +162,11 @@ function Invoke-SwawHarnessInheritedProcess {
     if ($TimeoutSeconds -le 0) {
         throw 'Process timeout must be positive.'
     }
+    Assert-SwawHarnessExternalProcessPathBudget `
+        -Executable $Executable `
+        -Arguments $Arguments `
+        -WorkingDirectory $WorkingDirectory `
+        -EnvironmentVariables $EnvironmentVariables
     $Info = [Diagnostics.ProcessStartInfo]::new()
     $Info.FileName = $Executable
     $Info.Arguments = ConvertTo-SwawHarnessWindowsArguments `
