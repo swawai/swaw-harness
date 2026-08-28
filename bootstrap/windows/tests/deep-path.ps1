@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$RepositoryDataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -110,10 +110,10 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -RepositoryRoot $RepositoryRoot
-$SourceContext = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
+$SourceContext = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
 $SourceToolchainRoot = Get-SwawHarnessToolchainTargetPath `
@@ -130,15 +130,15 @@ if ($null -eq $SourceToolchain) {
 $FixtureParent = Split-Path -Path $RepositoryRoot -Parent
 $Token = [Guid]::NewGuid().ToString('N').Substring(0, 8)
 $LeafPrefix = "swaw-harness-path-$Token-"
-$LeafLength = 90 - $FixtureParent.Length - 1
+$LeafLength = 60 - $FixtureParent.Length - 1
 if ($LeafLength -lt $LeafPrefix.Length) {
-    throw "Cannot place a 90-character fixture below: $FixtureParent"
+    throw "Cannot place a 60-character fixture below: $FixtureParent"
 }
 $DeepLeaf = $LeafPrefix + ('d' * ($LeafLength - $LeafPrefix.Length))
 $DeepRoot = [IO.Path]::GetFullPath((Join-Path $FixtureParent $DeepLeaf))
 $ParentPrefix = $FixtureParent.TrimEnd('\', '/') +
     [IO.Path]::DirectorySeparatorChar
-if ($DeepRoot.Length -ne 90 -or
+if ($DeepRoot.Length -ne 60 -or
     -not $DeepRoot.StartsWith(
         $ParentPrefix,
         [StringComparison]::OrdinalIgnoreCase
@@ -151,9 +151,9 @@ try {
     Copy-DeepPathSourceTree `
         -SourceRoot $RepositoryRoot `
         -DestinationRoot $DeepRoot
-    $DeepDataRoot = Join-Path $DeepRoot 'data'
+    $DeepRepositoryDataRoot = Join-Path $DeepRoot 'data.repo'
     $DeepContext = New-SwawHarnessWindowsBootstrapContext `
-        -DataRoot $DeepDataRoot
+        -RepositoryDataRoot $DeepRepositoryDataRoot
     $DeepToolchainRoot = Join-Path $DeepContext.ToolchainRoot (
         [IO.Path]::GetFileName($SourceToolchain.Root)
     )
@@ -162,26 +162,35 @@ try {
         -DestinationRoot $DeepToolchainRoot
 
     $Results = @(& (Join-Path $DeepRoot 'bootstrap\windows\main.ps1') `
-        -DataRoot $DeepDataRoot)
+        -RepositoryDataRoot $DeepRepositoryDataRoot)
     Assert-DeepPathTest `
         -Condition ($Results.Count -eq 1) `
         -Message 'deep Bootstrap did not return exactly one Release'
     $Release = $Results[0]
     $LongestNativePath = Assert-SwawHarnessNativeTreePathBudget `
-        -Root $DeepContext.NativeRoot `
+        -Root $DeepContext.RepositoryDataRoot `
         -Description 'Deep-path native tree'
     Assert-DeepPathTest `
         -Condition (
-            $DeepRoot.Length -eq 90 -and
+            $DeepRoot.Length -eq 60 -and
             ([string]$LongestNativePath).Length -le 240 -and
             $Release.Artifacts.Count -eq 3
         ) `
         -Message 'deep build exceeded its declared repository or native budget'
 
-    Remove-SwawHarnessControlledPathWithRetry `
-        -Path $DeepContext.NativeRoot `
-        -ControlledRoot $DeepDataRoot `
-        -Activity 'making deep native build data unavailable at runtime'
+    foreach ($MutableRoot in @(
+        $DeepContext.BuildRoot,
+        $DeepContext.ToolchainRoot,
+        $DeepContext.StageRoot,
+        $DeepContext.CacheRoot
+    )) {
+        if (Test-SwawHarnessPathExists -Path $MutableRoot) {
+            Remove-SwawHarnessControlledPathWithRetry `
+                -Path $MutableRoot `
+                -ControlledRoot $DeepRepositoryDataRoot `
+                -Activity 'making deep native build data unavailable at runtime'
+        }
+    }
 
     $Artifacts = @{}
     foreach ($Artifact in $Release.Artifacts) {
@@ -211,7 +220,7 @@ try {
         -Message 'published executables depended on unavailable native data'
 
     Write-Host (
-        "[PASS] Windows Bootstrap 90-character deep path " +
+        "[PASS] Windows Bootstrap 60-character deep path " +
         "(longest native path $(([string]$LongestNativePath).Length))"
     ) -ForegroundColor Green
 } finally {

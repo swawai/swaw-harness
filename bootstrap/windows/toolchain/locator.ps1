@@ -13,7 +13,7 @@ function Get-SwawHarnessToolchainLocatorIdentity {
 
     $Path = Assert-SwawHarnessPathInsideRoot `
         -Path $Path `
-        -Root $Context.NativeRoot `
+        -Root $Context.ToolchainRoot `
         -Activity 'inspecting a Bootstrap toolchain locator'
     $Item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
     if ($null -eq $Item) {
@@ -55,7 +55,7 @@ function Get-SwawHarnessToolchainTargetSelection {
     }
     $ToolchainRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $Context.ToolchainRoot `
-        -Root $Context.NativeRoot `
+        -Root $Context.RepositoryDataRoot `
         -Activity 'using the Bootstrap toolchain store'
     [void][IO.Directory]::CreateDirectory($ToolchainRoot)
     [void](Assert-SwawHarnessControlledRoot `
@@ -73,7 +73,7 @@ function Get-SwawHarnessToolchainTargetSelection {
             -Description 'toolchain locator')
         $Path = Assert-SwawHarnessPathInsideRoot `
             -Path (Join-Path $ToolchainRoot $Locator) `
-            -Root $Context.NativeRoot `
+            -Root $ToolchainRoot `
             -Activity 'selecting a Bootstrap toolchain locator'
         $ExistingId = Get-SwawHarnessToolchainLocatorIdentity `
             -Path $Path `

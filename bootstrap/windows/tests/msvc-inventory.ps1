@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$RepositoryDataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -24,10 +24,10 @@ $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
 $TestBase = Split-Path -Path $TestRoot -Parent
 try {
     $ToolVersion = '14.51.36231'

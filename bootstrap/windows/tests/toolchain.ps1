@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$RepositoryDataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -35,54 +35,48 @@ function Write-ToolchainFixtureFile {
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
 $PreviousRustFlags = [Environment]::GetEnvironmentVariable('RUSTFLAGS', 'Process')
 try {
-    $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
-    $ExpectedOwnerRoot = [IO.Path]::GetFullPath(
-        (Join-Path $TestRoot 'bootstrap.windows')
-    )
-    $ExpectedCacheRoot = [IO.Path]::GetFullPath(
-        (Join-Path $TestRoot 'bootstrap.windows.cache')
-    )
-    $ExpectedNativeRoot = [IO.Path]::GetFullPath(
-        (Join-Path $TestRoot 'n')
-    )
+    $Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $TestRoot
     Assert-ToolchainTest `
         -Condition (
-            [string]$Context.BootstrapWindowsRoot -ceq $ExpectedOwnerRoot -and
-            [string]$Context.BootstrapWindowsCacheRoot -ceq
-                $ExpectedCacheRoot -and
-            [string]$Context.NativeRoot -ceq $ExpectedNativeRoot -and
-            [string]$Context.NativeInstallRoot -ceq
-                (Join-Path $TestRoot 'i') -and
-            [string]$Context.ToolchainRoot -ceq
-                (Join-Path $ExpectedNativeRoot 't') -and
-            [string]$Context.WorkRoot -ceq
-                (Join-Path $ExpectedNativeRoot 'w') -and
-            [string]$Context.NativeBuildRoot -ceq
-                (Join-Path $ExpectedNativeRoot 'b') -and
-            [string]$Context.LockRoot -ceq
-                (Join-Path $ExpectedOwnerRoot 'locks') -and
-            [string]$Context.LogRoot -ceq
-                (Join-Path $ExpectedOwnerRoot 'logs') -and
-            [string]$Context.DownloadRoot -ceq
-                (Join-Path $ExpectedCacheRoot 'downloads') -and
-            [string]$Context.CargoHome -ceq
-                (Join-Path $ExpectedNativeRoot 'c') -and
+            [string]$Context.RepositoryDataRoot -ceq
+                [IO.Path]::GetFullPath($TestRoot) -and
             [string]$Context.BootstrapReleaseRoot -ceq
-                (Join-Path $TestRoot 'bootstrap.release') -and
-            -not (Test-Path -LiteralPath (Join-Path $TestRoot 'cache'))
+                (Join-Path $TestRoot 'windows.release') -and
+            [string]$Context.BuildRoot -ceq
+                (Join-Path $TestRoot 'windows.build') -and
+            [string]$Context.ToolchainRoot -ceq
+                (Join-Path $TestRoot 'windows.tool') -and
+            [string]$Context.StageRoot -ceq
+                (Join-Path $TestRoot 'windows.stage') -and
+            [string]$Context.CacheRoot -ceq
+                (Join-Path $TestRoot 'windows.cache') -and
+            [string]$Context.LockRoot -ceq
+                (Join-Path $TestRoot 'windows.locks') -and
+            [string]$Context.LogRoot -ceq
+                (Join-Path $TestRoot 'windows.logs') -and
+            [string]$Context.RustupStageRoot -ceq
+                (Join-Path $TestRoot 'windows.stage\rustup') -and
+            [string]$Context.DownloadRoot -ceq
+                (Join-Path $TestRoot 'windows.cache\downloads') -and
+            [string]$Context.CargoHome -ceq
+                (Join-Path $TestRoot 'windows.cache\cargo') -and
+            -not (Test-Path -LiteralPath (Join-Path $TestRoot 'data')) -and
+            -not (Test-Path -LiteralPath (
+                Join-Path $TestRoot 'bootstrap.windows'
+            ))
         ) `
-        -Message 'Bootstrap state and cache roots were not kept distinct'
+        -Message 'flat RepositoryDataRoot layout is invalid'
     $Contract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $PathBudgetAccepted = $false
     try {
-        $BoundaryRoot = 'C:\' + ('a' * 87)
+        $BoundaryRoot = 'C:\' + ('a' * 57)
         [void](Assert-SwawHarnessRepositoryRootPathBudget `
             -RepositoryRoot $BoundaryRoot)
         $PathBudgetAccepted = $true
@@ -91,11 +85,11 @@ try {
     }
     Assert-ToolchainTest `
         -Condition $PathBudgetAccepted `
-        -Message 'repository-root path budget rejected its 90-character boundary'
+        -Message 'repository-root path budget rejected its 60-character boundary'
     $PathBudgetRejected = $false
     try {
         [void](Assert-SwawHarnessRepositoryRootPathBudget `
-            -RepositoryRoot ('C:\' + ('a' * 88)))
+            -RepositoryRoot ('C:\' + ('a' * 58)))
     } catch {
         $PathBudgetRejected = $_.Exception.Message -like (
             'Windows Bootstrap supports an absolute repository root no longer*'
@@ -103,7 +97,7 @@ try {
     }
     Assert-ToolchainTest `
         -Condition $PathBudgetRejected `
-        -Message 'repository-root path budget accepted 91 characters'
+        -Message 'repository-root path budget accepted 61 characters'
     $RustupContent = 'rustup fixture'
     $Contract.RustupInitLength = [Text.Encoding]::UTF8.GetByteCount(
         $RustupContent
@@ -157,7 +151,7 @@ try {
         -Contract $Contract `
         -Probe $Probe `
         -RustRoot $RustRoot `
-        -ControlledRoot $Context.NativeRoot
+        -ControlledRoot $Context.RepositoryDataRoot
 
     $ToolVersion = '14.51.36231'
     $SdkVersion = '10.0.28000.0'
@@ -201,7 +195,7 @@ try {
         }) `
         -UsedPayloads @($MsvcPayload) `
         -MsvcRoot $MsvcRoot `
-        -ControlledRoot $Context.NativeRoot
+        -ControlledRoot $Context.RepositoryDataRoot
     $Metadata = [ordered]@{
         schema = 'swaw.harness.bootstrap.toolchain/v4'
         toolchainId = $ToolchainId

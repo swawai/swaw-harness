@@ -18,17 +18,16 @@ $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
-$RepositoryRoot = 'C:\' + ('a' * 87)
+$RepositoryRoot = 'C:\' + ('a' * 57)
 [void](Assert-SwawHarnessRepositoryRootPathBudget `
     -RepositoryRoot $RepositoryRoot)
-$DataRoot = Join-Path $RepositoryRoot 'data'
-$NativeRoot = Join-Path $DataRoot 'n'
+$RepositoryDataRoot = Join-Path $RepositoryRoot 'data.repo'
 $Context = [pscustomobject][ordered]@{
-    DataRoot = $DataRoot
-    NativeRoot = $NativeRoot
-    NativeInstallRoot = Join-Path $DataRoot 'i'
-    ToolchainRoot = Join-Path $NativeRoot 't'
-    WorkRoot = Join-Path $NativeRoot 'w'
+    HarnessRoot = $RepositoryRoot
+    RepositoryDataRoot = $RepositoryDataRoot
+    RustupStageRoot = Join-Path $RepositoryDataRoot 'windows.stage\rustup'
+    ToolchainRoot = Join-Path $RepositoryDataRoot 'windows.tool'
+    StageRoot = Join-Path $RepositoryDataRoot 'windows.stage'
 }
 $ToolchainId = Get-SwawHarnessToolchainId -Contract $Contract
 Assert-SwawHarnessToolchainInstallPathBudget `
@@ -39,39 +38,52 @@ Assert-SwawHarnessToolchainInstallPathBudget `
 $CoreContract = [pscustomobject][ordered]@{
     PlatformTargetId = [string]$Contract.PlatformTargetId
     ProductPackage = 'swaw-harness-helloworld'
+    BuildBinary = 'swaw-harness-helloworld.exe'
     ProductBinary = 'swaw-harness-helloworld.exe'
 }
 $EntryManagerContract = [pscustomobject][ordered]@{
     PlatformTargetId = [string]$Contract.PlatformTargetId
-    ProductPackage = 'swaw-harness-entry-manager'
+    ProductPackage = 'swaw-har-manager'
+    BuildBinary = 'swaw-har-manager.exe'
     ProductBinary = 'swaw-harness-entry-manager.exe'
 }
 foreach ($Build in @(
-    [pscustomobject]@{ Contract = $CoreContract; Locator = 'c' }
-    [pscustomobject]@{ Contract = $EntryManagerContract; Locator = 'm' }
+    [pscustomobject]@{ Contract = $CoreContract; Product = 'core' }
+    [pscustomobject]@{ Contract = $EntryManagerContract; Product = 'manager' }
 )) {
-    $TargetRoot = Join-Path $NativeRoot "b\$($Build.Locator)"
+    $TargetRoot = Join-Path $RepositoryDataRoot (
+        "windows.build\$($Build.Product)"
+    )
     [void](Assert-SwawHarnessNativePathBudget `
         -Paths (Get-SwawHarnessCargoPlannedPaths `
             -TargetRoot $TargetRoot `
             -PlatformTargetId $Build.Contract.PlatformTargetId `
             -Package $Build.Contract.ProductPackage `
-            -Binary $Build.Contract.ProductBinary) `
-        -Description '90-character repository Cargo plan')
+            -Binary $Build.Contract.BuildBinary) `
+        -Description '60-character repository Cargo plan')
 }
+
+$RuntimeMsvcPath = Join-Path $RepositoryRoot (
+    "data\$('e' * 16)\release\dev\setup\$('a' * 12)\m\" +
+    'Windows Kits\10\Include\10.0.28000.0\cppwinrt\winrt\impl\' +
+    'windows.applicationmodel.appointments.appointmentsprovider.0.h'
+)
+Assert-PathBudgetTest `
+    -Condition ($RuntimeMsvcPath.Length -eq 235) `
+    -Message 'the reserved Entry runtime MSVC path is not 235 characters'
 
 $OverlongRepositoryRejected = $false
 try {
     [void](Assert-SwawHarnessRepositoryRootPathBudget `
-        -RepositoryRoot ('C:\' + ('a' * 88)))
+        -RepositoryRoot ('C:\' + ('a' * 58)))
 } catch {
     $OverlongRepositoryRejected = $_.Exception.Message -match (
-        'measured 91'
+        'measured 61'
     )
 }
 Assert-PathBudgetTest `
     -Condition $OverlongRepositoryRejected `
-    -Message 'a 91-character repository root was not rejected early'
+    -Message 'a 61-character repository root was not rejected early'
 
 $OverlongNativePathRejected = $false
 try {

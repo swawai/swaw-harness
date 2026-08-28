@@ -28,7 +28,7 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
 $Contracts = @(Get-SwawHarnessWindowsProductContracts `
     -WindowsRoot $WindowsRoot `
     -PlatformTargetId $PlatformContract.PlatformTargetId)
-$ReleasesRoot = Join-Path $RepositoryRoot 'data\bootstrap.release'
+$ReleasesRoot = Join-Path $RepositoryRoot 'data.repo\windows.release'
 $Release = Read-SwawHarnessSelectedRelease `
     -ReleasesRoot $ReleasesRoot `
     -Contracts $Contracts

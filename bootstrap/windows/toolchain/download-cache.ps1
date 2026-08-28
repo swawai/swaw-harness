@@ -285,28 +285,28 @@ function Get-SwawHarnessVerifiedArtifact {
     )
     $ArtifactRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $ArtifactRoot `
-        -Root $Context.BootstrapWindowsCacheRoot `
+        -Root $Context.CacheRoot `
         -Activity "using the $Description cache"
     $Path = Join-Path $ArtifactRoot $Name
     $Lock = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot "artifact-$ExpectedSha256.lock") `
-        -ControlledRoot $Context.BootstrapWindowsRoot
+        -ControlledRoot $Context.RepositoryDataRoot
     try {
         if ([IO.File]::Exists($ArtifactRoot)) {
             Remove-SwawHarnessControlledPath `
                 -Path $ArtifactRoot `
-                -ControlledRoot $Context.BootstrapWindowsCacheRoot `
+                -ControlledRoot $Context.CacheRoot `
                 -Activity "repairing the $Description cache root"
         }
         [void][IO.Directory]::CreateDirectory($ArtifactRoot)
         Remove-SwawHarnessOrphanedDownloads `
             -Directory $ArtifactRoot `
             -ArtifactName $Name `
-            -ControlledRoot $Context.BootstrapWindowsCacheRoot
+            -ControlledRoot $Context.CacheRoot
         if ([IO.Directory]::Exists($Path)) {
             Remove-SwawHarnessControlledPath `
                 -Path $Path `
-                -ControlledRoot $Context.BootstrapWindowsCacheRoot `
+                -ControlledRoot $Context.CacheRoot `
                 -Activity "repairing the $Description cache"
         }
         if ([IO.File]::Exists($Path)) {
@@ -324,7 +324,7 @@ function Get-SwawHarnessVerifiedArtifact {
             if (-not $Valid) {
                 Remove-SwawHarnessControlledPath `
                     -Path $Path `
-                    -ControlledRoot $Context.BootstrapWindowsCacheRoot `
+                    -ControlledRoot $Context.CacheRoot `
                     -Activity "removing a corrupt $Description cache"
             }
         }
@@ -332,7 +332,7 @@ function Get-SwawHarnessVerifiedArtifact {
             Invoke-SwawHarnessDownload `
                 -Source $Source `
                 -Destination $Path `
-                -ControlledRoot $Context.BootstrapWindowsCacheRoot `
+                -ControlledRoot $Context.CacheRoot `
                 -MaximumBytes $MaximumBytes
         }
         $Item = Assert-SwawHarnessRegularFile `
@@ -345,7 +345,7 @@ function Get-SwawHarnessVerifiedArtifact {
                 $ExpectedSha256) {
             Remove-SwawHarnessControlledPath `
                 -Path $Path `
-                -ControlledRoot $Context.BootstrapWindowsCacheRoot `
+                -ControlledRoot $Context.CacheRoot `
                 -Activity "removing an unverified $Description"
             throw "$Description verification failed: $Name"
         }

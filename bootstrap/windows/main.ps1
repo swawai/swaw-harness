@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$DataRoot)
+param([Parameter(Mandatory = $true)][string]$RepositoryDataRoot)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -15,7 +15,7 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot 'contract.json')
 $RepositoryRoot = Assert-SwawHarnessRepositoryRootPathBudget `
     -RepositoryRoot (Join-Path $PSScriptRoot '..\..')
-$Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
+$Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
 
 $Toolchain = Get-SwawHarnessBootstrapToolchain `
     -Context $Context `
@@ -25,7 +25,7 @@ $Plan = Get-SwawHarnessToolchainEnvironment `
     -Contract $PlatformContract `
     -Toolchain $Toolchain
 $CoreBuildResults = @(& (Join-Path $PSScriptRoot 'core\build.ps1') `
-    -DataRoot $Context.DataRoot `
+    -RepositoryDataRoot $Context.RepositoryDataRoot `
     -CargoPath $Plan.CargoPath `
     -EnvironmentVariables $Plan.EnvironmentVariables `
     -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
@@ -34,7 +34,7 @@ if ($CoreBuildResults.Count -ne 1 -or
     throw 'Core build must return exactly one immutable candidate path.'
 }
 $EntryBuildResults = @(& (Join-Path $PSScriptRoot 'entry\build.ps1') `
-    -DataRoot $Context.DataRoot `
+    -RepositoryDataRoot $Context.RepositoryDataRoot `
     -CompilerPath $Plan.CompilerPath `
     -LinkerPath $Plan.LinkerPath `
     -EnvironmentVariables $Plan.EnvironmentVariables `
@@ -44,7 +44,7 @@ if ($EntryBuildResults.Count -ne 1 -or
     throw 'Entry executable build must return exactly one immutable candidate path.'
 }
 $EntryManagerBuildResults = @(& (Join-Path $PSScriptRoot 'entry.manager\build.ps1') `
-    -DataRoot $Context.DataRoot `
+    -RepositoryDataRoot $Context.RepositoryDataRoot `
     -CargoPath $Plan.CargoPath `
     -EnvironmentVariables $Plan.EnvironmentVariables `
     -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
@@ -54,7 +54,7 @@ if ($EntryManagerBuildResults.Count -ne 1 -or
 }
 
 $PublicationResults = @(Publish-SwawHarnessWindowsProducts `
-    -DataRoot $Context.DataRoot `
+    -RepositoryDataRoot $Context.RepositoryDataRoot `
     -CoreCandidatePath ([string]$CoreBuildResults[0]) `
     -EntryCandidatePath ([string]$EntryBuildResults[0]) `
     -EntryManagerCandidatePath ([string]$EntryManagerBuildResults[0]))

@@ -2,10 +2,15 @@ Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot 'foundation.ps1')
 
-$script:SwawHarnessMaximumRepositoryRootLength = 90
+$script:SwawHarnessMaximumRepositoryRootLength = 60
 $script:SwawHarnessMaximumNativePathLength = 240
+$script:SwawHarnessMaximumEntryIdLength = 16
 $script:SwawHarnessPinnedRustLibraryFileLength = 51
 $script:SwawHarnessPinnedMsvcRelativePathLength = 121
+$script:SwawHarnessPinnedMsvcInstalledRelativePath = (
+    'Windows Kits\10\Include\10.0.28000.0\cppwinrt\winrt\impl\' +
+    'windows.applicationmodel.appointments.appointmentsprovider.0.h'
+)
 
 function Test-SwawHarnessFullyQualifiedPath {
     param(
@@ -33,6 +38,7 @@ function Get-SwawHarnessWindowsPathBudget {
         MaximumRepositoryRootLength =
             $script:SwawHarnessMaximumRepositoryRootLength
         MaximumNativePathLength = $script:SwawHarnessMaximumNativePathLength
+        MaximumEntryIdLength = $script:SwawHarnessMaximumEntryIdLength
     }
 }
 
@@ -73,7 +79,7 @@ function Assert-SwawHarnessNativePathBudget {
                 "$Description exceeds the Windows Bootstrap native-path " +
                 "budget of $($script:SwawHarnessMaximumNativePathLength) " +
                 "characters; measured $($FullPath.Length): $FullPath. " +
-                'Use a repository root within the declared 90-character ' +
+                'Use a HarnessRoot within the declared 60-character ' +
                 'support boundary.'
             )
         }
@@ -119,7 +125,7 @@ function Assert-SwawHarnessToolchainInstallPathBudget {
     ) $LongestPinnedRustLibrary
     $Paths = [string[]]@(
         (Join-Path (
-            Join-Path $Context.NativeInstallRoot (
+            Join-Path $Context.RustupStageRoot (
                 "r\toolchains\$ToolchainName"
             )
         ) $RustLibrarySuffix)
@@ -127,9 +133,15 @@ function Assert-SwawHarnessToolchainInstallPathBudget {
             Join-Path $Context.ToolchainRoot "$MaximumLocator\r"
         ) $RustLibrarySuffix)
         (Join-Path (
-            Join-Path $Context.WorkRoot "$MaximumLocator\p"
+            Join-Path $Context.StageRoot "$MaximumLocator\publish"
         ) ('x' * $script:SwawHarnessPinnedMsvcRelativePathLength))
-        (Join-Path $Context.WorkRoot "$MaximumLocator\s")
+        (Join-Path $Context.StageRoot "$MaximumLocator\msi")
+        (Join-Path (
+            Join-Path $Context.HarnessRoot (
+                "data\$('e' * $script:SwawHarnessMaximumEntryIdLength)\" +
+                "release\dev\setup\$MaximumLocator\m"
+            )
+        ) $script:SwawHarnessPinnedMsvcInstalledRelativePath)
     )
     [void](Assert-SwawHarnessNativePathBudget `
         -Paths $Paths `
@@ -174,7 +186,7 @@ function Assert-SwawHarnessCargoBuildPathBudget {
         -TargetRoot $TargetRoot `
         -PlatformTargetId ([string]$Contract.PlatformTargetId) `
         -Package ([string]$Contract.ProductPackage) `
-        -Binary ([string]$Contract.ProductBinary)) {
+        -Binary ([string]$Contract.BuildBinary)) {
         $Paths.Add($Path)
     }
     foreach ($Path in @($CargoPath, $ManifestPath, $WorkingDirectory)) {

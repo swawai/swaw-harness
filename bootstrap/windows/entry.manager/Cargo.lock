@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "swaw-harness-entry-manager"
+name = "swaw-har-manager"
 version = "0.1.0"

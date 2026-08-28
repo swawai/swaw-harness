@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$DataRoot,
+    [Parameter(Mandatory = $true)][string]$RepositoryDataRoot,
     [Parameter(Mandatory = $true)][string]$CargoPath,
     [Collections.IDictionary]$EnvironmentVariables = @{},
     [string[]]$UnsetEnvironmentVariables = @()
@@ -25,21 +25,13 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
 $Contract = Read-SwawHarnessWindowsEntryManagerContract `
     -Path (Join-Path $PSScriptRoot 'contract.json') `
     -PlatformTargetId $PlatformContract.PlatformTargetId
-$Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
-$BootstrapWindowsCacheRoot = $Context.BootstrapWindowsCacheRoot
-$BuildRoot = Join-Path $BootstrapWindowsCacheRoot (
-    "build\entry.manager\$($Contract.PlatformTargetId)"
-)
+$Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
+$BuildRoot = Join-Path $Context.BuildRoot 'manager'
 $BuildRoot = Assert-SwawHarnessPathInsideRoot `
     -Path $BuildRoot `
-    -Root $BootstrapWindowsCacheRoot `
+    -Root $Context.BuildRoot `
     -Activity 'building the Windows Entry Manager candidate'
 [void][IO.Directory]::CreateDirectory($BuildRoot)
-$NativeBuildRoot = Assert-SwawHarnessPathInsideRoot `
-    -Path (Join-Path $Context.NativeBuildRoot 'm') `
-    -Root $Context.NativeRoot `
-    -Activity 'building the Windows Entry Manager candidate'
-[void][IO.Directory]::CreateDirectory($NativeBuildRoot)
 
 $CargoPath = Get-SwawHarnessFullPath -Path $CargoPath
 [void](Assert-SwawHarnessRegularFile `
@@ -60,10 +52,10 @@ $BuildLock = Enter-SwawHarnessFileLock `
     -Path (Join-Path $Context.LockRoot (
         "build-entry-manager-$($Contract.PlatformTargetId).lock"
     )) `
-    -ControlledRoot $Context.BootstrapWindowsRoot `
+    -ControlledRoot $Context.RepositoryDataRoot `
     -TimeoutSeconds 1800
 try {
-    $CargoTargetRoot = $NativeBuildRoot
+    $CargoTargetRoot = $BuildRoot
     Assert-SwawHarnessCargoBuildPathBudget `
         -TargetRoot $CargoTargetRoot `
         -Contract $Contract `
@@ -107,7 +99,7 @@ try {
         -Description 'Entry Manager Cargo output path')
 
     $ArtifactPath = Join-Path $CargoTargetRoot (
-        "$($Contract.PlatformTargetId)\release\$($Contract.ProductBinary)"
+        "$($Contract.PlatformTargetId)\release\$($Contract.BuildBinary)"
     )
     $Artifact = Assert-SwawHarnessRegularFile `
         -Path $ArtifactPath `
@@ -120,7 +112,7 @@ try {
         -ArtifactPath $ArtifactPath `
         -Contract $Contract `
         -BuildRoot $BuildRoot `
-        -ControlledRoot $BootstrapWindowsCacheRoot
+        -ControlledRoot $Context.BuildRoot
     Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
     Write-Output $CandidatePath
 } finally {

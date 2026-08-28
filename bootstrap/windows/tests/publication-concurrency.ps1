@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$RepositoryDataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -33,7 +33,7 @@ function New-PublicationTestCandidate {
         -ArtifactPath $ArtifactPath `
         -Contract $Contract `
         -BuildRoot $BuildRoot `
-        -ControlledRoot $Context.BootstrapWindowsCacheRoot
+        -ControlledRoot $Context.BuildRoot
 }
 
 function Test-PublicationReleaseEquals {
@@ -57,11 +57,11 @@ $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
 . (Join-Path $WindowsRoot 'publication.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
-$PublicationDataRoot = Join-Path $TestRoot 'data'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
+$PublicationRepositoryDataRoot = Join-Path $TestRoot 'data.repo'
 $FixtureRoot = Join-Path $TestRoot 'artifacts'
 [void][IO.Directory]::CreateDirectory($FixtureRoot)
 $RunnerPath = Join-Path $TestRoot 'invoke-publication.ps1'
@@ -69,7 +69,7 @@ $RunnerSource = @'
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$WindowsRoot,
-    [Parameter(Mandatory = $true)][string]$DataRoot,
+    [Parameter(Mandatory = $true)][string]$RepositoryDataRoot,
     [Parameter(Mandatory = $true)][string]$CoreCandidatePath,
     [Parameter(Mandatory = $true)][string]$EntryCandidatePath,
     [Parameter(Mandatory = $true)][string]$EntryManagerCandidatePath,
@@ -87,7 +87,7 @@ Set-StrictMode -Version 2.0
     [Text.UTF8Encoding]::new($false)
 )
 $Results = @(Publish-SwawHarnessWindowsProducts `
-    -DataRoot $DataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -CoreCandidatePath $CoreCandidatePath `
     -EntryCandidatePath $EntryCandidatePath `
     -EntryManagerCandidatePath $EntryManagerCandidatePath)
@@ -109,7 +109,7 @@ try {
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $Context = New-SwawHarnessWindowsBootstrapContext `
-        -DataRoot $PublicationDataRoot
+        -RepositoryDataRoot $PublicationRepositoryDataRoot
     $CoreContract = Read-SwawHarnessWindowsCoreContract `
         -Path (Join-Path $WindowsRoot 'core\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId
@@ -123,23 +123,17 @@ try {
         [pscustomobject]@{
             Name = 'core'
             Contract = $CoreContract
-            BuildRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-                "build\core\$($PlatformContract.PlatformTargetId)"
-            )
+            BuildRoot = Join-Path $Context.BuildRoot 'core'
         },
         [pscustomobject]@{
             Name = 'entry'
             Contract = $EntryContract
-            BuildRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-                "build\entry\$($PlatformContract.PlatformTargetId)"
-            )
+            BuildRoot = Join-Path $Context.BuildRoot 'entry'
         },
         [pscustomobject]@{
-            Name = 'entry.manager'
+            Name = 'manager'
             Contract = $EntryManagerContract
-            BuildRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-                "build\entry.manager\$($PlatformContract.PlatformTargetId)"
-            )
+            BuildRoot = Join-Path $Context.BuildRoot 'manager'
         }
     )
     $CandidateSets = @{}
@@ -161,7 +155,7 @@ try {
         -Path (Join-Path $Context.LockRoot (
             "publish-bootstrap-$($PlatformContract.PlatformTargetId).lock"
         )) `
-        -ControlledRoot $Context.BootstrapWindowsRoot `
+        -ControlledRoot $Context.RepositoryDataRoot `
         -TimeoutSeconds 30
     $HostPath = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
     foreach ($SetName in @('A', 'B')) {
@@ -173,15 +167,15 @@ try {
             '-NoProfile', '-ExecutionPolicy', 'Bypass',
             '-File', $RunnerPath,
             '-WindowsRoot', $WindowsRoot,
-            '-DataRoot', $PublicationDataRoot,
+            '-RepositoryDataRoot', $PublicationRepositoryDataRoot,
             '-CoreCandidatePath', $CandidateSets[$SetName]['core'],
             '-EntryCandidatePath', $CandidateSets[$SetName]['entry'],
             '-EntryManagerCandidatePath',
-                $CandidateSets[$SetName]['entry.manager'],
+                $CandidateSets[$SetName]['manager'],
             '-ReadyPath', $ReadyPath,
             '-ResultPath', $ResultPath
         )
-        $Info.WorkingDirectory = $PublicationDataRoot
+        $Info.WorkingDirectory = $PublicationRepositoryDataRoot
         $Info.UseShellExecute = $false
         $Info.CreateNoWindow = $true
         $Info.RedirectStandardOutput = $true
@@ -265,10 +259,10 @@ try {
     $Rejected = $false
     try {
         Publish-SwawHarnessWindowsProducts `
-            -DataRoot $PublicationDataRoot `
+            -RepositoryDataRoot $PublicationRepositoryDataRoot `
             -CoreCandidatePath (Join-Path $TestRoot 'missing-candidate.json') `
             -EntryCandidatePath $CandidateSets['A']['entry'] `
-            -EntryManagerCandidatePath $CandidateSets['A']['entry.manager'] |
+            -EntryManagerCandidatePath $CandidateSets['A']['manager'] |
             Out-Null
     } catch {
         $Rejected = $true
@@ -280,14 +274,14 @@ try {
         -Path (Join-Path $Context.LockRoot (
             "publish-bootstrap-$($PlatformContract.PlatformTargetId).lock"
         )) `
-        -ControlledRoot $Context.BootstrapWindowsRoot `
+        -ControlledRoot $Context.RepositoryDataRoot `
         -TimeoutSeconds 2
     $Probe.Dispose()
     $AfterFailure = @(Publish-SwawHarnessWindowsProducts `
-        -DataRoot $PublicationDataRoot `
+        -RepositoryDataRoot $PublicationRepositoryDataRoot `
         -CoreCandidatePath $CandidateSets['B']['core'] `
         -EntryCandidatePath $CandidateSets['B']['entry'] `
-        -EntryManagerCandidatePath $CandidateSets['B']['entry.manager'])
+        -EntryManagerCandidatePath $CandidateSets['B']['manager'])
     Assert-PublicationConcurrencyTest `
         -Condition ($AfterFailure.Count -eq 1 -and
             (Test-PublicationReleaseEquals `

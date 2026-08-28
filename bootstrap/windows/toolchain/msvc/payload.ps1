@@ -84,7 +84,7 @@ function Copy-SwawHarnessMsvcPayloadToSourceRoot {
 
     $SourceRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $SourceRoot `
-        -Root $Context.NativeRoot `
+        -Root $Context.StageRoot `
         -Activity 'staging MSVC installer sources'
     [void][IO.Directory]::CreateDirectory($SourceRoot)
     $Destination = Resolve-SwawHarnessChildPath `
@@ -109,7 +109,7 @@ function Copy-SwawHarnessMsvcPayloadToSourceRoot {
             [string]$Payload.Sha256) {
         Remove-SwawHarnessControlledPath `
             -Path $Destination `
-            -ControlledRoot $Context.NativeRoot `
+            -ControlledRoot $Context.StageRoot `
             -Activity 'removing an invalid MSVC source copy'
         throw "MSVC source copy verification failed: $Destination"
     }
@@ -254,12 +254,12 @@ function Invoke-SwawHarnessMsvcAdministrativeInstall {
 
     $Destination = Assert-SwawHarnessPathInsideRoot `
         -Path $Destination `
-        -Root $Context.NativeRoot `
+        -Root $Context.StageRoot `
         -Activity 'installing an MSVC payload'
     $LogName = "$([IO.Path]::GetFileName($MsiPath)).install.log"
     $LogPath = Assert-SwawHarnessPathInsideRoot `
         -Path (Join-Path $Context.LogRoot $LogName) `
-        -Root $Context.BootstrapWindowsRoot `
+        -Root $Context.LogRoot `
         -Activity 'writing an MSVC installation log'
     [void][IO.Directory]::CreateDirectory($Destination)
     [void][IO.Directory]::CreateDirectory((Split-Path $LogPath -Parent))

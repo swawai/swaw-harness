@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$RepositoryDataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -16,14 +16,14 @@ $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
 . (Join-Path $WindowsRoot 'builder\process.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -RepositoryRoot $RepositoryRoot
 $Before = [Environment]::GetEnvironmentVariable('RUSTFLAGS', 'Process')
 [Environment]::SetEnvironmentVariable('RUSTFLAGS', 'ambient-test', 'Process')
 try {
     $Setup = @(& (Join-Path $WindowsRoot 'toolchain-setup.ps1') `
-        -DataRoot $DataRoot)
+        -RepositoryDataRoot $RepositoryDataRoot)
     Assert-ToolchainCommandTest `
         -Condition ($Setup.Count -eq 1 -and
             [IO.Directory]::Exists([string]$Setup[0].Root)) `
@@ -33,10 +33,10 @@ try {
         -Arguments @(
             '-NoProfile', '-ExecutionPolicy', 'Bypass',
             '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
-            '-DataRoot', $DataRoot,
+            '-RepositoryDataRoot', $RepositoryDataRoot,
             'cargo', '--version'
         ) `
-        -WorkingDirectory $DataRoot `
+        -WorkingDirectory $RepositoryDataRoot `
         -TimeoutSeconds 60
     Assert-ToolchainCommandTest `
         -Condition ($Success.ExitCode -eq 0 -and
@@ -47,12 +47,12 @@ try {
         -Arguments @(
             '-NoProfile', '-ExecutionPolicy', 'Bypass',
             '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
-            '-DataRoot', $DataRoot,
+            '-RepositoryDataRoot', $RepositoryDataRoot,
             'cargo', 'metadata',
             '--manifest-path', 'Z:\definitely-missing\Cargo.toml',
             '--format-version', '1'
         ) `
-        -WorkingDirectory $DataRoot `
+        -WorkingDirectory $RepositoryDataRoot `
         -TimeoutSeconds 60
     Assert-ToolchainCommandTest `
         -Condition ($Failure.ExitCode -eq 101 -and

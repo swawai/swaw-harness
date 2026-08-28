@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$DataRoot,
+    [Parameter(Mandatory = $true)][string]$RepositoryDataRoot,
     [Parameter(Mandatory = $true)][string]$CargoPath,
     [Collections.IDictionary]$EnvironmentVariables = @{},
     [string[]]$UnsetEnvironmentVariables = @()
@@ -25,22 +25,13 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
 $Contract = Read-SwawHarnessWindowsCoreContract `
     -Path (Join-Path $PSScriptRoot 'contract.json') `
     -PlatformTargetId $PlatformContract.PlatformTargetId
-$Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
-$BootstrapWindowsRoot = $Context.BootstrapWindowsRoot
-$BootstrapWindowsCacheRoot = $Context.BootstrapWindowsCacheRoot
-$BuildRoot = Join-Path $BootstrapWindowsCacheRoot (
-    "build\core\$($Contract.PlatformTargetId)"
-)
+$Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
+$BuildRoot = Join-Path $Context.BuildRoot 'core'
 $BuildRoot = Assert-SwawHarnessPathInsideRoot `
     -Path $BuildRoot `
-    -Root $BootstrapWindowsCacheRoot `
+    -Root $Context.BuildRoot `
     -Activity 'building the Windows Core candidate'
 [void][IO.Directory]::CreateDirectory($BuildRoot)
-$NativeBuildRoot = Assert-SwawHarnessPathInsideRoot `
-    -Path (Join-Path $Context.NativeBuildRoot 'c') `
-    -Root $Context.NativeRoot `
-    -Activity 'building the Windows Core candidate'
-[void][IO.Directory]::CreateDirectory($NativeBuildRoot)
 
 $CargoPath = Get-SwawHarnessFullPath -Path $CargoPath
 [void](Assert-SwawHarnessRegularFile `
@@ -56,10 +47,10 @@ $BuildLock = Enter-SwawHarnessFileLock `
     -Path (Join-Path $Context.LockRoot (
         "build-core-$($Contract.PlatformTargetId).lock"
     )) `
-    -ControlledRoot $BootstrapWindowsRoot `
+    -ControlledRoot $Context.RepositoryDataRoot `
     -TimeoutSeconds 1800
 try {
-    $CargoTargetRoot = $NativeBuildRoot
+    $CargoTargetRoot = $BuildRoot
     Assert-SwawHarnessCargoBuildPathBudget `
         -TargetRoot $CargoTargetRoot `
         -Contract $Contract `
@@ -113,7 +104,7 @@ try {
         -ArtifactPath $ArtifactPath `
         -Contract $Contract `
         -BuildRoot $BuildRoot `
-        -ControlledRoot $BootstrapWindowsCacheRoot
+        -ControlledRoot $Context.BuildRoot
     Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
     Write-Output $CandidatePath
 } finally {

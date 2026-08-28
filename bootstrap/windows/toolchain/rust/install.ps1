@@ -15,7 +15,7 @@ function Install-SwawHarnessRustIntoToolchainStage {
 
     $RustRoot = Assert-SwawHarnessPathInsideRoot `
         -Path (Join-Path $StagedToolchainRoot 'r') `
-        -Root $Context.NativeRoot `
+        -Root $Context.StageRoot `
         -Activity 'staging the Rust toolchain'
     if (Test-SwawHarnessPathExists -Path $RustRoot) {
         throw "Rust stage must not already exist: $RustRoot"
@@ -28,17 +28,17 @@ function Install-SwawHarnessRustIntoToolchainStage {
         -Description 'rustup-init executable'
     $RustInstallRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $RustInstallRoot `
-        -Root $Context.DataRoot `
+        -Root $Context.StageRoot `
         -Activity 'installing a normalized Rust toolchain'
     $InstallLock = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot 'rust-install.lock') `
-        -ControlledRoot $Context.BootstrapWindowsRoot `
+        -ControlledRoot $Context.RepositoryDataRoot `
         -TimeoutSeconds 1800
     try {
         if (Test-SwawHarnessPathExists -Path $RustInstallRoot) {
             Remove-SwawHarnessControlledPathWithRetry `
                 -Path $RustInstallRoot `
-                -ControlledRoot $Context.DataRoot `
+                -ControlledRoot $Context.StageRoot `
                 -Activity 'cleaning interrupted Rust installation work'
         }
         [void][IO.Directory]::CreateDirectory(
@@ -62,7 +62,7 @@ function Install-SwawHarnessRustIntoToolchainStage {
         $ToolchainName = Get-SwawHarnessRustToolchainName -Contract $Contract
         $InstalledSysroot = Assert-SwawHarnessPathInsideRoot `
             -Path (Join-Path $RustInstallRoot "r\toolchains\$ToolchainName") `
-            -Root $Context.DataRoot `
+            -Root $Context.StageRoot `
             -Activity 'normalizing the Rust sysroot'
         [void](Assert-SwawHarnessControlledRoot `
             -Root $InstalledSysroot `
@@ -70,18 +70,18 @@ function Install-SwawHarnessRustIntoToolchainStage {
         Move-SwawHarnessControlledPathWithRetry `
             -Source $InstalledSysroot `
             -Destination $RustRoot `
-            -ControlledRoot $Context.DataRoot `
+            -ControlledRoot $Context.StageRoot `
             -Activity 'normalizing the Rust sysroot'
         $Record = New-SwawHarnessRustInstallRecord `
             -Contract $Contract `
             -Probe $Probe `
             -RustRoot $RustRoot `
-            -ControlledRoot $Context.NativeRoot
+            -ControlledRoot $Context.StageRoot
         if (-not (Test-SwawHarnessRustInstallRecord `
             -Record $Record `
             -Contract $Contract `
             -RustRoot $RustRoot `
-            -ControlledRoot $Context.NativeRoot `
+            -ControlledRoot $Context.StageRoot `
             -Detailed
         )) {
             throw 'Staged Rust installation failed its receipt check.'
@@ -92,7 +92,7 @@ function Install-SwawHarnessRustIntoToolchainStage {
             if (Test-SwawHarnessPathExists -Path $RustInstallRoot) {
                 Remove-SwawHarnessControlledPathWithRetry `
                     -Path $RustInstallRoot `
-                    -ControlledRoot $Context.DataRoot `
+                    -ControlledRoot $Context.StageRoot `
                     -Activity 'cleaning Rust installation work'
             }
         } finally {

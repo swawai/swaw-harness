@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$RepositoryDataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -34,12 +34,12 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
 try {
-    $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
+    $Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $TestRoot
 
     $ToolchainId = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     $Selection = Get-SwawHarnessToolchainTargetSelection `
@@ -65,7 +65,7 @@ try {
         -ToolchainId $ToolchainId
     Remove-SwawHarnessControlledPathWithRetry `
         -Path (Join-Path $Context.ToolchainRoot 'aaaaaaa') `
-        -ControlledRoot $Context.NativeRoot `
+        -ControlledRoot $Context.RepositoryDataRoot `
         -Activity 'preparing locator reuse coverage'
     $Reused = Get-SwawHarnessToolchainTargetSelection `
         -Context $Context `

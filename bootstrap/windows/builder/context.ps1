@@ -1,59 +1,58 @@
 Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot 'foundation.ps1')
+. (Join-Path $PSScriptRoot 'filesystem.ps1')
 
 function New-SwawHarnessWindowsBootstrapContext {
-    param([Parameter(Mandatory = $true)][string]$DataRoot)
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepositoryDataRoot
+    )
 
     Assert-SwawHarnessWindowsX64
-    $DataRoot = Assert-SwawHarnessControlledRoot `
-        -Root $DataRoot `
-        -Description 'DataRoot'
-    [void][IO.Directory]::CreateDirectory($DataRoot)
+    $RepositoryDataRoot = Assert-SwawHarnessControlledRoot `
+        -Root $RepositoryDataRoot `
+        -Description 'RepositoryDataRoot'
+    [void][IO.Directory]::CreateDirectory($RepositoryDataRoot)
     [void](Assert-SwawHarnessControlledRoot `
-        -Root $DataRoot `
-        -Description 'DataRoot')
+        -Root $RepositoryDataRoot `
+        -Description 'RepositoryDataRoot')
 
-    $BootstrapWindowsRoot = Assert-SwawHarnessPathInsideRoot `
-        -Path (Join-Path $DataRoot 'bootstrap.windows') `
-        -Root $DataRoot `
-        -Activity 'using Windows Bootstrap state'
-    [void][IO.Directory]::CreateDirectory($BootstrapWindowsRoot)
-    [void](Assert-SwawHarnessControlledRoot `
-        -Root $BootstrapWindowsRoot `
-        -Description 'BootstrapWindowsRoot')
-
-    $BootstrapWindowsCacheRoot = Assert-SwawHarnessPathInsideRoot `
-        -Path (Join-Path $DataRoot 'bootstrap.windows.cache') `
-        -Root $DataRoot `
-        -Activity 'using Windows Bootstrap cache'
-    [void][IO.Directory]::CreateDirectory($BootstrapWindowsCacheRoot)
-    [void](Assert-SwawHarnessControlledRoot `
-        -Root $BootstrapWindowsCacheRoot `
-        -Description 'BootstrapWindowsCacheRoot')
-
-    $NativeRoot = Assert-SwawHarnessPathInsideRoot `
-        -Path (Join-Path $DataRoot 'n') `
-        -Root $DataRoot `
-        -Activity 'using Windows Bootstrap native data'
-    [void][IO.Directory]::CreateDirectory($NativeRoot)
-    [void](Assert-SwawHarnessControlledRoot `
-        -Root $NativeRoot `
-        -Description 'NativeRoot')
+    $Roots = [ordered]@{
+        BootstrapReleaseRoot = 'windows.release'
+        BuildRoot = 'windows.build'
+        ToolchainRoot = 'windows.tool'
+        StageRoot = 'windows.stage'
+        CacheRoot = 'windows.cache'
+        LockRoot = 'windows.locks'
+        LogRoot = 'windows.logs'
+    }
+    foreach ($Name in @($Roots.Keys)) {
+        $Roots[$Name] = Assert-SwawHarnessPathInsideRoot `
+            -Path (Join-Path $RepositoryDataRoot $Roots[$Name]) `
+            -Root $RepositoryDataRoot `
+            -Activity "using Windows Bootstrap $Name"
+        if ([IO.Directory]::Exists($Roots[$Name])) {
+            [void](Assert-SwawHarnessControlledRoot `
+                -Root $Roots[$Name] `
+                -Description $Name)
+        } elseif (Test-SwawHarnessPathExists -Path $Roots[$Name]) {
+            throw "$Name must be a regular directory: $($Roots[$Name])"
+        }
+    }
 
     return [pscustomobject][ordered]@{
-        DataRoot = $DataRoot
-        BootstrapWindowsRoot = $BootstrapWindowsRoot
-        BootstrapWindowsCacheRoot = $BootstrapWindowsCacheRoot
-        NativeRoot = $NativeRoot
-        NativeInstallRoot = Join-Path $DataRoot 'i'
-        BootstrapReleaseRoot = Join-Path $DataRoot 'bootstrap.release'
-        DownloadRoot = Join-Path $BootstrapWindowsCacheRoot 'downloads'
-        ToolchainRoot = Join-Path $NativeRoot 't'
-        WorkRoot = Join-Path $NativeRoot 'w'
-        NativeBuildRoot = Join-Path $NativeRoot 'b'
-        CargoHome = Join-Path $NativeRoot 'c'
-        LockRoot = Join-Path $BootstrapWindowsRoot 'locks'
-        LogRoot = Join-Path $BootstrapWindowsRoot 'logs'
+        HarnessRoot = Split-Path -Path $RepositoryDataRoot -Parent
+        RepositoryDataRoot = $RepositoryDataRoot
+        BootstrapReleaseRoot = $Roots.BootstrapReleaseRoot
+        BuildRoot = $Roots.BuildRoot
+        ToolchainRoot = $Roots.ToolchainRoot
+        StageRoot = $Roots.StageRoot
+        CacheRoot = $Roots.CacheRoot
+        LockRoot = $Roots.LockRoot
+        LogRoot = $Roots.LogRoot
+        RustupStageRoot = Join-Path $Roots.StageRoot 'rustup'
+        CargoHome = Join-Path $Roots.CacheRoot 'cargo'
+        DownloadRoot = Join-Path $Roots.CacheRoot 'downloads'
     }
 }

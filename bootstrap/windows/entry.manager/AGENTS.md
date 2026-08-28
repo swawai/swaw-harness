@@ -6,11 +6,11 @@
 
 ## Accepted
 
-- **ENTRY-MANAGEMENT-001 — Entry 存储布局。** `<repository>/data` 是 DataRoot，独立的 `<repository>/data.entry` 保存 Entry；每个 Entry 由同级的 `data.entry/<EntryId>.exe` 与 `data.entry/<EntryId>/` 组成，后者是 EntryRoot，其 `entry.json` 保存受管身份与生命周期，文件和目录不承诺文件系统级原子出现。
+- **ENTRY-MANAGEMENT-001 — Entry 存储布局。** `<HarnessRoot>/data` 是可独立复制运行的 DataRoot；每个 Entry 由同级的 `data/<EntryId>.exe` 与 `data/<EntryId>/` 组成，后者是 EntryRoot，其 `entry.json` 保存受管身份与生命周期，文件和目录不承诺文件系统级原子出现；Entry 不得依赖 `<repository>/data.repo`。
 
 ## Open
 
-- **ENTRY-MANAGEMENT-002 — EntryId 语法。** EntryId 的大小写归一、长度、可移植字符集与 Windows 保留名仍需确定；目录映射不得直接接受任意 Unicode basename。
+- **ENTRY-MANAGEMENT-002 — EntryId 语法。** EntryId 已受全仓最多 16 字符约束，其大小写归一、可移植字符集与 Windows 保留名仍需确定；目录映射不得直接接受任意 Unicode basename。
 
 ## Maintainer Notes
 

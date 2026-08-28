@@ -6,5 +6,5 @@ setlocal
   -NoProfile ^
   -ExecutionPolicy Bypass ^
   -File "%~dp0bootstrap\windows\main.ps1" ^
-  -DataRoot "%~dp0data"
+  -RepositoryDataRoot "%~dp0data.repo"
 exit /b %errorlevel%

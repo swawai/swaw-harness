@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$RepositoryDataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -23,12 +23,12 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'pe-imports.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
 try {
-    $SharedContext = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
+    $SharedContext = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $Contracts = @(Get-SwawHarnessWindowsProductContracts `
@@ -50,13 +50,13 @@ try {
         -Toolchain $Toolchain
 
     $CoreCandidatePath = & (Join-Path $WindowsRoot 'core\build.ps1') `
-        -DataRoot $TestRoot `
+        -RepositoryDataRoot $TestRoot `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
     $EntryCandidatePath = & (Join-Path $WindowsRoot 'entry\build.ps1') `
-        -DataRoot $TestRoot `
+        -RepositoryDataRoot $TestRoot `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
@@ -65,14 +65,14 @@ try {
     $EntryManagerCandidatePath = & (
         Join-Path $WindowsRoot 'entry.manager\build.ps1'
     ) `
-        -DataRoot $TestRoot `
+        -RepositoryDataRoot $TestRoot `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
 
     $Arguments = @{
-        DataRoot = $TestRoot
+        RepositoryDataRoot = $TestRoot
         CoreCandidatePath = [string]$CoreCandidatePath
         EntryCandidatePath = [string]$EntryCandidatePath
         EntryManagerCandidatePath = [string]$EntryManagerCandidatePath
@@ -80,7 +80,7 @@ try {
     $First = Publish-SwawHarnessWindowsProducts @Arguments
     $FirstCreated = (Get-Item -LiteralPath $First.Root).CreationTimeUtc
     $Second = Publish-SwawHarnessWindowsProducts @Arguments
-    $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
+    $Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $TestRoot
     $Selected = Read-SwawHarnessSelectedRelease `
         -ReleasesRoot $Context.BootstrapReleaseRoot `
         -Contracts $Contracts

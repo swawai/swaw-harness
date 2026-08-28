@@ -1,6 +1,6 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [string]$DataRoot = '',
+    [string]$RepositoryDataRoot = '',
     [Parameter(Mandatory = $true, Position = 0)]
     [ValidateSet('cargo', 'rustc', 'rustdoc', 'cl', 'link', 'lib', 'rc')]
     [string]$Tool,
@@ -19,14 +19,16 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'builder\process.ps1')
 
-if ([string]::IsNullOrWhiteSpace($DataRoot)) {
-    $DataRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\data'))
+if ([string]::IsNullOrWhiteSpace($RepositoryDataRoot)) {
+    $RepositoryDataRoot = [IO.Path]::GetFullPath((
+        Join-Path $PSScriptRoot '..\..\data.repo'
+    ))
 }
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot 'contract.json')
 [void](Assert-SwawHarnessRepositoryRootPathBudget `
     -RepositoryRoot (Join-Path $PSScriptRoot '..\..'))
-$Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
+$Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
 $InstallRoot = Get-SwawHarnessToolchainTargetPath `
     -Context $Context `
     -Contract $Contract

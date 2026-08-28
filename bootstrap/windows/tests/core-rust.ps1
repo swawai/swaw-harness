@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$RepositoryDataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -11,21 +11,21 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\process.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -RepositoryRoot $RepositoryRoot
 $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
-$Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
+$Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
 $SetupResults = @(& (Join-Path $WindowsRoot 'toolchain-setup.ps1') `
-    -DataRoot $Context.DataRoot)
+    -RepositoryDataRoot $Context.RepositoryDataRoot)
 if ($SetupResults.Count -ne 1 -or
     -not [IO.Directory]::Exists([string]$SetupResults[0].Root)) {
     throw 'Core Rust tests require one valid controlled toolchain.'
 }
 
 $WorkspaceManifest = Join-Path $RepositoryRoot 'core\Cargo.toml'
-$CargoTargetRoot = Join-Path $Context.NativeRoot 'x\core'
+$CargoTargetRoot = Join-Path $Context.BuildRoot 'core-test'
 $RustTargetConfiguration = (
     "target.$($PlatformContract.PlatformTargetId).rustflags=" +
     '["-C","target-feature=+crt-static"]'
@@ -39,7 +39,7 @@ $Result = Invoke-SwawHarnessCapturedProcess `
         '-NonInteractive',
         '-ExecutionPolicy', 'Bypass',
         '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
-        '-DataRoot', $Context.DataRoot,
+        '-RepositoryDataRoot', $Context.RepositoryDataRoot,
         'cargo',
         '--config', $RustTargetConfiguration,
         'test',

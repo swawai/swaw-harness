@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$DataRoot,
+    [Parameter(Mandatory = $true)][string]$RepositoryDataRoot,
     [Parameter(Mandatory = $true)][string]$CompilerPath,
     [Parameter(Mandatory = $true)][string]$LinkerPath,
     [Collections.IDictionary]$EnvironmentVariables = @{},
@@ -27,21 +27,13 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
 $Contract = Read-SwawHarnessWindowsEntryContract `
     -Path (Join-Path $PSScriptRoot 'contract.json') `
     -PlatformTargetId $PlatformContract.PlatformTargetId
-$Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
-$BootstrapWindowsCacheRoot = $Context.BootstrapWindowsCacheRoot
-$BuildRoot = Join-Path $BootstrapWindowsCacheRoot (
-    "build\entry\$($Contract.PlatformTargetId)"
-)
+$Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $RepositoryDataRoot
+$BuildRoot = Join-Path $Context.BuildRoot 'entry'
 $BuildRoot = Assert-SwawHarnessPathInsideRoot `
     -Path $BuildRoot `
-    -Root $BootstrapWindowsCacheRoot `
+    -Root $Context.BuildRoot `
     -Activity 'building the Windows Entry executable candidate'
 [void][IO.Directory]::CreateDirectory($BuildRoot)
-$NativeBuildRoot = Assert-SwawHarnessPathInsideRoot `
-    -Path (Join-Path $Context.NativeBuildRoot 'e') `
-    -Root $Context.NativeRoot `
-    -Activity 'building the Windows Entry executable candidate'
-[void][IO.Directory]::CreateDirectory($NativeBuildRoot)
 
 $CompilerPath = Get-SwawHarnessFullPath -Path $CompilerPath
 $LinkerPath = Get-SwawHarnessFullPath -Path $LinkerPath
@@ -56,18 +48,18 @@ $Lock = Enter-SwawHarnessFileLock `
     -Path (Join-Path $Context.LockRoot (
         "build-entry-$($Contract.PlatformTargetId).lock"
     )) `
-    -ControlledRoot $Context.BootstrapWindowsRoot `
+    -ControlledRoot $Context.RepositoryDataRoot `
     -TimeoutSeconds 1800
 try {
-    $OutputRoot = $NativeBuildRoot
+    $OutputRoot = $BuildRoot
     [void][IO.Directory]::CreateDirectory($OutputRoot)
     $ObjectPath = Join-Path $OutputRoot 'entry.obj'
-    $ArtifactPath = Join-Path $OutputRoot $Contract.ProductBinary
+    $ArtifactPath = Join-Path $OutputRoot $Contract.BuildBinary
     foreach ($OutputPath in @($ObjectPath, $ArtifactPath)) {
         if (Test-SwawHarnessPathExists -Path $OutputPath) {
             Remove-SwawHarnessControlledPathWithRetry `
                 -Path $OutputPath `
-                -ControlledRoot $Context.NativeRoot `
+                -ControlledRoot $Context.BuildRoot `
                 -Activity 'replacing an Entry executable build output'
         }
     }
@@ -140,7 +132,7 @@ try {
         -ArtifactPath $ArtifactPath `
         -Contract $Contract `
         -BuildRoot $BuildRoot `
-        -ControlledRoot $BootstrapWindowsCacheRoot
+        -ControlledRoot $Context.BuildRoot
     Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
     Write-Output $CandidatePath
 } finally {

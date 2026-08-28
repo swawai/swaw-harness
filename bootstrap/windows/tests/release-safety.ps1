@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$RepositoryDataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -45,13 +45,13 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\release\publication.ps1')
 
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
 try {
-    $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
-    $FixtureRoot = Join-Path $Context.BootstrapWindowsCacheRoot 'fixtures'
+    $Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $TestRoot
+    $FixtureRoot = Join-Path $Context.BuildRoot 'fixtures'
     [void][IO.Directory]::CreateDirectory($FixtureRoot)
     $PlatformTargetId = 'x86_64-pc-windows-msvc'
     $Fixtures = @(

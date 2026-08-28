@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$RepositoryDataRoot = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -24,13 +24,13 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'pe-imports.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$RepositoryDataRoot = Resolve-SwawHarnessWindowsTestRepositoryDataRoot `
+    -RepositoryDataRoot $RepositoryDataRoot `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -RepositoryDataRoot $RepositoryDataRoot
 try {
     $SharedContext = New-SwawHarnessWindowsBootstrapContext `
-        -DataRoot $DataRoot
+        -RepositoryDataRoot $RepositoryDataRoot
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $InstallRoot = Get-SwawHarnessToolchainTargetPath `
@@ -48,7 +48,7 @@ try {
         -Contract $PlatformContract `
         -Toolchain $Toolchain
     $CandidatePath = & (Join-Path $WindowsRoot 'entry\build.ps1') `
-        -DataRoot $TestRoot `
+        -RepositoryDataRoot $TestRoot `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
@@ -57,10 +57,8 @@ try {
     $EntryContract = Read-SwawHarnessWindowsEntryContract `
         -Path (Join-Path $WindowsRoot 'entry\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId
-    $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
-    $BuildRoot = Join-Path $TestContext.BootstrapWindowsCacheRoot (
-        "build\entry\$($PlatformContract.PlatformTargetId)"
-    )
+    $TestContext = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $TestRoot
+    $BuildRoot = Join-Path $TestContext.BuildRoot 'entry'
     $Candidate = Read-SwawHarnessBootstrapCandidate `
         -Path ([string]$CandidatePath) `
         -Contract $EntryContract `
