@@ -12,19 +12,19 @@ function Resolve-SwawHarnessWindowsTestRepositoryDataRoot {
     return [IO.Path]::GetFullPath($RepositoryDataRoot)
 }
 
-function Get-SwawHarnessWindowsTestCacheRoot {
+function Get-SwawHarnessWindowsTestRoot {
     param([Parameter(Mandatory = $true)][string]$RepositoryDataRoot)
 
     return Join-Path `
         ([IO.Path]::GetFullPath($RepositoryDataRoot)) `
-        'windows.cache\tests'
+        'windows.test'
 }
 
 function New-SwawHarnessWindowsTestRunRoot {
     param([Parameter(Mandatory = $true)][string]$RepositoryDataRoot)
 
     $RunsRoot = Join-Path `
-        (Get-SwawHarnessWindowsTestCacheRoot -RepositoryDataRoot $RepositoryDataRoot) `
+        (Get-SwawHarnessWindowsTestRoot -RepositoryDataRoot $RepositoryDataRoot) `
         'runs'
     [void][IO.Directory]::CreateDirectory($RunsRoot)
     $RunToken = [Guid]::NewGuid().ToString('N').Substring(0, 16)
@@ -37,6 +37,6 @@ function Get-SwawHarnessWindowsTestBuildRoot {
     param([Parameter(Mandatory = $true)][string]$RepositoryDataRoot)
 
     return Join-Path `
-        (Get-SwawHarnessWindowsTestCacheRoot -RepositoryDataRoot $RepositoryDataRoot) `
+        (Get-SwawHarnessWindowsTestRoot -RepositoryDataRoot $RepositoryDataRoot) `
         'build'
 }

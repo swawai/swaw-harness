@@ -44,6 +44,12 @@ try {
     $Context = New-SwawHarnessWindowsBootstrapContext -RepositoryDataRoot $TestRoot
     Assert-ToolchainTest `
         -Condition (
+            (Split-Path -Path $TestRoot -Parent) -ceq
+                (Join-Path $RepositoryDataRoot 'windows.test\runs')
+        ) `
+        -Message 'test run was not isolated below windows.test'
+    Assert-ToolchainTest `
+        -Condition (
             [string]$Context.RepositoryDataRoot -ceq
                 [IO.Path]::GetFullPath($TestRoot) -and
             [string]$Context.BootstrapReleaseRoot -ceq

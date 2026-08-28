@@ -42,7 +42,7 @@ function Install-SwawHarnessMsvcIntoToolchainStage {
         '[LICENSE] Continuing this non-interactive Bootstrap install ' +
         'constitutes acceptance of the Microsoft Build Tools license: ' +
         [string]$Contract.MsvcLicenseUrl
-    ) -ForegroundColor Yellow
+    ) -ForegroundColor Cyan
     $Recipe = Get-SwawHarnessMsvcInstallRecipe `
         -Context $Context `
         -Contract $Contract
