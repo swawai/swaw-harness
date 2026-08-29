@@ -64,7 +64,8 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
             -WorkingDirectory $EntryManagerRoot
         $RustTargetConfiguration = (
             "target.$($Contract.PlatformTargetId).rustflags=" +
-            '["-C","target-feature=+crt-static"]'
+            '["-C","target-feature=+crt-static",' +
+            '"-C","link-arg=/Brepro"]'
         )
         $Arguments = @(
             '--config',

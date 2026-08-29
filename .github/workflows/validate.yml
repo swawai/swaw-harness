@@ -79,6 +79,8 @@ jobs:
           $dataRepo = Join-Path $PWD 'data.repo'
           & .\bootstrap\windows\tests\bootstrap-release.ps1 `
             -DataRepo $dataRepo
+          & .\bootstrap\windows\tests\build-determinism.ps1 `
+            -DataRepo $dataRepo
           & .\bootstrap\windows\tests\entry.ps1 `
             -DataRepo $dataRepo
           & .\bootstrap\windows\tests\entry-manager.ps1 `
