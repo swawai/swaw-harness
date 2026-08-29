@@ -62,4 +62,4 @@
 10. 创建 Issue-linked branch 前，本地当前分支必须是工作树干净的 `main`；获取 `origin/main` 后只允许以 fast-forward 更新本地 `main`，并必须验证两者指向同一 commit。存在本地独有 commit 或分叉时必须停止，不得自动 merge、rebase 或 reset 修复。
 11. 测试范围写在 Issue 中，日常执行相称的本地测试。
 12. PR 正文使用 `Refs: #<issue-id>` 提供不触发关闭的文本引用；GitHub Development 正式关联必须由 Issue-linked branch 或 PR 关联建立。
-13. 仓库负责人已于 2026-08-29 在 GitHub `Settings → General → Issues` 中确认 `Auto-close issues with merged linked pull requests` 处于关闭状态；只有仓库负责人决定合并与关闭 Issue。在 GitHub 受支持的 API 未提供该设置的可读字段期间，此记录视为有效确认，Agent 不得仅因 `ghswaw` 无法回读而重复询问；仅当仓库负责人报告设置已改变、受支持的 API 返回冲突结果，或实际合并行为与本记录冲突时重新确认。
+13. 仓库负责人确认 `Auto-close issues with merged linked pull requests` 已处于关闭状态；Agent 不得仅因 `ghswaw` 无法回读而重复询问。

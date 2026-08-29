@@ -108,11 +108,10 @@ Use one lightweight path for changes intended to enter the repository.
    development task, then repeat `/review` only if the PR changed.
 8. Treat the repository-owner attestation in the root `AGENTS.md` Git change
    protocol as confirmation that `Auto-close issues with merged linked pull
-   requests` is disabled. Do not ask the owner to repeat that confirmation
-   unless one of the contradictory conditions recorded there occurs. Do not
-   change the setting without separate owner authorization. Only the repository
-   owner marks the PR ready, merges it, and later decides whether to close the
-   Issue.
+   requests` is disabled. Do not ask the owner to repeat that confirmation only
+   because `ghswaw` cannot read the setting. Do not change the setting without
+   separate owner authorization. Only the repository owner marks the PR ready,
+   merges it, and later decides whether to close the Issue.
 
 ## Optional full validation
 
