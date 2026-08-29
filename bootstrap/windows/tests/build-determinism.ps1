@@ -18,20 +18,20 @@ function Invoke-BuildDeterminismPass {
         [Parameter(Mandatory = $true)]$Plan
     )
 
-    $CoreCandidatePath = Invoke-SwawHarnessWindowsCoreCandidateBuild `
+    $CoreCandidateRoot = Invoke-SwawHarnessWindowsCoreCandidateBuild `
         -Context $Context `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $EntryCandidatePath = Invoke-SwawHarnessWindowsEntryCandidateBuild `
+    $EntryCandidateRoot = Invoke-SwawHarnessWindowsEntryCandidateBuild `
         -Context $Context `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $ManagerCandidatePaths = @(
+    $ManagerCandidateRoots = @(
         Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
         -Context $Context `
         -CargoPath $Plan.CargoPath `
@@ -41,9 +41,9 @@ function Invoke-BuildDeterminismPass {
 
     return Publish-SwawHarnessWindowsProducts `
         -Context $Context `
-        -CoreCandidatePath ([string]$CoreCandidatePath) `
-        -EntryCandidatePath ([string]$EntryCandidatePath) `
-        -EntryManagerCandidatePaths $ManagerCandidatePaths
+        -CoreCandidateRoot ([string]$CoreCandidateRoot) `
+        -EntryCandidateRoot ([string]$EntryCandidateRoot) `
+        -EntryManagerCandidateRoots $ManagerCandidateRoots
 }
 
 function Get-BuildDeterminismSnapshot {

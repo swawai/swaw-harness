@@ -33,9 +33,9 @@ function Publish-SwawHarnessWindowsProducts {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]$Context,
-        [Parameter(Mandatory = $true)][string]$CoreCandidatePath,
-        [Parameter(Mandatory = $true)][string]$EntryCandidatePath,
-        [Parameter(Mandatory = $true)][string[]]$EntryManagerCandidatePaths
+        [Parameter(Mandatory = $true)][string]$CoreCandidateRoot,
+        [Parameter(Mandatory = $true)][string]$EntryCandidateRoot,
+        [Parameter(Mandatory = $true)][string[]]$EntryManagerCandidateRoots
     )
 
     $WindowsRoot = $script:SwawHarnessWindowsPublicationRoot
@@ -44,21 +44,21 @@ function Publish-SwawHarnessWindowsProducts {
     $Contracts = @(Get-SwawHarnessWindowsProductContracts `
         -WindowsRoot $WindowsRoot `
         -PlatformTargetId $PlatformContract.PlatformTargetId)
-    if ($EntryManagerCandidatePaths.Count -ne 2) {
+    if ($EntryManagerCandidateRoots.Count -ne 2) {
         throw 'Windows publication requires both Entry Manager candidates.'
     }
-    $CandidatePaths = @(
-        $CoreCandidatePath,
-        $EntryCandidatePath,
-        $EntryManagerCandidatePaths[0],
-        $EntryManagerCandidatePaths[1]
+    $CandidateRoots = @(
+        $CoreCandidateRoot,
+        $EntryCandidateRoot,
+        $EntryManagerCandidateRoots[0],
+        $EntryManagerCandidateRoots[1]
     )
     $ProductNames = @('core', 'entry', 'manager', 'manager')
     $Candidates = [Collections.Generic.List[object]]::new()
     for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
         $BuildRoot = Join-Path $Context.BuildRoot $ProductNames[$Index]
         $Candidates.Add((Read-SwawHarnessBootstrapCandidate `
-            -Path $CandidatePaths[$Index] `
+            -CandidateRoot $CandidateRoots[$Index] `
             -Contract $Contracts[$Index] `
             -BuildRoot $BuildRoot))
     }
@@ -66,4 +66,23 @@ function Publish-SwawHarnessWindowsProducts {
         -Context $Context `
         -Contracts $Contracts `
         -Candidates $Candidates.ToArray()
+}
+
+function Clear-SwawHarnessWindowsProductCandidates {
+    param([Parameter(Mandatory = $true)]$Context)
+
+    $CandidateRoots = @('core', 'entry', 'manager') | ForEach-Object {
+        $BuildRoot = Assert-SwawHarnessPathInsideRoot `
+            -Path (Join-Path $Context.BuildRoot $_) `
+            -Root $Context.BuildRoot `
+            -Activity 'planning Windows Candidate cleanup'
+        Assert-SwawHarnessPathInsideRoot `
+            -Path (Join-Path $BuildRoot 'candidates') `
+            -Root $BuildRoot `
+            -Activity 'planning Windows Candidate cleanup'
+    }
+    Remove-SwawHarnessControlledResidues `
+        -ControlledRoot $Context.BuildRoot `
+        -Paths $CandidateRoots `
+        -Activity 'cleaning published Windows Candidates'
 }

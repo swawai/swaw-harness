@@ -49,7 +49,7 @@ try {
         -Contract $PlatformContract `
         -Toolchain $Toolchain
     $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
-    $CandidatePath = Invoke-SwawHarnessWindowsEntryCandidateBuild `
+    $CandidateRoot = Invoke-SwawHarnessWindowsEntryCandidateBuild `
         -Context $TestContext `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
@@ -61,7 +61,7 @@ try {
         -PlatformTargetId $PlatformContract.PlatformTargetId
     $BuildRoot = Join-Path $TestContext.BuildRoot 'entry'
     $Candidate = Read-SwawHarnessBootstrapCandidate `
-        -Path ([string]$CandidatePath) `
+        -CandidateRoot ([string]$CandidateRoot) `
         -Contract $EntryContract `
         -BuildRoot $BuildRoot
     $Artifact = Get-Item -LiteralPath $Candidate.ArtifactPath

@@ -70,10 +70,10 @@ $RunnerSource = @'
 param(
     [Parameter(Mandatory = $true)][string]$WindowsRoot,
     [Parameter(Mandatory = $true)][string]$DataRepo,
-    [Parameter(Mandatory = $true)][string]$CoreCandidatePath,
-    [Parameter(Mandatory = $true)][string]$EntryCandidatePath,
-    [Parameter(Mandatory = $true)][string]$EntryManagerCliCandidatePath,
-    [Parameter(Mandatory = $true)][string]$HarnessGuiCandidatePath,
+    [Parameter(Mandatory = $true)][string]$CoreCandidateRoot,
+    [Parameter(Mandatory = $true)][string]$EntryCandidateRoot,
+    [Parameter(Mandatory = $true)][string]$EntryManagerCliCandidateRoot,
+    [Parameter(Mandatory = $true)][string]$HarnessGuiCandidateRoot,
     [Parameter(Mandatory = $true)][string]$ReadyPath,
     [Parameter(Mandatory = $true)][string]$ResultPath
 )
@@ -90,11 +90,11 @@ $Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
 )
 $Results = @(Publish-SwawHarnessWindowsProducts `
     -Context $Context `
-    -CoreCandidatePath $CoreCandidatePath `
-    -EntryCandidatePath $EntryCandidatePath `
-    -EntryManagerCandidatePaths @(
-        $EntryManagerCliCandidatePath,
-        $HarnessGuiCandidatePath
+    -CoreCandidateRoot $CoreCandidateRoot `
+    -EntryCandidateRoot $EntryCandidateRoot `
+    -EntryManagerCandidateRoots @(
+        $EntryManagerCliCandidateRoot,
+        $HarnessGuiCandidateRoot
     ))
 if ($Results.Count -ne 1) {
     throw 'Concurrent publication must return exactly one result.'
@@ -178,11 +178,11 @@ try {
             '-File', $RunnerPath,
             '-WindowsRoot', $WindowsRoot,
             '-DataRepo', $PublicationDataRepo,
-            '-CoreCandidatePath', $CandidateSets[$SetName]['core'],
-            '-EntryCandidatePath', $CandidateSets[$SetName]['entry'],
-            '-EntryManagerCliCandidatePath',
+            '-CoreCandidateRoot', $CandidateSets[$SetName]['core'],
+            '-EntryCandidateRoot', $CandidateSets[$SetName]['entry'],
+            '-EntryManagerCliCandidateRoot',
                 $CandidateSets[$SetName]['manager-cli'],
-            '-HarnessGuiCandidatePath',
+            '-HarnessGuiCandidateRoot',
                 $CandidateSets[$SetName]['manager-gui'],
             '-ReadyPath', $ReadyPath,
             '-ResultPath', $ResultPath
@@ -277,9 +277,9 @@ try {
     try {
         Publish-SwawHarnessWindowsProducts `
             -Context $Context `
-            -CoreCandidatePath (Join-Path $TestRoot 'missing-candidate.json') `
-            -EntryCandidatePath $CandidateSets['A']['entry'] `
-            -EntryManagerCandidatePaths @(
+            -CoreCandidateRoot (Join-Path $TestRoot 'missing-candidate') `
+            -EntryCandidateRoot $CandidateSets['A']['entry'] `
+            -EntryManagerCandidateRoots @(
                 $CandidateSets['A']['manager-cli'],
                 $CandidateSets['A']['manager-gui']
             ) |
@@ -299,9 +299,9 @@ try {
     $Probe.Dispose()
     $AfterFailure = @(Publish-SwawHarnessWindowsProducts `
         -Context $Context `
-        -CoreCandidatePath $CandidateSets['B']['core'] `
-        -EntryCandidatePath $CandidateSets['B']['entry'] `
-        -EntryManagerCandidatePaths @(
+        -CoreCandidateRoot $CandidateSets['B']['core'] `
+        -EntryCandidateRoot $CandidateSets['B']['entry'] `
+        -EntryManagerCandidateRoots @(
             $CandidateSets['B']['manager-cli'],
             $CandidateSets['B']['manager-gui']
         ))

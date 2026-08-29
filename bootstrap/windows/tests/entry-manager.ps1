@@ -96,7 +96,7 @@ try {
         ).Trim()
     }
     $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
-    $CandidatePaths = @(Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
+    $CandidateRoots = @(Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
         -Context $TestContext `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
@@ -107,7 +107,7 @@ try {
     $BuildRoot = Join-Path $TestContext.BuildRoot 'manager'
     Assert-EntryManagerTest `
         -Condition (
-            $CandidatePaths.Count -eq 2 -and
+            $CandidateRoots.Count -eq 2 -and
             $EntryManagerContracts.Count -eq 2
         ) `
         -Message 'Entry Manager build did not produce both Candidates'
@@ -115,7 +115,7 @@ try {
     for ($Index = 0; $Index -lt $EntryManagerContracts.Count; $Index++) {
         $Contract = $EntryManagerContracts[$Index]
         $Candidate = Read-SwawHarnessBootstrapCandidate `
-            -Path ([string]$CandidatePaths[$Index]) `
+            -CandidateRoot ([string]$CandidateRoots[$Index]) `
             -Contract $Contract `
             -BuildRoot $BuildRoot
         $Artifact = Get-Item -LiteralPath $Candidate.ArtifactPath

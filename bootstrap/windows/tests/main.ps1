@@ -23,6 +23,16 @@ Assert-MainTest `
     -Condition ($FirstResults.Count -eq 1) `
     -Message 'first invocation did not return exactly one Bootstrap Release'
 $First = $FirstResults[0]
+$FirstCandidateMembers = @(
+    foreach ($Product in @('core', 'entry', 'manager')) {
+        $CandidatesRoot = Join-Path `
+            $DataRepo `
+            "windows.build\$Product\candidates"
+        if ([IO.Directory]::Exists($CandidatesRoot)) {
+            Get-ChildItem -LiteralPath $CandidatesRoot -Force
+        }
+    }
+)
 $ExpectedReleaseRoot = [IO.Path]::GetFullPath(
     (Join-Path $DataRepo 'windows.release')
 )
@@ -32,7 +42,8 @@ Assert-MainTest `
             $ExpectedReleaseRoot,
             [StringComparison]::OrdinalIgnoreCase
         ) -and
-        $First.Artifacts.Count -eq 4
+        $First.Artifacts.Count -eq 4 -and
+        $FirstCandidateMembers.Count -eq 0
     ) `
     -Message 'main did not publish one complete Bootstrap Release'
 
@@ -49,6 +60,16 @@ Assert-MainTest `
     -Condition ($SecondResults.Count -eq 1) `
     -Message 'second invocation did not return exactly one Bootstrap Release'
 $Second = $SecondResults[0]
+$SecondCandidateMembers = @(
+    foreach ($Product in @('core', 'entry', 'manager')) {
+        $CandidatesRoot = Join-Path `
+            $DataRepo `
+            "windows.build\$Product\candidates"
+        if ([IO.Directory]::Exists($CandidatesRoot)) {
+            Get-ChildItem -LiteralPath $CandidatesRoot -Force
+        }
+    }
+)
 Assert-MainTest `
     -Condition (
         [string]$First.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
@@ -69,7 +90,8 @@ Assert-MainTest `
         }).Count -eq 4 -and
         @($Second.Artifacts | Where-Object {
             (Get-Item -LiteralPath $_.Path).Length -gt 0
-        }).Count -eq 4
+        }).Count -eq 4 -and
+        $SecondCandidateMembers.Count -eq 0
     ) `
     -Message 'explicit Bootstrap did not preserve a valid bundle Release'
 

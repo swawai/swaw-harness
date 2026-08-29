@@ -110,13 +110,13 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
             if ([long]$Artifact.Length -le 0) {
                 throw "Built Windows Entry Manager $($Contract.Role) is empty."
             }
-            $CandidatePath = Publish-SwawHarnessBootstrapCandidate `
+            $CandidateRoot = Publish-SwawHarnessBootstrapCandidate `
                 -ArtifactPath $ArtifactPath `
                 -Contract $Contract `
                 -BuildRoot $BuildRoot `
                 -ControlledRoot $Context.BuildRoot
             Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
-            Write-Output $CandidatePath
+            Write-Output $CandidateRoot
         }
     } finally {
         $BuildLock.Dispose()

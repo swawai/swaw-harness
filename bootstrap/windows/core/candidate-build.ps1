@@ -101,13 +101,13 @@ function Invoke-SwawHarnessWindowsCoreCandidateBuild {
             -Path $ArtifactPath `
             -Description 'Built Windows Core' `
             -MaximumBytes $Contract.MaximumBytes)
-        $CandidatePath = Publish-SwawHarnessBootstrapCandidate `
+        $CandidateRoot = Publish-SwawHarnessBootstrapCandidate `
             -ArtifactPath $ArtifactPath `
             -Contract $Contract `
             -BuildRoot $BuildRoot `
             -ControlledRoot $Context.BuildRoot
         Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
-        Write-Output $CandidatePath
+        Write-Output $CandidateRoot
     } finally {
         $BuildLock.Dispose()
     }
