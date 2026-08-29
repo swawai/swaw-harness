@@ -23,9 +23,9 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
         -RepositoryRoot (Join-Path $EntryManagerRoot '..\..\..'))
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $EntryManagerRoot '..\contract.json')
-    $Contract = Read-SwawHarnessWindowsEntryManagerContract `
+    $Contracts = @(Read-SwawHarnessWindowsEntryManagerContracts `
         -Path (Join-Path $EntryManagerRoot 'contract.json') `
-        -PlatformTargetId $PlatformContract.PlatformTargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId)
     $BuildRoot = Join-Path $Context.BuildRoot 'manager'
     $BuildRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $BuildRoot `
@@ -50,7 +50,7 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
 
     $BuildLock = Enter-SwawHarnessFileLock `
         -Path (Join-Path $Context.LockRoot (
-            "build-entry-manager-$($Contract.PlatformTargetId).lock"
+            "build-entry-manager-$($Contracts[0].PlatformTargetId).lock"
         )) `
         -ControlledRoot $Context.DataRepo `
         -TimeoutSeconds 1800
@@ -58,12 +58,12 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
         $CargoTargetRoot = $BuildRoot
         Assert-SwawHarnessCargoBuildPathBudget `
             -TargetRoot $CargoTargetRoot `
-            -Contract $Contract `
+            -Contract $Contracts[0] `
             -CargoPath $CargoPath `
             -ManifestPath $ManifestPath `
             -WorkingDirectory $EntryManagerRoot
         $RustTargetConfiguration = (
-            "target.$($Contract.PlatformTargetId).rustflags=" +
+            "target.$($Contracts[0].PlatformTargetId).rustflags=" +
             '["-C","target-feature=+crt-static",' +
             '"-C","link-arg=/Brepro"]'
         )
@@ -74,11 +74,11 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
             '--locked',
             '--release',
             '--package',
-            $Contract.ProductPackage,
+            $Contracts[0].ProductPackage,
             '--manifest-path',
             $ManifestPath,
             '--target',
-            $Contract.PlatformTargetId,
+            $Contracts[0].PlatformTargetId,
             '--target-dir',
             $CargoTargetRoot
         )
@@ -99,23 +99,25 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
             -Root $CargoTargetRoot `
             -Description 'Entry Manager Cargo output path')
 
-        $ArtifactPath = Join-Path $CargoTargetRoot (
-            "$($Contract.PlatformTargetId)\release\$($Contract.BuildBinary)"
-        )
-        $Artifact = Assert-SwawHarnessRegularFile `
-            -Path $ArtifactPath `
-            -Description 'Built Windows Entry Manager' `
-            -MaximumBytes $Contract.MaximumBytes
-        if ([long]$Artifact.Length -le 0) {
-            throw 'Built Windows Entry Manager is empty.'
+        foreach ($Contract in $Contracts) {
+            $ArtifactPath = Join-Path $CargoTargetRoot (
+                "$($Contract.PlatformTargetId)\release\$($Contract.BuildBinary)"
+            )
+            $Artifact = Assert-SwawHarnessRegularFile `
+                -Path $ArtifactPath `
+                -Description "Built Windows Entry Manager $($Contract.Role)" `
+                -MaximumBytes $Contract.MaximumBytes
+            if ([long]$Artifact.Length -le 0) {
+                throw "Built Windows Entry Manager $($Contract.Role) is empty."
+            }
+            $CandidatePath = Publish-SwawHarnessBootstrapCandidate `
+                -ArtifactPath $ArtifactPath `
+                -Contract $Contract `
+                -BuildRoot $BuildRoot `
+                -ControlledRoot $Context.BuildRoot
+            Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
+            Write-Output $CandidatePath
         }
-        $CandidatePath = Publish-SwawHarnessBootstrapCandidate `
-            -ArtifactPath $ArtifactPath `
-            -Contract $Contract `
-            -BuildRoot $BuildRoot `
-            -ControlledRoot $Context.BuildRoot
-        Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
-        Write-Output $CandidatePath
     } finally {
         $BuildLock.Dispose()
     }

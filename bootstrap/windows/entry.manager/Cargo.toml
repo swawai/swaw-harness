@@ -10,8 +10,12 @@ name = "swaw_har_manager"
 path = "src/lib.rs"
 
 [[bin]]
-name = "swaw-har-manager"
-path = "src/main.rs"
+name = "swaw-harness-cli"
+path = "src/cli.rs"
+
+[[bin]]
+name = "swaw-harness"
+path = "src/gui.rs"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

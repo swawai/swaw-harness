@@ -2,7 +2,7 @@
 
 ## Scope
 
-本目录拥有独立 Entry Manager executable，是 Entry 选择、命名、创建、删除与恢复的唯一领域所有者。Rule ID 前缀为 `ENTRY-MANAGEMENT`。
+本目录拥有 Entry Manager executable、Harness GUI executable 及其共享 Rust library，是 Entry 选择、命名、创建、删除与恢复的唯一领域所有者；只有 Entry Manager executable 可以写入 DataHome，Harness GUI executable 必须委托它执行 Entry 操作。Rule ID 前缀为 `ENTRY-MANAGEMENT`。
 
 ## Accepted
 
@@ -16,4 +16,4 @@
 
 ## Maintainer Notes
 
-- 待办：当前 Entry Manager executable 只实现独立构建并参与统一 Bootstrap Release，控制面板尚未实现；实现时补齐 Entry 生命周期门槛、状态提交与回读、互斥锁内的未完成操作恢复，以及对无有效 `entry.json` 孤立对象的冲突报告。
+- 待办：当前 Entry Manager executable 与 Harness GUI executable 只实现独立界面占位、共享 library 构建并参与统一 Bootstrap Release；实现 Entry 操作时补齐生命周期门槛、状态提交与回读、互斥锁内的未完成操作恢复，以及对无有效 `entry.json` 孤立对象的冲突报告。

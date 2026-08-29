@@ -72,7 +72,8 @@ param(
     [Parameter(Mandatory = $true)][string]$DataRepo,
     [Parameter(Mandatory = $true)][string]$CoreCandidatePath,
     [Parameter(Mandatory = $true)][string]$EntryCandidatePath,
-    [Parameter(Mandatory = $true)][string]$EntryManagerCandidatePath,
+    [Parameter(Mandatory = $true)][string]$EntryManagerCliCandidatePath,
+    [Parameter(Mandatory = $true)][string]$HarnessGuiCandidatePath,
     [Parameter(Mandatory = $true)][string]$ReadyPath,
     [Parameter(Mandatory = $true)][string]$ResultPath
 )
@@ -91,7 +92,10 @@ $Results = @(Publish-SwawHarnessWindowsProducts `
     -Context $Context `
     -CoreCandidatePath $CoreCandidatePath `
     -EntryCandidatePath $EntryCandidatePath `
-    -EntryManagerCandidatePath $EntryManagerCandidatePath)
+    -EntryManagerCandidatePaths @(
+        $EntryManagerCliCandidatePath,
+        $HarnessGuiCandidatePath
+    ))
 if ($Results.Count -ne 1) {
     throw 'Concurrent publication must return exactly one result.'
 }
@@ -117,9 +121,9 @@ try {
     $EntryContract = Read-SwawHarnessWindowsEntryContract `
         -Path (Join-Path $WindowsRoot 'entry\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId
-    $EntryManagerContract = Read-SwawHarnessWindowsEntryManagerContract `
+    $EntryManagerContracts = @(Read-SwawHarnessWindowsEntryManagerContracts `
         -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
-        -PlatformTargetId $PlatformContract.PlatformTargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId)
     $Definitions = @(
         [pscustomobject]@{
             Name = 'core'
@@ -132,8 +136,13 @@ try {
             BuildRoot = Join-Path $Context.BuildRoot 'entry'
         },
         [pscustomobject]@{
-            Name = 'manager'
-            Contract = $EntryManagerContract
+            Name = 'manager-cli'
+            Contract = $EntryManagerContracts[0]
+            BuildRoot = Join-Path $Context.BuildRoot 'manager'
+        },
+        [pscustomobject]@{
+            Name = 'manager-gui'
+            Contract = $EntryManagerContracts[1]
             BuildRoot = Join-Path $Context.BuildRoot 'manager'
         }
     )
@@ -171,8 +180,10 @@ try {
             '-DataRepo', $PublicationDataRepo,
             '-CoreCandidatePath', $CandidateSets[$SetName]['core'],
             '-EntryCandidatePath', $CandidateSets[$SetName]['entry'],
-            '-EntryManagerCandidatePath',
-                $CandidateSets[$SetName]['manager'],
+            '-EntryManagerCliCandidatePath',
+                $CandidateSets[$SetName]['manager-cli'],
+            '-HarnessGuiCandidatePath',
+                $CandidateSets[$SetName]['manager-gui'],
             '-ReadyPath', $ReadyPath,
             '-ResultPath', $ResultPath
         )
@@ -236,7 +247,7 @@ try {
         Assert-PublicationConcurrencyTest `
             -Condition (
                 [string]$Result.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
-                $Result.Artifacts.Count -eq 3
+                $Result.Artifacts.Count -eq 4
             ) `
             -Message 'a concurrent publication returned an incomplete set'
         $Results.Add($Result)
@@ -249,7 +260,12 @@ try {
 
     $Selected = Read-SwawHarnessSelectedRelease `
         -ReleasesRoot $Context.BootstrapReleaseRoot `
-        -Contracts @($CoreContract, $EntryContract, $EntryManagerContract)
+        -Contracts @(
+            $CoreContract,
+            $EntryContract,
+            $EntryManagerContracts[0],
+            $EntryManagerContracts[1]
+        )
     Assert-PublicationConcurrencyTest `
         -Condition (
             (Test-PublicationReleaseEquals -Left $Selected -Right $Results[0]) -or
@@ -263,7 +279,10 @@ try {
             -Context $Context `
             -CoreCandidatePath (Join-Path $TestRoot 'missing-candidate.json') `
             -EntryCandidatePath $CandidateSets['A']['entry'] `
-            -EntryManagerCandidatePath $CandidateSets['A']['manager'] |
+            -EntryManagerCandidatePaths @(
+                $CandidateSets['A']['manager-cli'],
+                $CandidateSets['A']['manager-gui']
+            ) |
             Out-Null
     } catch {
         $Rejected = $true
@@ -282,7 +301,10 @@ try {
         -Context $Context `
         -CoreCandidatePath $CandidateSets['B']['core'] `
         -EntryCandidatePath $CandidateSets['B']['entry'] `
-        -EntryManagerCandidatePath $CandidateSets['B']['manager'])
+        -EntryManagerCandidatePaths @(
+            $CandidateSets['B']['manager-cli'],
+            $CandidateSets['B']['manager-gui']
+        ))
     Assert-PublicationConcurrencyTest `
         -Condition ($AfterFailure.Count -eq 1 -and
             (Test-PublicationReleaseEquals `

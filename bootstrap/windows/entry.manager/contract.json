@@ -1,8 +1,21 @@
 {
-  "schema": "swaw.harness.entry-manager-build/v2",
+  "schema": "swaw.harness.entry-manager-build/v3",
   "package": "swaw-har-manager",
-  "buildArtifact": "swaw-har-manager.exe",
-  "artifact": "swaw-harness-entry-manager.exe",
   "staticCrt": true,
-  "maximumBytes": 16777216
+  "binaries": [
+    {
+      "role": "cli",
+      "buildArtifact": "swaw-harness-cli.exe",
+      "artifact": "swaw-harness-cli.exe",
+      "subsystem": "console",
+      "maximumBytes": 16777216
+    },
+    {
+      "role": "gui",
+      "buildArtifact": "swaw-harness.exe",
+      "artifact": "swaw-harness.exe",
+      "subsystem": "windows",
+      "maximumBytes": 16777216
+    }
+  ]
 }

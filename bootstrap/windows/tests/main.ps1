@@ -32,7 +32,7 @@ Assert-MainTest `
             $ExpectedReleaseRoot,
             [StringComparison]::OrdinalIgnoreCase
         ) -and
-        $First.Artifacts.Count -eq 3
+        $First.Artifacts.Count -eq 4
     ) `
     -Message 'main did not publish one complete Bootstrap Release'
 
@@ -55,7 +55,7 @@ Assert-MainTest `
         [string]$Second.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
         @($SecondMessages | Where-Object {
             $_ -cmatch '^\[BUILT\] '
-        }).Count -eq 3 -and
+        }).Count -eq 4 -and
         @($SecondMessages | Where-Object {
             $_ -cmatch '^\[PUBLISHED\] Bootstrap Release '
         }).Count -eq 1 -and
@@ -63,13 +63,13 @@ Assert-MainTest `
             $ExpectedReleaseRoot,
             [StringComparison]::OrdinalIgnoreCase
         ) -and
-        $Second.Artifacts.Count -eq 3 -and
+        $Second.Artifacts.Count -eq 4 -and
         @($First.Artifacts | Where-Object {
             (Get-Item -LiteralPath $_.Path).Length -gt 0
-        }).Count -eq 3 -and
+        }).Count -eq 4 -and
         @($Second.Artifacts | Where-Object {
             (Get-Item -LiteralPath $_.Path).Length -gt 0
-        }).Count -eq 3
+        }).Count -eq 4
     ) `
     -Message 'explicit Bootstrap did not preserve a valid bundle Release'
 

@@ -173,7 +173,7 @@ try {
         -Condition (
             $DeepRoot.Length -eq 60 -and
             ([string]$LongestNativePath).Length -le 240 -and
-            $Release.Artifacts.Count -eq 3
+            $Release.Artifacts.Count -eq 4
         ) `
         -Message 'deep build exceeded its declared repository or native budget'
 
@@ -204,7 +204,7 @@ try {
         -Arguments @() `
         -WorkingDirectory $Release.Root
     $EntryManager = Invoke-SwawHarnessCapturedProcess `
-        -Executable $Artifacts['swaw-harness-entry-manager.exe'] `
+        -Executable $Artifacts['swaw-harness-cli.exe'] `
         -Arguments @() `
         -WorkingDirectory $Release.Root
     Assert-DeepPathTest `

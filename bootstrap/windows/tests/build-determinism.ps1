@@ -31,19 +31,19 @@ function Invoke-BuildDeterminismPass {
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $ManagerCandidatePath = `
+    $ManagerCandidatePaths = @(
         Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
         -Context $Context `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
-        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
-        Select-Object -Last 1
+        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
+    )
 
     return Publish-SwawHarnessWindowsProducts `
         -Context $Context `
         -CoreCandidatePath ([string]$CoreCandidatePath) `
         -EntryCandidatePath ([string]$EntryCandidatePath) `
-        -EntryManagerCandidatePath ([string]$ManagerCandidatePath)
+        -EntryManagerCandidatePaths $ManagerCandidatePaths
 }
 
 function Get-BuildDeterminismSnapshot {
@@ -126,10 +126,10 @@ try {
 
     Assert-BuildDeterminismTest `
         -Condition (
-            $FirstSnapshot.Count -eq 3 -and
-            $SecondSnapshot.Count -eq 3
+            $FirstSnapshot.Count -eq 4 -and
+            $SecondSnapshot.Count -eq 4
         ) `
-        -Message 'a clean build did not produce exactly three artifacts'
+        -Message 'a clean build did not produce exactly four artifacts'
     $Differences = [Collections.Generic.List[string]]::new()
     for ($Index = 0; $Index -lt $FirstSnapshot.Count; $Index++) {
         $FirstArtifact = $FirstSnapshot[$Index]
