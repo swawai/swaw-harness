@@ -59,7 +59,8 @@ function Invoke-SwawHarnessWindowsCoreCandidateBuild {
             -WorkingDirectory (Join-Path $RepositoryRoot 'core')
         $RustTargetConfiguration = (
             "target.$($Contract.PlatformTargetId).rustflags=" +
-            '["-C","target-feature=+crt-static"]'
+            '["-C","target-feature=+crt-static",' +
+            '"-C","link-arg=/Brepro"]'
         )
         $Arguments = @(
             '--config',
