@@ -40,14 +40,20 @@ Assert-RootBuildTest `
             $ReleasesRoot + [IO.Path]::DirectorySeparatorChar,
             [StringComparison]::OrdinalIgnoreCase
         ) -and
-        $Release.Artifacts.Count -eq 3 -and
+        $Release.Artifacts.Count -eq 4 -and
         [string]::Join('|', $ActualNames) -ceq
             [string]::Join('|', $ExpectedNames) -and
         @($Release.Artifacts | Where-Object {
             [IO.File]::Exists([string]$_.Path)
-        }).Count -eq 3 -and
+        }).Count -eq 4 -and
         -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'swaw-harness-entry.exe')
+        ) -and
+        -not [IO.File]::Exists(
+            (Join-Path $RepositoryRoot 'swaw-harness.exe')
+        ) -and
+        -not [IO.File]::Exists(
+            (Join-Path $RepositoryRoot 'swaw-harness-cli.exe')
         )
     ) `
     -Message 'build.cmd did not limit itself to one bundle publication'

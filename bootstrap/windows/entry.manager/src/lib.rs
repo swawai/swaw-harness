@@ -8,5 +8,8 @@ pub use layout::EntryLayout;
 pub use lifecycle::EntryLifecycleState;
 pub use record::{ENTRY_RECORD_SCHEMA, EntryRecord, EntryRecordError};
 
-pub const CONTROL_PANEL_PENDING: &str = "Swaw Harness Entry Manager control panel is not implemented yet; \
-     this artifact currently validates its independent build and release.";
+pub const ENTRY_OPERATIONS_PENDING: &str = "Swaw Harness CLI Entry operations are not implemented yet; \
+     this executable currently validates its independent console interface and release.";
+
+pub const GUI_PENDING: &str = "The Swaw Harness graphical interface is not implemented yet.\n\n\
+     Entry operations will be delegated to swaw-harness-cli.exe.";

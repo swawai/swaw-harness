@@ -12,6 +12,26 @@ function Assert-EntryManagerTest {
     }
 }
 
+function Get-PeSubsystem {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $Stream = [IO.File]::OpenRead($Path)
+    $Reader = [IO.BinaryReader]::new($Stream)
+    try {
+        $Stream.Position = 0x3c
+        $PeOffset = $Reader.ReadInt32()
+        $Stream.Position = $PeOffset
+        if ($Reader.ReadUInt32() -ne 0x00004550) {
+            throw "PE signature is invalid: $Path"
+        }
+        $Stream.Position = $PeOffset + 24 + 68
+        return $Reader.ReadUInt16()
+    } finally {
+        $Reader.Dispose()
+        $Stream.Dispose()
+    }
+}
+
 $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\context.ps1')
@@ -76,49 +96,65 @@ try {
         ).Trim()
     }
     $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
-    $CandidatePath = Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
+    $CandidatePaths = @(Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
         -Context $TestContext `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
-        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
-        Select-Object -Last 1
-    $EntryManagerContract = Read-SwawHarnessWindowsEntryManagerContract `
+        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
+    $EntryManagerContracts = @(Read-SwawHarnessWindowsEntryManagerContracts `
         -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
-        -PlatformTargetId $PlatformContract.PlatformTargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId)
     $BuildRoot = Join-Path $TestContext.BuildRoot 'manager'
-    $Candidate = Read-SwawHarnessBootstrapCandidate `
-        -Path ([string]$CandidatePath) `
-        -Contract $EntryManagerContract `
-        -BuildRoot $BuildRoot
-    $Artifact = Get-Item -LiteralPath $Candidate.ArtifactPath
     Assert-EntryManagerTest `
         -Condition (
-            $Artifact.Name -ceq 'swaw-harness-entry-manager.exe' -and
-            $Artifact.Length -gt 0 -and
-            $Artifact.Length -le $EntryManagerContract.MaximumBytes
+            $CandidatePaths.Count -eq 2 -and
+            $EntryManagerContracts.Count -eq 2
         ) `
-        -Message 'Entry Manager build did not produce a valid Candidate'
-    [void](Assert-SwawHarnessNoExternalCrtImports `
-        -ArtifactPath $Candidate.ArtifactPath `
-        -LinkerPath $Plan.LinkerPath `
-        -EnvironmentVariables $Plan.EnvironmentVariables `
-        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
+        -Message 'Entry Manager build did not produce both Candidates'
+    $Candidates = @()
+    for ($Index = 0; $Index -lt $EntryManagerContracts.Count; $Index++) {
+        $Contract = $EntryManagerContracts[$Index]
+        $Candidate = Read-SwawHarnessBootstrapCandidate `
+            -Path ([string]$CandidatePaths[$Index]) `
+            -Contract $Contract `
+            -BuildRoot $BuildRoot
+        $Artifact = Get-Item -LiteralPath $Candidate.ArtifactPath
+        Assert-EntryManagerTest `
+            -Condition (
+                $Artifact.Name -ceq $Contract.ProductBinary -and
+                $Artifact.Length -gt 0 -and
+                $Artifact.Length -le $Contract.MaximumBytes
+            ) `
+            -Message "Entry Manager $($Contract.Role) Candidate is invalid"
+        [void](Assert-SwawHarnessNoExternalCrtImports `
+            -ArtifactPath $Candidate.ArtifactPath `
+            -LinkerPath $Plan.LinkerPath `
+            -EnvironmentVariables $Plan.EnvironmentVariables `
+            -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
+        $Candidates += $Candidate
+    }
+    Assert-EntryManagerTest `
+        -Condition (
+            (Get-PeSubsystem -Path $Candidates[0].ArtifactPath) -eq 3 -and
+            (Get-PeSubsystem -Path $Candidates[1].ArtifactPath) -eq 2
+        ) `
+        -Message 'Entry Manager CLI and GUI PE subsystems are invalid'
 
     $Result = Invoke-SwawHarnessCapturedProcess `
-        -Executable $Candidate.ArtifactPath `
+        -Executable $Candidates[0].ArtifactPath `
         -Arguments @() `
-        -WorkingDirectory (Split-Path $Candidate.ArtifactPath -Parent)
+        -WorkingDirectory (Split-Path $Candidates[0].ArtifactPath -Parent)
     Assert-EntryManagerTest `
         -Condition (
             $Result.ExitCode -eq 1 -and
             [string]::IsNullOrEmpty($Result.Output) -and
             $Result.Error -cmatch '^\[ERROR\] ' -and
-            $Result.Error -match 'control panel is not implemented' -and
-            $Result.Error -match 'independent build and release'
+            $Result.Error -match 'Entry operations are not implemented' -and
+            $Result.Error -match 'console interface and release'
         ) `
         -Message (
-            'Entry Manager placeholder did not report its unimplemented ' +
-            'control panel and fail explicitly'
+            'Entry Manager CLI placeholder did not report its unimplemented ' +
+            'operations and fail explicitly'
         )
 } finally {
     if ([IO.Directory]::Exists($TestRoot)) {

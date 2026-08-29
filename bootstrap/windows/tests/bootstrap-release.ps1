@@ -66,19 +66,19 @@ try {
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $EntryManagerCandidatePath = `
+    $EntryManagerCandidatePaths = @(
         Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
         -Context $Context `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
-        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
-        Select-Object -Last 1
+        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
+    )
 
     $Arguments = @{
         Context = $Context
         CoreCandidatePath = [string]$CoreCandidatePath
         EntryCandidatePath = [string]$EntryCandidatePath
-        EntryManagerCandidatePath = [string]$EntryManagerCandidatePath
+        EntryManagerCandidatePaths = $EntryManagerCandidatePaths
     }
     $First = Publish-SwawHarnessWindowsProducts @Arguments
     $FirstCreated = (Get-Item -LiteralPath $First.Root).CreationTimeUtc
@@ -100,7 +100,7 @@ try {
             $ReleaseDirectories.Count -eq 1 -and
             (Get-Item -LiteralPath $Second.Root).CreationTimeUtc -eq
                 $FirstCreated -and
-            $Selected.Artifacts.Count -eq 3 -and
+            $Selected.Artifacts.Count -eq 4 -and
             [string]::Join('|', $ActualNames) -ceq
                 [string]::Join('|', $ExpectedNames)
         ) `
@@ -112,6 +112,22 @@ try {
     Assert-BootstrapReleaseTest `
         -Condition ($Selector -ceq [string]$First.ReleaseId) `
         -Message 'the target selector does not select the bundle Release'
+
+    $IncompleteManagerRejected = $false
+    try {
+        [void](Publish-SwawHarnessWindowsProducts `
+            -Context $Context `
+            -CoreCandidatePath ([string]$CoreCandidatePath) `
+            -EntryCandidatePath ([string]$EntryCandidatePath) `
+            -EntryManagerCandidatePaths @(
+                [string]$EntryManagerCandidatePaths[0]
+            ))
+    } catch {
+        $IncompleteManagerRejected = $true
+    }
+    Assert-BootstrapReleaseTest `
+        -Condition $IncompleteManagerRejected `
+        -Message 'bundle publication accepted only one Entry Manager frontend'
 
     foreach ($Artifact in $Selected.Artifacts) {
         [void](Assert-SwawHarnessNoExternalCrtImports `

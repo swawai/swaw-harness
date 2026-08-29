@@ -76,15 +76,24 @@ try {
         BuildBinary = 'swaw-harness-helloworld.exe'
         ProductBinary = 'swaw-harness-helloworld.exe'
     }
-    $EntryManagerContract = [pscustomobject][ordered]@{
-        PlatformTargetId = [string]$Contract.PlatformTargetId
-        ProductPackage = 'swaw-har-manager'
-        BuildBinary = 'swaw-har-manager.exe'
-        ProductBinary = 'swaw-harness-entry-manager.exe'
-    }
+    $EntryManagerContracts = @(
+        [pscustomobject][ordered]@{
+            PlatformTargetId = [string]$Contract.PlatformTargetId
+            ProductPackage = 'swaw-har-manager'
+            BuildBinary = 'swaw-harness-cli.exe'
+            ProductBinary = 'swaw-harness-cli.exe'
+        },
+        [pscustomobject][ordered]@{
+            PlatformTargetId = [string]$Contract.PlatformTargetId
+            ProductPackage = 'swaw-har-manager'
+            BuildBinary = 'swaw-harness.exe'
+            ProductBinary = 'swaw-harness.exe'
+        }
+    )
     foreach ($Build in @(
         [pscustomobject]@{ Contract = $CoreContract; Product = 'core' }
-        [pscustomobject]@{ Contract = $EntryManagerContract; Product = 'manager' }
+        [pscustomobject]@{ Contract = $EntryManagerContracts[0]; Product = 'manager' }
+        [pscustomobject]@{ Contract = $EntryManagerContracts[1]; Product = 'manager' }
     )) {
         $TargetRoot = Join-Path $DataRepo (
             "windows.build\$($Build.Product)"

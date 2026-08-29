@@ -23,7 +23,7 @@ function Get-SwawHarnessWindowsProductContracts {
         Read-SwawHarnessWindowsEntryContract `
             -Path (Join-Path $WindowsRoot 'entry\contract.json') `
             -PlatformTargetId $PlatformTargetId
-        Read-SwawHarnessWindowsEntryManagerContract `
+        Read-SwawHarnessWindowsEntryManagerContracts `
             -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
             -PlatformTargetId $PlatformTargetId
     )
@@ -35,7 +35,7 @@ function Publish-SwawHarnessWindowsProducts {
         [Parameter(Mandatory = $true)]$Context,
         [Parameter(Mandatory = $true)][string]$CoreCandidatePath,
         [Parameter(Mandatory = $true)][string]$EntryCandidatePath,
-        [Parameter(Mandatory = $true)][string]$EntryManagerCandidatePath
+        [Parameter(Mandatory = $true)][string[]]$EntryManagerCandidatePaths
     )
 
     $WindowsRoot = $script:SwawHarnessWindowsPublicationRoot
@@ -44,12 +44,16 @@ function Publish-SwawHarnessWindowsProducts {
     $Contracts = @(Get-SwawHarnessWindowsProductContracts `
         -WindowsRoot $WindowsRoot `
         -PlatformTargetId $PlatformContract.PlatformTargetId)
+    if ($EntryManagerCandidatePaths.Count -ne 2) {
+        throw 'Windows publication requires both Entry Manager candidates.'
+    }
     $CandidatePaths = @(
         $CoreCandidatePath,
         $EntryCandidatePath,
-        $EntryManagerCandidatePath
+        $EntryManagerCandidatePaths[0],
+        $EntryManagerCandidatePaths[1]
     )
-    $ProductNames = @('core', 'entry', 'manager')
+    $ProductNames = @('core', 'entry', 'manager', 'manager')
     $Candidates = [Collections.Generic.List[object]]::new()
     for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
         $BuildRoot = Join-Path $Context.BuildRoot $ProductNames[$Index]
