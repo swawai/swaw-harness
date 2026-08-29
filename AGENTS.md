@@ -58,5 +58,8 @@
 
 7. 预期入库的变更使用 `.agents/skills/govern-repository-change/SKILL.md`；只读分析、解释和诊断除外。
 8. 默认流程是 `Issue → branch → PR → local test → review → human merge`，不得直接在 `main` 开发。
-9. 测试范围写在 Issue 中，日常执行相称的本地测试。
-10. PR 正文使用 `Refs: #<issue-id>` 提供不触发关闭的文本引用；GitHub Development 正式关联必须由 Issue-linked branch 或 PR 关联建立。仓库的 `Auto-close issues with merged linked pull requests` 设置保持关闭，只有仓库负责人决定合并与关闭 Issue。
+9. GitHub Issue、Issue-linked branch、PR 和 workflow 操作必须使用 PATH 解析到的 `ghswaw` 命令；当前 Windows 入口文件为 `ghswaw.cmd`。不得硬编码宿主绝对路径或绕过该入口直接调用底层 `gh`；PATH 中缺少该命令或身份检查失败时必须停止。
+10. 创建 Issue-linked branch 前，本地当前分支必须是工作树干净的 `main`；获取 `origin/main` 后只允许以 fast-forward 更新本地 `main`，并必须验证两者指向同一 commit。存在本地独有 commit 或分叉时必须停止，不得自动 merge、rebase 或 reset 修复。
+11. 测试范围写在 Issue 中，日常执行相称的本地测试。
+12. PR 正文使用 `Refs: #<issue-id>` 提供不触发关闭的文本引用；GitHub Development 正式关联必须由 Issue-linked branch 或 PR 关联建立。
+13. 仓库负责人确认 `Auto-close issues with merged linked pull requests` 已处于关闭状态；Agent 不得仅因 `ghswaw` 无法回读而重复询问。
