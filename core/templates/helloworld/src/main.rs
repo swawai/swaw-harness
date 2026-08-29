@@ -2,7 +2,7 @@ use std::{env, process::ExitCode};
 
 use swaw_harness_helloworld::greeting;
 
-const USAGE: &str = "usage: swaw-harness-helloworld [recipient]";
+const USAGE: &str = "usage: helloworld [recipient]";
 
 fn main() -> ExitCode {
     let arguments = env::args().skip(1).collect::<Vec<_>>();

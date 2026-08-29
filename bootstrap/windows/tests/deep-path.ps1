@@ -196,11 +196,11 @@ try {
         $Artifacts[[string]$Artifact.Name] = [string]$Artifact.Path
     }
     $Core = Invoke-SwawHarnessCapturedProcess `
-        -Executable $Artifacts['swaw-harness-helloworld.exe'] `
+        -Executable $Artifacts['helloworld.exe'] `
         -Arguments @('Deep') `
         -WorkingDirectory $Release.Root
     $Entry = Invoke-SwawHarnessCapturedProcess `
-        -Executable $Artifacts['swaw-harness-entry.exe'] `
+        -Executable $Artifacts['entry.exe'] `
         -Arguments @() `
         -WorkingDirectory $Release.Root
     $EntryManager = Invoke-SwawHarnessCapturedProcess `

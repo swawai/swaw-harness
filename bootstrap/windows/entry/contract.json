@@ -1,7 +1,7 @@
 {
-  "schema": "swaw.harness.entry-build/v2",
+  "schema": "swaw.harness.entry-build/v3",
   "buildArtifact": "swaw-har-entry.exe",
-  "artifact": "swaw-harness-entry.exe",
+  "artifact": "entry.exe",
   "source": "entry.c",
   "compilerArguments": [
     "/nologo",

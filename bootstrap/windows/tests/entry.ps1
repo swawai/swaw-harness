@@ -67,7 +67,7 @@ try {
     $Artifact = Get-Item -LiteralPath $Candidate.ArtifactPath
     Assert-EntryTest `
         -Condition (
-            $Artifact.Name -ceq 'swaw-harness-entry.exe' -and
+            $Artifact.Name -ceq 'entry.exe' -and
             $Artifact.Length -gt 0 -and
             $Artifact.Length -le $EntryContract.MaximumBytes
         ) `

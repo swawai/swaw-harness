@@ -29,6 +29,6 @@ fn reports_invalid_usage() {
     assert!(output.stdout.is_empty());
     assert_eq!(
         String::from_utf8(output.stderr).unwrap(),
-        "usage: swaw-harness-helloworld [recipient]\n"
+        "usage: helloworld [recipient]\n"
     );
 }

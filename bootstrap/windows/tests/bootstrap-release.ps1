@@ -137,7 +137,7 @@ try {
             -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
     }
     $CoreArtifact = @($Selected.Artifacts | Where-Object {
-        $_.Name -ceq 'swaw-harness-helloworld.exe'
+        $_.Name -ceq 'helloworld.exe'
     })[0]
     $Output = & $CoreArtifact.Path 'Bootstrap'
     Assert-BootstrapReleaseTest `

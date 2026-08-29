@@ -95,7 +95,7 @@ function Invoke-SwawHarnessWindowsCoreCandidateBuild {
             -Description 'Core Cargo output path')
 
         $ArtifactPath = Join-Path $CargoTargetRoot (
-            "$($Contract.PlatformTargetId)\release\$($Contract.ProductBinary)"
+            "$($Contract.PlatformTargetId)\release\$($Contract.BuildBinary)"
         )
         [void](Assert-SwawHarnessRegularFile `
             -Path $ArtifactPath `

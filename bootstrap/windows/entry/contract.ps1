@@ -39,19 +39,19 @@ function Read-SwawHarnessWindowsEntryContract {
             'linkerArguments', 'libraries', 'maximumBytes'
         ) `
         -Description 'Windows Entry executable build contract'
-    if ([string]$Contract.schema -cne 'swaw.harness.entry-build/v2') {
+    if ([string]$Contract.schema -cne 'swaw.harness.entry-build/v3') {
         throw 'Unsupported Windows Entry executable build contract schema.'
     }
     if ($PlatformTargetId -cne 'x86_64-pc-windows-msvc') {
-        throw 'Windows Entry executable v2 supports x86_64-pc-windows-msvc only.'
+        throw 'Windows Entry executable v3 supports x86_64-pc-windows-msvc only.'
     }
     $BuildArtifact = ([string]$Contract.buildArtifact).Trim()
     if ($BuildArtifact -cne 'swaw-har-entry.exe') {
         throw 'Windows Entry executable build artifact is invalid.'
     }
     $Artifact = ([string]$Contract.artifact).Trim()
-    if ($Artifact -cne 'swaw-harness-entry.exe') {
-        throw 'Windows Entry executable artifact must be swaw-harness-entry.exe.'
+    if ($Artifact -cne 'entry.exe') {
+        throw 'Windows Entry executable artifact must be entry.exe.'
     }
     $Source = ([string]$Contract.source).Trim()
     if ($Source -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.c$') {
