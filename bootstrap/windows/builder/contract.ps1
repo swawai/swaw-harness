@@ -42,7 +42,7 @@ function Read-SwawHarnessWindowsBootstrapContract {
         -Description 'Windows Bootstrap contract'
     Assert-SwawHarnessObjectFields `
         -Value $Contract.rust `
-        -Expected @('toolchain', 'profile', 'rustupInit') `
+        -Expected @('toolchain', 'profile', 'components', 'rustupInit') `
         -Description 'Windows Bootstrap rust contract'
     Assert-SwawHarnessObjectFields `
         -Value $Contract.rust.rustupInit `
@@ -63,20 +63,36 @@ function Read-SwawHarnessWindowsBootstrapContract {
     $PlatformTargetId = ([string]$Contract.platformTargetId).Trim().ToLowerInvariant()
     $Toolchain = ([string]$Contract.rust.toolchain).Trim().ToLowerInvariant()
     $Profile = ([string]$Contract.rust.profile).Trim().ToLowerInvariant()
+    $ExpectedRustComponents = [string[]]@('clippy', 'rustfmt')
+    if (-not ($Contract.rust.components -is [Array])) {
+        throw 'Windows Bootstrap rust.components must be an array.'
+    }
+    $RustComponents = [string[]]@($Contract.rust.components)
+    if ($RustComponents.Count -ne $ExpectedRustComponents.Count) {
+        throw 'Windows Bootstrap v5 requires clippy and rustfmt components.'
+    }
+    for ($Index = 0; $Index -lt $ExpectedRustComponents.Count; $Index++) {
+        if ($RustComponents[$Index] -cne $ExpectedRustComponents[$Index]) {
+            throw (
+                'Windows Bootstrap rust.components must be the canonical ' +
+                'ordered clippy and rustfmt component list.'
+            )
+        }
+    }
     $RustupVersion = ([string]$Contract.rust.rustupInit.version).
         Trim().ToLowerInvariant()
     $MsvcProductLine = ([string]$Contract.msvc.productLine).
         Trim().ToLowerInvariant()
     $MsvcLicenseAcceptance = ([string]$Contract.msvc.license.acceptance).
         Trim().ToLowerInvariant()
-    if ([string]$Contract.schema -cne 'swaw.harness.bootstrap.windows/v4') {
+    if ([string]$Contract.schema -cne 'swaw.harness.bootstrap.windows/v5') {
         throw 'Unsupported Windows Bootstrap contract schema.'
     }
     if ($PlatformTargetId -cnotmatch '^[a-z0-9][a-z0-9._-]{0,127}$') {
         throw 'Windows Bootstrap platformTargetId is invalid.'
     }
     if ($PlatformTargetId -cne 'x86_64-pc-windows-msvc') {
-        throw 'Windows Bootstrap v4 supports x86_64-pc-windows-msvc only.'
+        throw 'Windows Bootstrap v5 supports x86_64-pc-windows-msvc only.'
     }
     if ($Toolchain -cnotmatch '^\d+\.\d+\.\d+$') {
         throw 'Windows Bootstrap rust.toolchain must be an exact version.'
@@ -85,10 +101,10 @@ function Read-SwawHarnessWindowsBootstrapContract {
         throw 'Windows Bootstrap rustup-init version must be exact.'
     }
     if ($Profile -cne 'minimal') {
-        throw 'Windows Bootstrap v4 requires the minimal Rust profile.'
+        throw 'Windows Bootstrap v5 requires the minimal Rust profile.'
     }
     if ($MsvcProductLine -cne 'vs2026') {
-        throw 'Windows Bootstrap v4 requires the VS 2026 product line.'
+        throw 'Windows Bootstrap v5 requires the VS 2026 product line.'
     }
     if ($MsvcLicenseAcceptance -cne 'by-bootstrap-invocation') {
         throw 'Windows Bootstrap MSVC license acceptance is invalid.'
@@ -134,6 +150,7 @@ function Read-SwawHarnessWindowsBootstrapContract {
         PlatformTargetId = $PlatformTargetId
         RustToolchain = $Toolchain
         RustProfile = $Profile
+        RustComponents = $RustComponents
         RustupInitVersion = $RustupVersion
         RustupInitUrl = $RustupUrl
         RustupInitSha256 = Assert-SwawHarnessSha256 `

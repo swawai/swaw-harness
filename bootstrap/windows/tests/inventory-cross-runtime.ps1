@@ -71,6 +71,8 @@ try {
             rustcVersion = [string]$Contract.RustToolchain
             rustcCommit = '1111111111111111111111111111111111111111'
             cargoVersion = [string]$Contract.RustToolchain
+            rustfmtVersion = '1.8.0-stable'
+            clippyVersion = '0.1.97'
             host = [string]$Contract.PlatformTargetId
         }) `
         -RustRoot $RustRoot `

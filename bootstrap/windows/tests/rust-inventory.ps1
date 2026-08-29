@@ -39,6 +39,42 @@ try {
     [void][IO.Directory]::CreateDirectory($RustRoot)
     $Contract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
+    Assert-RustInventoryTest `
+        -Condition (
+            [string]::Join(',', $Contract.RustComponents) -ceq
+                'clippy,rustfmt'
+        ) `
+        -Message 'Windows Contract omitted the canonical Rust components'
+    $InvalidContract = ConvertFrom-Json -InputObject (Get-Content `
+        -Raw `
+        -LiteralPath (Join-Path $WindowsRoot 'contract.json'))
+    $InvalidContract.rust.components = @('rustfmt', 'clippy')
+    $InvalidContractPath = Join-Path $TestRoot 'invalid-contract.json'
+    [IO.File]::WriteAllText(
+        $InvalidContractPath,
+        (ConvertTo-SwawHarnessJsonText -Value $InvalidContract),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $RejectedInvalidContract = $false
+    try {
+        [void](Read-SwawHarnessWindowsBootstrapContract `
+            -Path $InvalidContractPath)
+    } catch {
+        $RejectedInvalidContract = $true
+    }
+    Assert-RustInventoryTest `
+        -Condition $RejectedInvalidContract `
+        -Message 'Windows Contract accepted non-canonical Rust components'
+    $OriginalDefinitionId = Get-SwawHarnessRustDefinitionId `
+        -Contract $Contract
+    $ChangedContract = $Contract.PSObject.Copy()
+    $ChangedContract.RustComponents = [string[]]@('rustfmt')
+    Assert-RustInventoryTest `
+        -Condition (
+            (Get-SwawHarnessRustDefinitionId -Contract $ChangedContract) -cne
+                $OriginalDefinitionId
+        ) `
+        -Message 'Rust component change did not change its definition identity'
     $RustupContent = 'rustup fixture bytes'
     $Contract.RustupInitLength = [Text.Encoding]::UTF8.GetByteCount(
         $RustupContent
@@ -57,6 +93,8 @@ try {
         rustcVersion = [string]$Contract.RustToolchain
         rustcCommit = '1111111111111111111111111111111111111111'
         cargoVersion = '1.97.1'
+        rustfmtVersion = '1.8.0-stable'
+        clippyVersion = '0.1.97'
         host = [string]$Contract.PlatformTargetId
     }
     $Record = New-SwawHarnessRustInstallRecord `
@@ -86,15 +124,22 @@ try {
                 @(Get-SwawHarnessRustRequiredPaths -Contract $Contract).Count
         ) `
         -Message 'Rust receipt still stores the complete file inventory'
-    Assert-RustInventoryTest `
-        -Condition (@(Get-SwawHarnessRustRequiredPaths `
-            -Contract $Contract | Where-Object { $_ -like '*rustfmt*' }
-        ).Count -eq 0) `
-        -Message 'cold Rust contract still requires rustfmt'
+    $RequiredPaths = [string[]]@(Get-SwawHarnessRustRequiredPaths `
+        -Contract $Contract)
+    foreach ($ComponentPath in @(
+        'bin\cargo-clippy.exe',
+        'bin\clippy-driver.exe',
+        'bin\cargo-fmt.exe',
+        'bin\rustfmt.exe'
+    )) {
+        Assert-RustInventoryTest `
+            -Condition ($RequiredPaths -ccontains $ComponentPath) `
+            -Message "Rust contract omitted component file $ComponentPath"
+    }
 
-    $CargoPath = Join-Path $RustRoot 'bin\cargo.exe'
-    $CargoOriginal = [IO.File]::ReadAllText($CargoPath)
-    [IO.File]::WriteAllText($CargoPath, 'tampered')
+    $CargoFmtPath = Join-Path $RustRoot 'bin\cargo-fmt.exe'
+    $CargoFmtOriginal = [IO.File]::ReadAllText($CargoFmtPath)
+    [IO.File]::WriteAllText($CargoFmtPath, 'tampered')
     Assert-RustInventoryTest `
         -Condition (-not (Test-SwawHarnessRustInstallRecord `
             -Record $Record `
@@ -103,8 +148,8 @@ try {
             -ControlledRoot $ControlledRoot)) `
         -Message 'Rust file tampering passed the recorded inventory'
     [IO.File]::WriteAllText(
-        $CargoPath,
-        $CargoOriginal,
+        $CargoFmtPath,
+        $CargoFmtOriginal,
         [Text.UTF8Encoding]::new($false)
     )
 

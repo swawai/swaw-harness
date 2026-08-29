@@ -1,9 +1,13 @@
 {
-  "schema": "swaw.harness.bootstrap.windows/v4",
+  "schema": "swaw.harness.bootstrap.windows/v5",
   "platformTargetId": "x86_64-pc-windows-msvc",
   "rust": {
     "toolchain": "1.97.1",
     "profile": "minimal",
+    "components": [
+      "clippy",
+      "rustfmt"
+    ],
     "rustupInit": {
       "version": "1.29.0",
       "url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-msvc/rustup-init.exe",

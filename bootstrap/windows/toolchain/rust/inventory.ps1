@@ -127,11 +127,12 @@ function New-SwawHarnessRustInstallRecord {
         -RequiredPaths $RequiredPaths `
         -Description 'Rust installation')
     return [pscustomobject][ordered]@{
-        schema = 'swaw.harness.bootstrap.rust-install/v3'
+        schema = 'swaw.harness.bootstrap.rust-install/v4'
         definitionId = Get-SwawHarnessRustDefinitionId -Contract $Contract
         declaredToolchain = [string]$Contract.RustToolchain
         toolchainName = Get-SwawHarnessRustToolchainName -Contract $Contract
         profile = [string]$Contract.RustProfile
+        components = [string[]]@($Contract.RustComponents)
         host = [string]$Contract.PlatformTargetId
         rustupInit = [pscustomobject][ordered]@{
             version = [string]$Contract.RustupInitVersion
@@ -162,7 +163,7 @@ function Test-SwawHarnessRustInstallRecord {
             -Value $Record `
             -Expected @(
                 'schema', 'definitionId', 'declaredToolchain',
-                'toolchainName', 'profile', 'host', 'rustupInit',
+                'toolchainName', 'profile', 'components', 'host', 'rustupInit',
                 'probe', 'inventory', 'criticalFiles'
             ) `
             -Description 'Rust install record'
@@ -174,11 +175,21 @@ function Test-SwawHarnessRustInstallRecord {
             -Value $Record.probe `
             -Expected @(
                 'rustupVersion', 'rustcVersion', 'rustcCommit',
-                'cargoVersion', 'host'
+                'cargoVersion', 'rustfmtVersion', 'clippyVersion', 'host'
             ) `
             -Description 'Rust probe record'
+        $RecordedComponents = [string[]]@($Record.components)
+        $ExpectedComponents = [string[]]@($Contract.RustComponents)
+        if ($RecordedComponents.Count -ne $ExpectedComponents.Count) {
+            throw 'Rust install component record count is invalid.'
+        }
+        for ($Index = 0; $Index -lt $ExpectedComponents.Count; $Index++) {
+            if ($RecordedComponents[$Index] -cne $ExpectedComponents[$Index]) {
+                throw 'Rust install component record is inconsistent.'
+            }
+        }
         if ([string]$Record.schema -cne
-                'swaw.harness.bootstrap.rust-install/v3' -or
+                'swaw.harness.bootstrap.rust-install/v4' -or
             [string]$Record.definitionId -cne
                 (Get-SwawHarnessRustDefinitionId -Contract $Contract) -or
             [string]$Record.declaredToolchain -cne
@@ -201,6 +212,10 @@ function Test-SwawHarnessRustInstallRecord {
                 [string]$Contract.RustToolchain -or
             [string]$Record.probe.rustcCommit -cnotmatch '^[a-f0-9]{40}$' -or
             [string]$Record.probe.cargoVersion -cnotmatch '^\d+\.\d+\.\d+' -or
+            [string]$Record.probe.rustfmtVersion -cnotmatch
+                '^\d+\.\d+\.\d+(?:\S*)?$' -or
+            [string]$Record.probe.clippyVersion -cnotmatch
+                '^\d+\.\d+\.\d+(?:\S*)?$' -or
             [string]$Record.probe.host -cne [string]$Contract.PlatformTargetId) {
             throw 'Rust install identity record is inconsistent.'
         }

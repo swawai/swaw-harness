@@ -33,15 +33,24 @@ function Invoke-SwawHarnessRustupInstaller {
     }
     $Environment = Get-SwawHarnessRustProcessEnvironment -RustRoot $RustRoot
     $Environment['RUSTUP_INIT_SKIP_EXISTENCE_CHECKS'] = 'yes'
+    $Arguments = [Collections.Generic.List[string]]::new()
+    foreach ($Argument in @(
+        '-y',
+        '--default-host', [string]$Contract.PlatformTargetId,
+        '--no-modify-path',
+        '--profile', [string]$Contract.RustProfile
+    )) {
+        $Arguments.Add($Argument)
+    }
+    foreach ($Component in [string[]]@($Contract.RustComponents)) {
+        $Arguments.Add('--component')
+        $Arguments.Add($Component)
+    }
+    $Arguments.Add('--default-toolchain')
+    $Arguments.Add([string]$Contract.RustToolchain)
     $Result = Invoke-SwawHarnessCapturedProcess `
         -Executable $InstallerPath `
-        -Arguments @(
-            '-y',
-            '--default-host', [string]$Contract.PlatformTargetId,
-            '--no-modify-path',
-            '--profile', [string]$Contract.RustProfile,
-            '--default-toolchain', [string]$Contract.RustToolchain
-        ) `
+        -Arguments $Arguments.ToArray() `
         -WorkingDirectory $RustRoot `
         -EnvironmentVariables $Environment `
         -UnsetEnvironmentVariables (
@@ -85,7 +94,22 @@ function Get-SwawHarnessRustProbe {
         -WorkingDirectory $RustRoot `
         -EnvironmentVariables $Environment `
         -UnsetEnvironmentVariables $Unset
-    foreach ($Result in @($RustupResult, $RustcResult, $CargoResult)) {
+    $RustfmtResult = Invoke-SwawHarnessCapturedProcess `
+        -Executable $Rustup `
+        -Arguments @('run', $ToolchainName, 'rustfmt', '--version') `
+        -WorkingDirectory $RustRoot `
+        -EnvironmentVariables $Environment `
+        -UnsetEnvironmentVariables $Unset
+    $ClippyResult = Invoke-SwawHarnessCapturedProcess `
+        -Executable $Rustup `
+        -Arguments @('run', $ToolchainName, 'clippy-driver', '--version') `
+        -WorkingDirectory $RustRoot `
+        -EnvironmentVariables $Environment `
+        -UnsetEnvironmentVariables $Unset
+    foreach ($Result in @(
+        $RustupResult, $RustcResult, $CargoResult,
+        $RustfmtResult, $ClippyResult
+    )) {
         if ($Result.ExitCode -ne 0) {
             throw "Rust installation probe failed: $($Result.Error)"
         }
@@ -111,11 +135,21 @@ function Get-SwawHarnessRustProbe {
         $CargoResult.Output,
         '(?m)^cargo\s+(\d+\.\d+\.\d+(?:\S*)?)'
     )
+    $RustfmtMatch = [regex]::Match(
+        $RustfmtResult.Output,
+        '(?m)^rustfmt\s+(\d+\.\d+\.\d+(?:\S*)?)'
+    )
+    $ClippyMatch = [regex]::Match(
+        $ClippyResult.Output,
+        '(?m)^clippy\s+(\d+\.\d+\.\d+(?:\S*)?)'
+    )
     if (-not $RustupMatch.Success -or
         -not $ReleaseMatch.Success -or
         -not $CommitMatch.Success -or
         -not $HostMatch.Success -or
         -not $CargoMatch.Success -or
+        -not $RustfmtMatch.Success -or
+        -not $ClippyMatch.Success -or
         $RustupMatch.Groups[1].Value -cne
             [string]$Contract.RustupInitVersion -or
         $ReleaseMatch.Groups[1].Value -cne
@@ -128,6 +162,8 @@ function Get-SwawHarnessRustProbe {
         rustcVersion = $ReleaseMatch.Groups[1].Value
         rustcCommit = $CommitMatch.Groups[1].Value
         cargoVersion = $CargoMatch.Groups[1].Value
+        rustfmtVersion = $RustfmtMatch.Groups[1].Value
+        clippyVersion = $ClippyMatch.Groups[1].Value
         host = $HostMatch.Groups[1].Value
     }
 }

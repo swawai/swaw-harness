@@ -40,6 +40,32 @@ try {
         -Condition ($Success.ExitCode -eq 0 -and
             $Success.Output -cmatch '^cargo [0-9]') `
         -Message 'tool command did not preserve Cargo success semantics'
+    $Format = Invoke-SwawHarnessCapturedProcess `
+        -Executable ([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName) `
+        -Arguments @(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass',
+            '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
+            'cargo', 'fmt', '--version'
+        ) `
+        -WorkingDirectory $DataRepo `
+        -TimeoutSeconds 60
+    Assert-ToolchainCommandTest `
+        -Condition ($Format.ExitCode -eq 0 -and
+            $Format.Output -cmatch '^rustfmt [0-9]') `
+        -Message 'managed Cargo could not execute rustfmt'
+    $Clippy = Invoke-SwawHarnessCapturedProcess `
+        -Executable ([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName) `
+        -Arguments @(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass',
+            '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
+            'cargo', 'clippy', '--version'
+        ) `
+        -WorkingDirectory $DataRepo `
+        -TimeoutSeconds 60
+    Assert-ToolchainCommandTest `
+        -Condition ($Clippy.ExitCode -eq 0 -and
+            $Clippy.Output -cmatch '^clippy [0-9]') `
+        -Message 'managed Cargo could not execute clippy'
     $Failure = Invoke-SwawHarnessCapturedProcess `
         -Executable ([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName) `
         -Arguments @(

@@ -51,14 +51,8 @@ mod tests {
         let layout = EntryLayout::new("harness", &entry_id);
 
         assert_eq!(layout.data_home(), Path::new("harness/data"));
-        assert_eq!(
-            layout.executable(),
-            Path::new("harness/data/demo-one.exe")
-        );
-        assert_eq!(
-            layout.entry_root(),
-            Path::new("harness/data/demo-one")
-        );
+        assert_eq!(layout.executable(), Path::new("harness/data/demo-one.exe"));
+        assert_eq!(layout.entry_root(), Path::new("harness/data/demo-one"));
         assert_eq!(
             layout.record(),
             Path::new("harness/data/demo-one/entry.json")
