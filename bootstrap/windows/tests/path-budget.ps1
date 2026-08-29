@@ -74,7 +74,7 @@ try {
         PlatformTargetId = [string]$Contract.PlatformTargetId
         ProductPackage = 'swaw-harness-helloworld'
         BuildBinary = 'swaw-harness-helloworld.exe'
-        ProductBinary = 'swaw-harness-helloworld.exe'
+        ProductBinary = 'helloworld.exe'
     }
     $EntryManagerContracts = @(
         [pscustomobject][ordered]@{

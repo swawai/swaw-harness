@@ -47,7 +47,10 @@ Assert-RootBuildTest `
             [IO.File]::Exists([string]$_.Path)
         }).Count -eq 4 -and
         -not [IO.File]::Exists(
-            (Join-Path $RepositoryRoot 'swaw-harness-entry.exe')
+            (Join-Path $RepositoryRoot 'helloworld.exe')
+        ) -and
+        -not [IO.File]::Exists(
+            (Join-Path $RepositoryRoot 'entry.exe')
         ) -and
         -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'swaw-harness.exe')
