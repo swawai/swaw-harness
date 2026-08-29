@@ -18,7 +18,7 @@ if ([string]::IsNullOrWhiteSpace($DataRepo)) {
         Join-Path $WindowsRoot '..\..\data.repo'
     ))
 }
-$FirstResults = @(& (Join-Path $WindowsRoot 'main.ps1') -DataRepo $DataRepo)
+$FirstResults = @(& (Join-Path $WindowsRoot 'main.ps1'))
 Assert-MainTest `
     -Condition ($FirstResults.Count -eq 1) `
     -Message 'first invocation did not return exactly one Bootstrap Release'
@@ -37,7 +37,7 @@ Assert-MainTest `
     -Message 'main did not publish one complete Bootstrap Release'
 
 $SecondInvocation = @(
-    & (Join-Path $WindowsRoot 'main.ps1') -DataRepo $DataRepo 6>&1
+    & (Join-Path $WindowsRoot 'main.ps1') 6>&1
 )
 $SecondResults = @($SecondInvocation | Where-Object {
     $_ -isnot [Management.Automation.InformationRecord]

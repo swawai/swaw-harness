@@ -161,8 +161,7 @@ try {
         -SourceRoot $SourceToolchain.Root `
         -DestinationRoot $DeepToolchainRoot
 
-    $Results = @(& (Join-Path $DeepRoot 'bootstrap\windows\main.ps1') `
-        -DataRepo $DeepDataRepo)
+    $Results = @(& (Join-Path $DeepRoot 'bootstrap\windows\main.ps1'))
     Assert-DeepPathTest `
         -Condition ($Results.Count -eq 1) `
         -Message 'deep Bootstrap did not return exactly one Release'

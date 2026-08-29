@@ -17,8 +17,7 @@ $DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
 $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
 $Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
-$SetupResults = @(& (Join-Path $WindowsRoot 'toolchain-setup.ps1') `
-    -DataRepo $Context.DataRepo)
+$SetupResults = @(& (Join-Path $WindowsRoot 'toolchain-setup.ps1'))
 if ($SetupResults.Count -ne 1 -or
     -not [IO.Directory]::Exists([string]$SetupResults[0].Root)) {
     throw 'Core Rust tests require one valid controlled toolchain.'
@@ -39,7 +38,6 @@ $Result = Invoke-SwawHarnessCapturedProcess `
         '-NonInteractive',
         '-ExecutionPolicy', 'Bypass',
         '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
-        '-DataRepo', $Context.DataRepo,
         'cargo',
         '--config', $RustTargetConfiguration,
         'test',

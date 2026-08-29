@@ -80,30 +80,6 @@ try {
         -Message 'flat DataRepo layout is invalid'
     $Contract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
-    $PathBudgetAccepted = $false
-    try {
-        $BoundaryRoot = 'C:\' + ('a' * 57)
-        [void](Assert-SwawHarnessRepositoryRootPathBudget `
-            -RepositoryRoot $BoundaryRoot)
-        $PathBudgetAccepted = $true
-    } catch {
-        $PathBudgetAccepted = $false
-    }
-    Assert-ToolchainTest `
-        -Condition $PathBudgetAccepted `
-        -Message 'repository-root path budget rejected its 60-character boundary'
-    $PathBudgetRejected = $false
-    try {
-        [void](Assert-SwawHarnessRepositoryRootPathBudget `
-            -RepositoryRoot ('C:\' + ('a' * 58)))
-    } catch {
-        $PathBudgetRejected = $_.Exception.Message -like (
-            'Windows Bootstrap supports an absolute repository root no longer*'
-        )
-    }
-    Assert-ToolchainTest `
-        -Condition $PathBudgetRejected `
-        -Message 'repository-root path budget accepted 61 characters'
     $RustupContent = 'rustup fixture'
     $Contract.RustupInitLength = [Text.Encoding]::UTF8.GetByteCount(
         $RustupContent

@@ -22,8 +22,7 @@ $DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
 $Before = [Environment]::GetEnvironmentVariable('RUSTFLAGS', 'Process')
 [Environment]::SetEnvironmentVariable('RUSTFLAGS', 'ambient-test', 'Process')
 try {
-    $Setup = @(& (Join-Path $WindowsRoot 'toolchain-setup.ps1') `
-        -DataRepo $DataRepo)
+    $Setup = @(& (Join-Path $WindowsRoot 'toolchain-setup.ps1'))
     Assert-ToolchainCommandTest `
         -Condition ($Setup.Count -eq 1 -and
             [IO.Directory]::Exists([string]$Setup[0].Root)) `
@@ -33,7 +32,6 @@ try {
         -Arguments @(
             '-NoProfile', '-ExecutionPolicy', 'Bypass',
             '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
-            '-DataRepo', $DataRepo,
             'cargo', '--version'
         ) `
         -WorkingDirectory $DataRepo `
@@ -47,7 +45,6 @@ try {
         -Arguments @(
             '-NoProfile', '-ExecutionPolicy', 'Bypass',
             '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
-            '-DataRepo', $DataRepo,
             'cargo', 'metadata',
             '--manifest-path', 'Z:\definitely-missing\Cargo.toml',
             '--format-version', '1'

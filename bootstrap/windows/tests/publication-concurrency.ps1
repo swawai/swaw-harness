@@ -81,13 +81,14 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
 . (Join-Path $WindowsRoot 'publication.ps1')
+$Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
 [IO.File]::WriteAllText(
     $ReadyPath,
     "ready`n",
     [Text.UTF8Encoding]::new($false)
 )
 $Results = @(Publish-SwawHarnessWindowsProducts `
-    -DataRepo $DataRepo `
+    -Context $Context `
     -CoreCandidatePath $CoreCandidatePath `
     -EntryCandidatePath $EntryCandidatePath `
     -EntryManagerCandidatePath $EntryManagerCandidatePath)
@@ -259,7 +260,7 @@ try {
     $Rejected = $false
     try {
         Publish-SwawHarnessWindowsProducts `
-            -DataRepo $PublicationDataRepo `
+            -Context $Context `
             -CoreCandidatePath (Join-Path $TestRoot 'missing-candidate.json') `
             -EntryCandidatePath $CandidateSets['A']['entry'] `
             -EntryManagerCandidatePath $CandidateSets['A']['manager'] |
@@ -278,7 +279,7 @@ try {
         -TimeoutSeconds 2
     $Probe.Dispose()
     $AfterFailure = @(Publish-SwawHarnessWindowsProducts `
-        -DataRepo $PublicationDataRepo `
+        -Context $Context `
         -CoreCandidatePath $CandidateSets['B']['core'] `
         -EntryCandidatePath $CandidateSets['B']['entry'] `
         -EntryManagerCandidatePath $CandidateSets['B']['manager'])

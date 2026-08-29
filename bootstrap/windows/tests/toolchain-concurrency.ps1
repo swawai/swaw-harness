@@ -25,19 +25,18 @@ $DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
 $SetupPath = Join-Path $WindowsRoot 'toolchain-setup.ps1'
 $Jobs = @(1..2 | ForEach-Object {
     Start-Job -ScriptBlock {
-        param($ScriptPath, $Root)
+        param($ScriptPath)
 
         $Output = @(& pwsh `
             -NoLogo `
             -NoProfile `
             -File $ScriptPath `
-            -DataRepo $Root `
             2>&1)
         [pscustomobject]@{
             ExitCode = $LASTEXITCODE
             Output = [string]::Join("`n", [string[]]$Output)
         }
-    } -ArgumentList $SetupPath, $DataRepo
+    } -ArgumentList $SetupPath
 })
 try {
     [void](Wait-Job -Job $Jobs -Timeout 1800)

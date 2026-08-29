@@ -1,6 +1,7 @@
 Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot 'foundation.ps1')
+. (Join-Path $PSScriptRoot 'physical-path.ps1')
 
 $script:SwawHarnessMaximumRepositoryRootLength = 60
 $script:SwawHarnessMaximumNativePathLength = 240
@@ -45,7 +46,8 @@ function Get-SwawHarnessWindowsPathBudget {
 function Assert-SwawHarnessRepositoryRootPathBudget {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
 
-    $RepositoryRoot = Get-SwawHarnessFullPath -Path $RepositoryRoot
+    $RepositoryRoot = Assert-SwawHarnessPhysicalRepositoryRoot `
+        -RepositoryRoot $RepositoryRoot
     if ($RepositoryRoot.Length -gt
         $script:SwawHarnessMaximumRepositoryRootLength) {
         throw (

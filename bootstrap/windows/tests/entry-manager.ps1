@@ -21,6 +21,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $WindowsRoot 'entry.manager\contract.ps1')
+. (Join-Path $WindowsRoot 'entry.manager\candidate-build.ps1')
 . (Join-Path $PSScriptRoot 'pe-imports.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
@@ -47,8 +48,9 @@ try {
         -Context $SharedContext `
         -Contract $PlatformContract `
         -Toolchain $Toolchain
-    $CandidatePath = & (Join-Path $WindowsRoot 'entry.manager\build.ps1') `
-        -DataRepo $TestRoot `
+    $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
+    $CandidatePath = Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
+        -Context $TestContext `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
@@ -56,7 +58,6 @@ try {
     $EntryManagerContract = Read-SwawHarnessWindowsEntryManagerContract `
         -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId
-    $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
     $BuildRoot = Join-Path $TestContext.BuildRoot 'manager'
     $Candidate = Read-SwawHarnessBootstrapCandidate `
         -Path ([string]$CandidatePath) `

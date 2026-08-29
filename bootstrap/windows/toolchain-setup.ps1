@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRepo = '')
+param()
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -9,16 +9,12 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot 'builder\path-budget.ps1')
 . (Join-Path $PSScriptRoot 'toolchain\lifecycle.ps1')
 
-if ([string]::IsNullOrWhiteSpace($DataRepo)) {
-    $DataRepo = [IO.Path]::GetFullPath((
-        Join-Path $PSScriptRoot '..\..\data.repo'
-    ))
-}
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot 'contract.json')
-[void](Assert-SwawHarnessRepositoryRootPathBudget `
-    -RepositoryRoot (Join-Path $PSScriptRoot '..\..'))
-$Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
+$RepositoryRoot = Assert-SwawHarnessRepositoryRootPathBudget `
+    -RepositoryRoot (Join-Path $PSScriptRoot '..\..')
+$Context = New-SwawHarnessWindowsBootstrapContext `
+    -DataRepo (Join-Path $RepositoryRoot 'data.repo')
 Write-Output (Get-SwawHarnessBootstrapToolchain `
     -Context $Context `
     -Contract $Contract)
