@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$CargoPath,
     [Collections.IDictionary]$EnvironmentVariables = @{},
-    [string[]]$UnsetEnvironmentVariables = @()
+    [string[]]$UnsetEnvironmentVariables = @(),
+    [IO.FileStream]$CandidateLifecycleLock = $null
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,4 +19,5 @@ Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
     -Context $Context `
     -CargoPath $CargoPath `
     -EnvironmentVariables $EnvironmentVariables `
-    -UnsetEnvironmentVariables $UnsetEnvironmentVariables
+    -UnsetEnvironmentVariables $UnsetEnvironmentVariables `
+    -CandidateLifecycleLock $CandidateLifecycleLock

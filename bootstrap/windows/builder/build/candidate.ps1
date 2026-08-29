@@ -28,6 +28,122 @@ function Get-SwawHarnessCandidateId {
     )))
 }
 
+function Enter-SwawHarnessCandidateLifecycleLock {
+    param(
+        [Parameter(Mandatory = $true)][object]$Context,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId,
+        [IO.FileStream]$ExistingLock = $null
+    )
+
+    $LockPath = Assert-SwawHarnessPathInsideRoot `
+        -Path (Join-Path $Context.LockRoot (
+            "bootstrap-$PlatformTargetId.lock"
+        )) `
+        -Root $Context.DataRepo `
+        -Activity 'coordinating the Candidate lifecycle'
+    if ($null -eq $ExistingLock) {
+        return [pscustomobject][ordered]@{
+            Stream = Enter-SwawHarnessFileLock `
+                -Path $LockPath `
+                -ControlledRoot $Context.DataRepo `
+                -TimeoutSeconds 7200
+            OwnsStream = $true
+        }
+    }
+
+    $LockIsOpen = $false
+    try {
+        $LockIsOpen = -not $ExistingLock.SafeFileHandle.IsClosed -and
+            -not $ExistingLock.SafeFileHandle.IsInvalid
+    } catch {
+        $LockIsOpen = $false
+    }
+    if (-not $LockIsOpen -or
+        -not ([IO.Path]::GetFullPath($ExistingLock.Name)).Equals(
+            $LockPath,
+            [StringComparison]::OrdinalIgnoreCase
+        )) {
+        throw "Candidate lifecycle lock is invalid for: $PlatformTargetId"
+    }
+    return [pscustomobject][ordered]@{
+        Stream = $ExistingLock
+        OwnsStream = $false
+    }
+}
+
+function Exit-SwawHarnessCandidateLifecycleLock {
+    param([Parameter(Mandatory = $true)][object]$LockHandle)
+
+    if ([bool]$LockHandle.OwnsStream) {
+        $LockHandle.Stream.Dispose()
+    }
+}
+
+function Get-SwawHarnessCandidateConsumerLockPath {
+    param(
+        [Parameter(Mandatory = $true)][object]$Context,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId
+    )
+
+    return Assert-SwawHarnessPathInsideRoot `
+        -Path (Join-Path $Context.LockRoot (
+            "candidate-consumers-$PlatformTargetId.lock"
+        )) `
+        -Root $Context.DataRepo `
+        -Activity 'coordinating Candidate consumers'
+}
+
+function Enter-SwawHarnessCandidateConsumerLock {
+    param(
+        [Parameter(Mandatory = $true)][object]$Context,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId,
+        [int]$TimeoutSeconds = 7200
+    )
+
+    $Path = Get-SwawHarnessCandidateConsumerLockPath `
+        -Context $Context `
+        -PlatformTargetId $PlatformTargetId
+    [void][IO.Directory]::CreateDirectory((Split-Path -Path $Path -Parent))
+    $Deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        try {
+            return [IO.FileStream]::new(
+                $Path,
+                [IO.FileMode]::OpenOrCreate,
+                [IO.FileAccess]::ReadWrite,
+                [IO.FileShare]::ReadWrite
+            )
+        } catch [IO.IOException] {
+            if ([DateTime]::UtcNow -ge $Deadline) {
+                throw "Timed out waiting for Candidate consumers: $Path"
+            }
+            Start-Sleep -Milliseconds 100
+        }
+    } while ($true)
+}
+
+function Enter-SwawHarnessCandidateCleanupLock {
+    param(
+        [Parameter(Mandatory = $true)][object]$Context,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId
+    )
+
+    $Path = Get-SwawHarnessCandidateConsumerLockPath `
+        -Context $Context `
+        -PlatformTargetId $PlatformTargetId
+    [void][IO.Directory]::CreateDirectory((Split-Path -Path $Path -Parent))
+    try {
+        return [IO.FileStream]::new(
+            $Path,
+            [IO.FileMode]::OpenOrCreate,
+            [IO.FileAccess]::ReadWrite,
+            [IO.FileShare]::None
+        )
+    } catch [IO.IOException] {
+        return $null
+    }
+}
+
 function Read-SwawHarnessBootstrapCandidate {
     param(
         [Parameter(Mandatory = $true)][string]$CandidateRoot,

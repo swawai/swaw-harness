@@ -15,7 +15,8 @@ function Invoke-SwawHarnessWindowsCoreCandidateBuild {
         [Parameter(Mandatory = $true)]$Context,
         [Parameter(Mandatory = $true)][string]$CargoPath,
         [Collections.IDictionary]$EnvironmentVariables = @{},
-        [string[]]$UnsetEnvironmentVariables = @()
+        [string[]]$UnsetEnvironmentVariables = @(),
+        [IO.FileStream]$CandidateLifecycleLock = $null
     )
 
     $CoreRoot = $script:SwawHarnessWindowsCoreRoot
@@ -43,13 +44,18 @@ function Invoke-SwawHarnessWindowsCoreCandidateBuild {
         -Description 'Rust workspace manifest' `
         -MaximumBytes 1048576)
 
-    $BuildLock = Enter-SwawHarnessFileLock `
-        -Path (Join-Path $Context.LockRoot (
-            "build-core-$($Contract.PlatformTargetId).lock"
-        )) `
-        -ControlledRoot $Context.DataRepo `
-        -TimeoutSeconds 1800
+    $LifecycleLock = Enter-SwawHarnessCandidateLifecycleLock `
+        -Context $Context `
+        -PlatformTargetId $Contract.PlatformTargetId `
+        -ExistingLock $CandidateLifecycleLock
+    $BuildLock = $null
     try {
+        $BuildLock = Enter-SwawHarnessFileLock `
+            -Path (Join-Path $Context.LockRoot (
+                "build-core-$($Contract.PlatformTargetId).lock"
+            )) `
+            -ControlledRoot $Context.DataRepo `
+            -TimeoutSeconds 1800
         $CargoTargetRoot = $BuildRoot
         Assert-SwawHarnessCargoBuildPathBudget `
             -TargetRoot $CargoTargetRoot `
@@ -109,6 +115,9 @@ function Invoke-SwawHarnessWindowsCoreCandidateBuild {
         Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
         Write-Output $CandidateRoot
     } finally {
-        $BuildLock.Dispose()
+        if ($null -ne $BuildLock) {
+            $BuildLock.Dispose()
+        }
+        Exit-SwawHarnessCandidateLifecycleLock -LockHandle $LifecycleLock
     }
 }

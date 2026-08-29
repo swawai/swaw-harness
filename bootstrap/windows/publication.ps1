@@ -35,7 +35,8 @@ function Publish-SwawHarnessWindowsProducts {
         [Parameter(Mandatory = $true)]$Context,
         [Parameter(Mandatory = $true)][string]$CoreCandidateRoot,
         [Parameter(Mandatory = $true)][string]$EntryCandidateRoot,
-        [Parameter(Mandatory = $true)][string[]]$EntryManagerCandidateRoots
+        [Parameter(Mandatory = $true)][string[]]$EntryManagerCandidateRoots,
+        [IO.FileStream]$CandidateLifecycleLock = $null
     )
 
     $WindowsRoot = $script:SwawHarnessWindowsPublicationRoot
@@ -54,35 +55,77 @@ function Publish-SwawHarnessWindowsProducts {
         $EntryManagerCandidateRoots[1]
     )
     $ProductNames = @('core', 'entry', 'manager', 'manager')
-    $Candidates = [Collections.Generic.List[object]]::new()
-    for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
-        $BuildRoot = Join-Path $Context.BuildRoot $ProductNames[$Index]
-        $Candidates.Add((Read-SwawHarnessBootstrapCandidate `
-            -CandidateRoot $CandidateRoots[$Index] `
-            -Contract $Contracts[$Index] `
-            -BuildRoot $BuildRoot))
-    }
-    return Publish-SwawHarnessBootstrapRelease `
+    $ConsumerLock = Enter-SwawHarnessCandidateConsumerLock `
         -Context $Context `
-        -Contracts $Contracts `
-        -Candidates $Candidates.ToArray()
+        -PlatformTargetId $PlatformContract.PlatformTargetId
+    try {
+        $LifecycleLock = Enter-SwawHarnessCandidateLifecycleLock `
+            -Context $Context `
+            -PlatformTargetId $PlatformContract.PlatformTargetId `
+            -ExistingLock $CandidateLifecycleLock
+        try {
+            $Candidates = [Collections.Generic.List[object]]::new()
+            for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
+                $BuildRoot = Join-Path $Context.BuildRoot $ProductNames[$Index]
+                $Candidates.Add((Read-SwawHarnessBootstrapCandidate `
+                    -CandidateRoot $CandidateRoots[$Index] `
+                    -Contract $Contracts[$Index] `
+                    -BuildRoot $BuildRoot))
+            }
+            return Publish-SwawHarnessBootstrapRelease `
+                -Context $Context `
+                -Contracts $Contracts `
+                -Candidates $Candidates.ToArray()
+        } finally {
+            Exit-SwawHarnessCandidateLifecycleLock -LockHandle $LifecycleLock
+        }
+    } finally {
+        $ConsumerLock.Dispose()
+    }
 }
 
 function Clear-SwawHarnessWindowsProductCandidates {
-    param([Parameter(Mandatory = $true)]$Context)
+    param(
+        [Parameter(Mandatory = $true)]$Context,
+        [IO.FileStream]$CandidateLifecycleLock = $null
+    )
 
-    $CandidateRoots = @('core', 'entry', 'manager') | ForEach-Object {
-        $BuildRoot = Assert-SwawHarnessPathInsideRoot `
-            -Path (Join-Path $Context.BuildRoot $_) `
-            -Root $Context.BuildRoot `
-            -Activity 'planning Windows Candidate cleanup'
-        Assert-SwawHarnessPathInsideRoot `
-            -Path (Join-Path $BuildRoot 'candidates') `
-            -Root $BuildRoot `
-            -Activity 'planning Windows Candidate cleanup'
+    $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
+        -Path (Join-Path $script:SwawHarnessWindowsPublicationRoot 'contract.json')
+    $LifecycleLock = Enter-SwawHarnessCandidateLifecycleLock `
+        -Context $Context `
+        -PlatformTargetId $PlatformContract.PlatformTargetId `
+        -ExistingLock $CandidateLifecycleLock
+    $CleanupLock = $null
+    try {
+        $CleanupLock = Enter-SwawHarnessCandidateCleanupLock `
+            -Context $Context `
+            -PlatformTargetId $PlatformContract.PlatformTargetId
+        if ($null -eq $CleanupLock) {
+            Write-Warning (
+                'Published Windows Candidates are still in use; ' +
+                'a later successful Bootstrap invocation will retry cleanup.'
+            )
+            return
+        }
+        $CandidateRoots = @('core', 'entry', 'manager') | ForEach-Object {
+            $BuildRoot = Assert-SwawHarnessPathInsideRoot `
+                -Path (Join-Path $Context.BuildRoot $_) `
+                -Root $Context.BuildRoot `
+                -Activity 'planning Windows Candidate cleanup'
+            Assert-SwawHarnessPathInsideRoot `
+                -Path (Join-Path $BuildRoot 'candidates') `
+                -Root $BuildRoot `
+                -Activity 'planning Windows Candidate cleanup'
+        }
+        Remove-SwawHarnessControlledResidues `
+            -ControlledRoot $Context.BuildRoot `
+            -Paths $CandidateRoots `
+            -Activity 'cleaning published Windows Candidates'
+    } finally {
+        if ($null -ne $CleanupLock) {
+            $CleanupLock.Dispose()
+        }
+        Exit-SwawHarnessCandidateLifecycleLock -LockHandle $LifecycleLock
     }
-    Remove-SwawHarnessControlledResidues `
-        -ControlledRoot $Context.BuildRoot `
-        -Paths $CandidateRoots `
-        -Activity 'cleaning published Windows Candidates'
 }

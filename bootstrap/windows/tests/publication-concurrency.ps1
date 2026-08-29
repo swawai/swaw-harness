@@ -29,11 +29,18 @@ function New-PublicationTestCandidate {
         $ArtifactPath,
         [Text.Encoding]::UTF8.GetBytes("$SetName-$ProductName")
     )
-    return Publish-SwawHarnessBootstrapCandidate `
-        -ArtifactPath $ArtifactPath `
-        -Contract $Contract `
-        -BuildRoot $BuildRoot `
-        -ControlledRoot $Context.BuildRoot
+    $LifecycleLock = Enter-SwawHarnessCandidateLifecycleLock `
+        -Context $Context `
+        -PlatformTargetId $Contract.PlatformTargetId
+    try {
+        return Publish-SwawHarnessBootstrapCandidate `
+            -ArtifactPath $ArtifactPath `
+            -Contract $Contract `
+            -BuildRoot $BuildRoot `
+            -ControlledRoot $Context.BuildRoot
+    } finally {
+        Exit-SwawHarnessCandidateLifecycleLock -LockHandle $LifecycleLock
+    }
 }
 
 function Test-PublicationReleaseEquals {
@@ -160,13 +167,9 @@ try {
         }
         $CandidateSets[$SetName] = $Set
     }
-
-    $Gate = Enter-SwawHarnessFileLock `
-        -Path (Join-Path $Context.LockRoot (
-            "publish-bootstrap-$($PlatformContract.PlatformTargetId).lock"
-        )) `
-        -ControlledRoot $Context.DataRepo `
-        -TimeoutSeconds 30
+    $Gate = Enter-SwawHarnessCandidateLifecycleLock `
+        -Context $Context `
+        -PlatformTargetId $PlatformContract.PlatformTargetId
     $HostPath = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
     foreach ($SetName in @('A', 'B')) {
         $ReadyPath = Join-Path $TestRoot "ready-$SetName.txt"
@@ -218,15 +221,40 @@ try {
             [IO.File]::Exists([string]$_.ReadyPath)
         }).Count -eq 2) `
         -Message 'concurrent publication processes did not become ready'
-    [Threading.Thread]::Sleep(2000)
+    $ConsumerObserved = $false
+    $ConsumerDeadline = [DateTime]::UtcNow.AddSeconds(30)
+    do {
+        $CleanupProbe = Enter-SwawHarnessCandidateCleanupLock `
+            -Context $Context `
+            -PlatformTargetId $PlatformContract.PlatformTargetId
+        if ($null -eq $CleanupProbe) {
+            $ConsumerObserved = $true
+            break
+        }
+        $CleanupProbe.Dispose()
+        [Threading.Thread]::Sleep(50)
+    } while ([DateTime]::UtcNow -lt $ConsumerDeadline)
+    Assert-PublicationConcurrencyTest `
+        -Condition $ConsumerObserved `
+        -Message 'a waiting publisher did not register as a Candidate consumer'
     Assert-PublicationConcurrencyTest `
         -Condition (@($Processes | Where-Object { $_.HasExited }).Count -eq 0) `
-        -Message 'a publication bypassed the target-scoped publication lock'
+        -Message 'a publication bypassed the Candidate lifecycle lock'
     Assert-PublicationConcurrencyTest `
         -Condition (-not (Test-SwawHarnessPathExists `
             -Path $Context.BootstrapReleaseRoot)) `
         -Message 'publication advanced a Release store while its gate was held'
-    $Gate.Dispose()
+    $CleanupRecords = @(
+        Clear-SwawHarnessWindowsProductCandidates `
+            -Context $Context `
+            -CandidateLifecycleLock $Gate.Stream 3>&1
+    )
+    Assert-PublicationConcurrencyTest `
+        -Condition (@($CleanupRecords | Where-Object {
+            $_ -is [Management.Automation.WarningRecord]
+        }).Count -ge 1) `
+        -Message 'cleanup did not preserve Candidates held by active publishers'
+    Exit-SwawHarnessCandidateLifecycleLock -LockHandle $Gate
     $Gate = $null
 
     foreach ($Process in $Processes) {
@@ -311,9 +339,16 @@ try {
                 -Left $AfterFailure[0] `
                 -Right $Results[1])) `
         -Message 'failed publication did not release its orchestration lock'
+    Clear-SwawHarnessWindowsProductCandidates -Context $Context
+    Assert-PublicationConcurrencyTest `
+        -Condition (@(@('core', 'entry', 'manager') | Where-Object {
+            Test-SwawHarnessPathExists `
+                -Path (Join-Path $Context.BuildRoot "$_\candidates")
+        }).Count -eq 0) `
+        -Message 'released concurrent Candidates were not cleaned later'
 } finally {
     if ($null -ne $Gate) {
-        $Gate.Dispose()
+        Exit-SwawHarnessCandidateLifecycleLock -LockHandle $Gate
     }
     foreach ($Process in $Processes) {
         if (-not $Process.HasExited) {

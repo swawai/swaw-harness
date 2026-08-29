@@ -25,17 +25,15 @@ $Plan = Get-SwawHarnessToolchainEnvironment `
     -Context $Context `
     -Contract $PlatformContract `
     -Toolchain $Toolchain
-$LifecycleLock = Enter-SwawHarnessFileLock `
-    -Path (Join-Path $Context.LockRoot (
-        "bootstrap-$($PlatformContract.PlatformTargetId).lock"
-    )) `
-    -ControlledRoot $Context.DataRepo `
-    -TimeoutSeconds 7200
+$LifecycleLock = Enter-SwawHarnessCandidateLifecycleLock `
+    -Context $Context `
+    -PlatformTargetId $PlatformContract.PlatformTargetId
 try {
     $CoreBuildResults = @(& (Join-Path $PSScriptRoot 'core\build.ps1') `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
-        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
+        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables `
+        -CandidateLifecycleLock $LifecycleLock.Stream)
     if ($CoreBuildResults.Count -ne 1 -or
         [string]::IsNullOrWhiteSpace([string]$CoreBuildResults[0])) {
         throw 'Core build must return exactly one immutable Candidate root.'
@@ -44,7 +42,8 @@ try {
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
-        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
+        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables `
+        -CandidateLifecycleLock $LifecycleLock.Stream)
     if ($EntryBuildResults.Count -ne 1 -or
         [string]::IsNullOrWhiteSpace([string]$EntryBuildResults[0])) {
         throw 'Entry executable build must return one immutable Candidate root.'
@@ -53,7 +52,8 @@ try {
         & (Join-Path $PSScriptRoot 'entry.manager\build.ps1') `
             -CargoPath $Plan.CargoPath `
             -EnvironmentVariables $Plan.EnvironmentVariables `
-            -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
+            -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables `
+            -CandidateLifecycleLock $LifecycleLock.Stream
     )
     if ($EntryManagerBuildResults.Count -ne 2 -or
         @($EntryManagerBuildResults | Where-Object {
@@ -69,12 +69,15 @@ try {
         -EntryManagerCandidateRoots @(
             [string]$EntryManagerBuildResults[0],
             [string]$EntryManagerBuildResults[1]
-        ))
+        ) `
+        -CandidateLifecycleLock $LifecycleLock.Stream)
     if ($PublicationResults.Count -ne 1) {
         throw 'Bootstrap publication must return exactly one Release.'
     }
-    Clear-SwawHarnessWindowsProductCandidates -Context $Context
+    Clear-SwawHarnessWindowsProductCandidates `
+        -Context $Context `
+        -CandidateLifecycleLock $LifecycleLock.Stream
     Write-Output $PublicationResults[0]
 } finally {
-    $LifecycleLock.Dispose()
+    Exit-SwawHarnessCandidateLifecycleLock -LockHandle $LifecycleLock
 }
