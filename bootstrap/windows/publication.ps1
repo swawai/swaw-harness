@@ -32,7 +32,7 @@ function Get-SwawHarnessWindowsProductContracts {
 function Publish-SwawHarnessWindowsProducts {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)][string]$DataRoot,
+        [Parameter(Mandatory = $true)]$Context,
         [Parameter(Mandatory = $true)][string]$CoreCandidatePath,
         [Parameter(Mandatory = $true)][string]$EntryCandidatePath,
         [Parameter(Mandatory = $true)][string]$EntryManagerCandidatePath
@@ -41,7 +41,6 @@ function Publish-SwawHarnessWindowsProducts {
     $WindowsRoot = $script:SwawHarnessWindowsPublicationRoot
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
-    $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
     $Contracts = @(Get-SwawHarnessWindowsProductContracts `
         -WindowsRoot $WindowsRoot `
         -PlatformTargetId $PlatformContract.PlatformTargetId)
@@ -50,12 +49,10 @@ function Publish-SwawHarnessWindowsProducts {
         $EntryCandidatePath,
         $EntryManagerCandidatePath
     )
-    $ProductNames = @('core', 'entry', 'entry.manager')
+    $ProductNames = @('core', 'entry', 'manager')
     $Candidates = [Collections.Generic.List[object]]::new()
     for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
-        $BuildRoot = Join-Path $Context.BootstrapWindowsCacheRoot (
-            "build\$($ProductNames[$Index])\$($PlatformContract.PlatformTargetId)"
-        )
+        $BuildRoot = Join-Path $Context.BuildRoot $ProductNames[$Index]
         $Candidates.Add((Read-SwawHarnessBootstrapCandidate `
             -Path $CandidatePaths[$Index] `
             -Contract $Contracts[$Index] `

@@ -14,19 +14,24 @@ function Read-SwawHarnessWindowsEntryManagerContract {
     Assert-SwawHarnessObjectFields `
         -Value $Contract `
         -Expected @(
-            'schema', 'package', 'artifact', 'staticCrt', 'maximumBytes'
+            'schema', 'package', 'buildArtifact', 'artifact',
+            'staticCrt', 'maximumBytes'
         ) `
         -Description 'Windows Entry Manager build contract'
     if ([string]$Contract.schema -cne
-        'swaw.harness.entry-manager-build/v1') {
+        'swaw.harness.entry-manager-build/v2') {
         throw 'Unsupported Windows Entry Manager build contract schema.'
     }
     if ($PlatformTargetId -cne 'x86_64-pc-windows-msvc') {
-        throw 'Windows Entry Manager v1 supports x86_64-pc-windows-msvc only.'
+        throw 'Windows Entry Manager v2 supports x86_64-pc-windows-msvc only.'
     }
     $Package = ([string]$Contract.package).Trim()
-    if ($Package -cne 'swaw-harness-entry-manager') {
+    if ($Package -cne 'swaw-har-manager') {
         throw 'Windows Entry Manager package name is invalid.'
+    }
+    $BuildArtifact = ([string]$Contract.buildArtifact).Trim()
+    if ($BuildArtifact -cne 'swaw-har-manager.exe') {
+        throw 'Windows Entry Manager build artifact name is invalid.'
     }
     $Artifact = ([string]$Contract.artifact).Trim()
     if ($Artifact -cne 'swaw-harness-entry-manager.exe') {
@@ -34,7 +39,7 @@ function Read-SwawHarnessWindowsEntryManagerContract {
     }
     if ($Contract.staticCrt -isnot [bool] -or
         -not [bool]$Contract.staticCrt) {
-        throw 'Windows Entry Manager v1 requires staticCrt to be true.'
+        throw 'Windows Entry Manager v2 requires staticCrt to be true.'
     }
     $MaximumBytes = [long]$Contract.maximumBytes
     if ($MaximumBytes -le 0 -or $MaximumBytes -gt 64MB) {
@@ -46,6 +51,7 @@ function Read-SwawHarnessWindowsEntryManagerContract {
         Revision = Get-SwawHarnessFileSha256 -Path $Path
         PlatformTargetId = $PlatformTargetId
         ProductPackage = $Package
+        BuildBinary = $BuildArtifact
         ProductBinary = $Artifact
         StaticCrt = [bool]$Contract.staticCrt
         MaximumBytes = $MaximumBytes

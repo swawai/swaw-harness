@@ -1,5 +1,6 @@
 {
-  "schema": "swaw.harness.entry-build/v1",
+  "schema": "swaw.harness.entry-build/v2",
+  "buildArtifact": "swaw-har-entry.exe",
   "artifact": "swaw-harness-entry.exe",
   "source": "entry.c",
   "compilerArguments": [

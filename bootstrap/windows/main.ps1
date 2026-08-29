@@ -1,18 +1,22 @@
 [CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$DataRoot)
+param()
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot 'builder\context.ps1')
 . (Join-Path $PSScriptRoot 'builder\contract.ps1')
+. (Join-Path $PSScriptRoot 'builder\path-budget.ps1')
 . (Join-Path $PSScriptRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'publication.ps1')
 
 $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot 'contract.json')
-$Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
+$RepositoryRoot = Assert-SwawHarnessRepositoryRootPathBudget `
+    -RepositoryRoot (Join-Path $PSScriptRoot '..\..')
+$Context = New-SwawHarnessWindowsBootstrapContext `
+    -DataRepo (Join-Path $RepositoryRoot 'data.repo')
 
 $Toolchain = Get-SwawHarnessBootstrapToolchain `
     -Context $Context `
@@ -22,7 +26,6 @@ $Plan = Get-SwawHarnessToolchainEnvironment `
     -Contract $PlatformContract `
     -Toolchain $Toolchain
 $CoreBuildResults = @(& (Join-Path $PSScriptRoot 'core\build.ps1') `
-    -DataRoot $Context.DataRoot `
     -CargoPath $Plan.CargoPath `
     -EnvironmentVariables $Plan.EnvironmentVariables `
     -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
@@ -31,7 +34,6 @@ if ($CoreBuildResults.Count -ne 1 -or
     throw 'Core build must return exactly one immutable candidate path.'
 }
 $EntryBuildResults = @(& (Join-Path $PSScriptRoot 'entry\build.ps1') `
-    -DataRoot $Context.DataRoot `
     -CompilerPath $Plan.CompilerPath `
     -LinkerPath $Plan.LinkerPath `
     -EnvironmentVariables $Plan.EnvironmentVariables `
@@ -41,7 +43,6 @@ if ($EntryBuildResults.Count -ne 1 -or
     throw 'Entry executable build must return exactly one immutable candidate path.'
 }
 $EntryManagerBuildResults = @(& (Join-Path $PSScriptRoot 'entry.manager\build.ps1') `
-    -DataRoot $Context.DataRoot `
     -CargoPath $Plan.CargoPath `
     -EnvironmentVariables $Plan.EnvironmentVariables `
     -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables)
@@ -51,7 +52,7 @@ if ($EntryManagerBuildResults.Count -ne 1 -or
 }
 
 $PublicationResults = @(Publish-SwawHarnessWindowsProducts `
-    -DataRoot $Context.DataRoot `
+    -Context $Context `
     -CoreCandidatePath ([string]$CoreBuildResults[0]) `
     -EntryCandidatePath ([string]$EntryBuildResults[0]) `
     -EntryManagerCandidatePath ([string]$EntryManagerBuildResults[0]))

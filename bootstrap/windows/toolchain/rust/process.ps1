@@ -7,8 +7,8 @@ function Get-SwawHarnessRustProcessEnvironment {
     param([Parameter(Mandatory = $true)][string]$RustRoot)
 
     return [ordered]@{
-        CARGO_HOME = Join-Path $RustRoot 'cargo'
-        RUSTUP_HOME = Join-Path $RustRoot 'rustup'
+        CARGO_HOME = Join-Path $RustRoot 'c'
+        RUSTUP_HOME = Join-Path $RustRoot 'r'
         RUSTUP_TERM_COLOR = 'never'
     }
 }
@@ -20,7 +20,7 @@ function Invoke-SwawHarnessRustupInstaller {
         [Parameter(Mandatory = $true)][string]$RustRoot
     )
 
-    foreach ($RelativeRoot in @('cargo', 'rustup')) {
+    foreach ($RelativeRoot in @('c', 'r')) {
         $Root = Join-Path $RustRoot $RelativeRoot
         if (-not [IO.Directory]::Exists($Root)) {
             throw "Rust staging directory is missing: $Root"
@@ -62,7 +62,7 @@ function Get-SwawHarnessRustProbe {
         [Parameter(Mandatory = $true)][string]$RustRoot
     )
 
-    $Rustup = Join-Path $RustRoot 'cargo\bin\rustup.exe'
+    $Rustup = Join-Path $RustRoot 'c\bin\rustup.exe'
     [void](Get-Item -LiteralPath $Rustup -Force -ErrorAction Stop)
     $Environment = Get-SwawHarnessRustProcessEnvironment -RustRoot $RustRoot
     $Unset = Get-SwawHarnessRustAmbientOverrideNames

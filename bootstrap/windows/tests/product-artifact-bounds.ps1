@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -36,14 +36,13 @@ $WindowsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
-$BootstrapWindowsRoot = Join-Path $TestRoot 'bootstrap.windows'
-$BootstrapWindowsCacheRoot = Join-Path $TestRoot 'bootstrap.windows.cache'
-$BuildRoot = Join-Path $BootstrapWindowsCacheRoot 'build\bounds-test'
-$LockRoot = Join-Path $BootstrapWindowsRoot 'locks'
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
+$WindowsBuildRoot = Join-Path $TestRoot 'windows.build'
+$BuildRoot = Join-Path $WindowsBuildRoot 'bounds-test'
+$LockRoot = Join-Path $TestRoot 'windows.locks'
 $ReleasesRoot = Join-Path $TestRoot 'bounds-test.release'
 $MaximumBytes = 64KB
 $OversizedLength = $MaximumBytes + 1
@@ -54,9 +53,8 @@ $Contract = [pscustomobject][ordered]@{
     MaximumBytes = $MaximumBytes
 }
 $Context = [pscustomobject][ordered]@{
-    DataRoot = $TestRoot
-    BootstrapWindowsRoot = $BootstrapWindowsRoot
-    BootstrapWindowsCacheRoot = $BootstrapWindowsCacheRoot
+    DataRepo = $TestRoot
+    BuildRoot = $WindowsBuildRoot
     BootstrapReleaseRoot = $ReleasesRoot
     LockRoot = $LockRoot
 }
@@ -89,7 +87,7 @@ try {
             -ArtifactPath $SourcePath `
             -Contract $Contract `
             -BuildRoot $BuildRoot `
-            -ControlledRoot $BootstrapWindowsCacheRoot)
+            -ControlledRoot $WindowsBuildRoot)
     }
     Assert-ProductArtifactBoundsTest `
         -Condition $CandidatePublisherRejected `

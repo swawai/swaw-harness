@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-pub const MAX_ENTRY_ID_BYTES: usize = 48;
+pub const MAX_ENTRY_ID_BYTES: usize = 16;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EntryId(String);
@@ -81,7 +81,7 @@ impl std::error::Error for EntryIdError {}
 fn validate(value: &str) -> Result<(), EntryIdError> {
     if value.is_empty() || value.len() > MAX_ENTRY_ID_BYTES {
         return Err(EntryIdError::new(
-            "EntryId must contain 1 to 48 ASCII bytes",
+            "EntryId must contain 1 to 16 ASCII bytes",
         ));
     }
     if !value.is_ascii() {

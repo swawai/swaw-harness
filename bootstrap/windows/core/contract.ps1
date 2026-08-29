@@ -45,6 +45,7 @@ function Read-SwawHarnessWindowsCoreContract {
         Revision = Get-SwawHarnessFileSha256 -Path $Path
         PlatformTargetId = $PlatformTargetId
         ProductPackage = $Package
+        BuildBinary = $Artifact
         ProductBinary = $Artifact
         StaticCrt = [bool]$Contract.staticCrt
         MaximumBytes = $MaximumBytes

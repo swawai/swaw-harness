@@ -1,47 +1,58 @@
 Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot 'foundation.ps1')
+. (Join-Path $PSScriptRoot 'filesystem.ps1')
 
 function New-SwawHarnessWindowsBootstrapContext {
-    param([Parameter(Mandatory = $true)][string]$DataRoot)
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DataRepo
+    )
 
     Assert-SwawHarnessWindowsX64
-    $DataRoot = Assert-SwawHarnessControlledRoot `
-        -Root $DataRoot `
-        -Description 'DataRoot'
-    [void][IO.Directory]::CreateDirectory($DataRoot)
+    $DataRepo = Assert-SwawHarnessControlledRoot `
+        -Root $DataRepo `
+        -Description 'DataRepo'
+    [void][IO.Directory]::CreateDirectory($DataRepo)
     [void](Assert-SwawHarnessControlledRoot `
-        -Root $DataRoot `
-        -Description 'DataRoot')
+        -Root $DataRepo `
+        -Description 'DataRepo')
 
-    $BootstrapWindowsRoot = Assert-SwawHarnessPathInsideRoot `
-        -Path (Join-Path $DataRoot 'bootstrap.windows') `
-        -Root $DataRoot `
-        -Activity 'using Windows Bootstrap state'
-    [void][IO.Directory]::CreateDirectory($BootstrapWindowsRoot)
-    [void](Assert-SwawHarnessControlledRoot `
-        -Root $BootstrapWindowsRoot `
-        -Description 'BootstrapWindowsRoot')
-
-    $BootstrapWindowsCacheRoot = Assert-SwawHarnessPathInsideRoot `
-        -Path (Join-Path $DataRoot 'bootstrap.windows.cache') `
-        -Root $DataRoot `
-        -Activity 'using Windows Bootstrap cache'
-    [void][IO.Directory]::CreateDirectory($BootstrapWindowsCacheRoot)
-    [void](Assert-SwawHarnessControlledRoot `
-        -Root $BootstrapWindowsCacheRoot `
-        -Description 'BootstrapWindowsCacheRoot')
+    $Roots = [ordered]@{
+        BootstrapReleaseRoot = 'windows.release'
+        BuildRoot = 'windows.build'
+        ToolchainRoot = 'windows.tool'
+        StageRoot = 'windows.stage'
+        CacheRoot = 'windows.cache'
+        LockRoot = 'windows.locks'
+        LogRoot = 'windows.logs'
+    }
+    foreach ($Name in @($Roots.Keys)) {
+        $Roots[$Name] = Assert-SwawHarnessPathInsideRoot `
+            -Path (Join-Path $DataRepo $Roots[$Name]) `
+            -Root $DataRepo `
+            -Activity "using Windows Bootstrap $Name"
+        if ([IO.Directory]::Exists($Roots[$Name])) {
+            [void](Assert-SwawHarnessControlledRoot `
+                -Root $Roots[$Name] `
+                -Description $Name)
+        } elseif (Test-SwawHarnessPathExists -Path $Roots[$Name]) {
+            throw "$Name must be a regular directory: $($Roots[$Name])"
+        }
+    }
 
     return [pscustomobject][ordered]@{
-        DataRoot = $DataRoot
-        BootstrapWindowsRoot = $BootstrapWindowsRoot
-        BootstrapWindowsCacheRoot = $BootstrapWindowsCacheRoot
-        BootstrapReleaseRoot = Join-Path $DataRoot 'bootstrap.release'
-        DownloadRoot = Join-Path $BootstrapWindowsCacheRoot 'downloads'
-        ToolchainRoot = Join-Path $BootstrapWindowsRoot 'toolchains'
-        WorkRoot = Join-Path $BootstrapWindowsRoot 'work'
-        CargoHome = Join-Path $BootstrapWindowsCacheRoot 'cargo'
-        LockRoot = Join-Path $BootstrapWindowsRoot 'locks'
-        LogRoot = Join-Path $BootstrapWindowsRoot 'logs'
+        HarnessRoot = Split-Path -Path $DataRepo -Parent
+        DataRepo = $DataRepo
+        BootstrapReleaseRoot = $Roots.BootstrapReleaseRoot
+        BuildRoot = $Roots.BuildRoot
+        ToolchainRoot = $Roots.ToolchainRoot
+        StageRoot = $Roots.StageRoot
+        CacheRoot = $Roots.CacheRoot
+        LockRoot = $Roots.LockRoot
+        LogRoot = $Roots.LogRoot
+        RustupStageRoot = Join-Path $Roots.StageRoot 'rustup'
+        CargoHome = Join-Path $Roots.CacheRoot 'cargo'
+        DownloadRoot = Join-Path $Roots.CacheRoot 'downloads'
     }
 }

@@ -1,30 +1,30 @@
 Set-StrictMode -Version 2.0
 
-function Resolve-SwawHarnessWindowsTestDataRoot {
+function Resolve-SwawHarnessWindowsTestDataRepo {
     param(
-        [string]$DataRoot = '',
+        [string]$DataRepo = '',
         [Parameter(Mandatory = $true)][string]$RepositoryRoot
     )
 
-    if ([string]::IsNullOrWhiteSpace($DataRoot)) {
-        $DataRoot = Join-Path $RepositoryRoot 'data'
+    if ([string]::IsNullOrWhiteSpace($DataRepo)) {
+        $DataRepo = Join-Path $RepositoryRoot 'data.repo'
     }
-    return [IO.Path]::GetFullPath($DataRoot)
+    return [IO.Path]::GetFullPath($DataRepo)
 }
 
-function Get-SwawHarnessWindowsTestCacheRoot {
-    param([Parameter(Mandatory = $true)][string]$DataRoot)
+function Get-SwawHarnessWindowsTestRoot {
+    param([Parameter(Mandatory = $true)][string]$DataRepo)
 
     return Join-Path `
-        ([IO.Path]::GetFullPath($DataRoot)) `
-        'test.windows.cache'
+        ([IO.Path]::GetFullPath($DataRepo)) `
+        'windows.test'
 }
 
 function New-SwawHarnessWindowsTestRunRoot {
-    param([Parameter(Mandatory = $true)][string]$DataRoot)
+    param([Parameter(Mandatory = $true)][string]$DataRepo)
 
     $RunsRoot = Join-Path `
-        (Get-SwawHarnessWindowsTestCacheRoot -DataRoot $DataRoot) `
+        (Get-SwawHarnessWindowsTestRoot -DataRepo $DataRepo) `
         'runs'
     [void][IO.Directory]::CreateDirectory($RunsRoot)
     $RunToken = [Guid]::NewGuid().ToString('N').Substring(0, 16)
@@ -34,9 +34,9 @@ function New-SwawHarnessWindowsTestRunRoot {
 }
 
 function Get-SwawHarnessWindowsTestBuildRoot {
-    param([Parameter(Mandatory = $true)][string]$DataRoot)
+    param([Parameter(Mandatory = $true)][string]$DataRepo)
 
     return Join-Path `
-        (Get-SwawHarnessWindowsTestCacheRoot -DataRoot $DataRoot) `
+        (Get-SwawHarnessWindowsTestRoot -DataRepo $DataRepo) `
         'build'
 }

@@ -7,8 +7,8 @@
 ## Accepted
 
 - **WIN-TOOLCHAIN-001 — 外部下载必须校验。** `bootstrap/windows/contract.json` 直接声明的下载必须校验其中记录的长度与 SHA-256；Microsoft 清单引用的子载荷必须受清单声明的大小约束，并以清单记录的 SHA-256 校验内容。
-- **WIN-TOOLCHAIN-002 — 已安装工具链分层校验。** `<repository>/data/bootstrap.windows/toolchains/<toolchain-directory>/toolchain.json` 必须保存 Rust 与 MSVC 安装的完整文件树摘要和关键文件记录；普通复用校验关键文件，完整文件树扫描只由显式维护或测试入口触发。
-- **WIN-TOOLCHAIN-003 — 工具链数据不得成为脚本来源。** `toolchain-setup.ps1` 与 `toolchain.ps1` 只能从作者目录 `bootstrap/windows` 加载脚本；`<repository>/data/bootstrap.windows` 与 `<repository>/data/bootstrap.windows.cache` 只保存下载物、已安装工具和构建数据，不得保存供用户或 Bootstrap 加载执行的脚本。
+- **WIN-TOOLCHAIN-002 — 已安装工具链分层校验。** `<repository>/data.repo/windows.tool/<toolchain-locator>/toolchain.json` 必须保存完整 64 字符 ToolchainId、Rust 与 MSVC 安装的完整文件树摘要和关键文件记录；`<toolchain-locator>` 默认使用 ToolchainId 前 7 个十六进制字符，发生完整身份碰撞时逐字符增长且不得超过 12 个字符。普通复用校验关键文件，完整文件树扫描只由显式维护或测试入口触发。
+- **WIN-TOOLCHAIN-003 — 工具链数据不得成为脚本来源。** `toolchain-setup.ps1` 与 `toolchain.ps1` 只能从作者目录 `bootstrap/windows` 加载脚本；`<repository>/data.repo/windows.tool`、`windows.stage`、`windows.cache`、`windows.build`、`windows.locks` 与 `windows.logs` 只保存下载物、已安装工具和构建数据，不得保存供用户或 Bootstrap 加载执行的脚本。
 
 ## Open
 

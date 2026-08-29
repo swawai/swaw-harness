@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -16,14 +16,13 @@ $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
 . (Join-Path $WindowsRoot 'builder\process.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
 $Before = [Environment]::GetEnvironmentVariable('RUSTFLAGS', 'Process')
 [Environment]::SetEnvironmentVariable('RUSTFLAGS', 'ambient-test', 'Process')
 try {
-    $Setup = @(& (Join-Path $WindowsRoot 'toolchain-setup.ps1') `
-        -DataRoot $DataRoot)
+    $Setup = @(& (Join-Path $WindowsRoot 'toolchain-setup.ps1'))
     Assert-ToolchainCommandTest `
         -Condition ($Setup.Count -eq 1 -and
             [IO.Directory]::Exists([string]$Setup[0].Root)) `
@@ -33,10 +32,9 @@ try {
         -Arguments @(
             '-NoProfile', '-ExecutionPolicy', 'Bypass',
             '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
-            '-DataRoot', $DataRoot,
             'cargo', '--version'
         ) `
-        -WorkingDirectory $DataRoot `
+        -WorkingDirectory $DataRepo `
         -TimeoutSeconds 60
     Assert-ToolchainCommandTest `
         -Condition ($Success.ExitCode -eq 0 -and
@@ -47,12 +45,11 @@ try {
         -Arguments @(
             '-NoProfile', '-ExecutionPolicy', 'Bypass',
             '-File', (Join-Path $WindowsRoot 'toolchain.ps1'),
-            '-DataRoot', $DataRoot,
             'cargo', 'metadata',
             '--manifest-path', 'Z:\definitely-missing\Cargo.toml',
             '--format-version', '1'
         ) `
-        -WorkingDirectory $DataRoot `
+        -WorkingDirectory $DataRepo `
         -TimeoutSeconds 60
     Assert-ToolchainCommandTest `
         -Condition ($Failure.ExitCode -eq 101 -and

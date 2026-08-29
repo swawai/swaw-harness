@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -35,79 +35,88 @@ function Write-ToolchainFixtureFile {
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 $PreviousRustFlags = [Environment]::GetEnvironmentVariable('RUSTFLAGS', 'Process')
 try {
-    $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
-    $ExpectedOwnerRoot = [IO.Path]::GetFullPath(
-        (Join-Path $TestRoot 'bootstrap.windows')
-    )
-    $ExpectedCacheRoot = [IO.Path]::GetFullPath(
-        (Join-Path $TestRoot 'bootstrap.windows.cache')
-    )
+    $Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
     Assert-ToolchainTest `
         -Condition (
-            [string]$Context.BootstrapWindowsRoot -ceq $ExpectedOwnerRoot -and
-            [string]$Context.BootstrapWindowsCacheRoot -ceq
-                $ExpectedCacheRoot -and
-            [string]$Context.ToolchainRoot -ceq
-                (Join-Path $ExpectedOwnerRoot 'toolchains') -and
-            [string]$Context.WorkRoot -ceq
-                (Join-Path $ExpectedOwnerRoot 'work') -and
-            [string]$Context.LockRoot -ceq
-                (Join-Path $ExpectedOwnerRoot 'locks') -and
-            [string]$Context.LogRoot -ceq
-                (Join-Path $ExpectedOwnerRoot 'logs') -and
-            [string]$Context.DownloadRoot -ceq
-                (Join-Path $ExpectedCacheRoot 'downloads') -and
-            [string]$Context.CargoHome -ceq
-                (Join-Path $ExpectedCacheRoot 'cargo') -and
-            [string]$Context.BootstrapReleaseRoot -ceq
-                (Join-Path $TestRoot 'bootstrap.release') -and
-            -not (Test-Path -LiteralPath (Join-Path $TestRoot 'cache'))
+            (Split-Path -Path $TestRoot -Parent) -ceq
+                (Join-Path $DataRepo 'windows.test\runs')
         ) `
-        -Message 'Bootstrap state and cache roots were not kept distinct'
+        -Message 'test run was not isolated below windows.test'
+    Assert-ToolchainTest `
+        -Condition (
+            [string]$Context.DataRepo -ceq
+                [IO.Path]::GetFullPath($TestRoot) -and
+            [string]$Context.BootstrapReleaseRoot -ceq
+                (Join-Path $TestRoot 'windows.release') -and
+            [string]$Context.BuildRoot -ceq
+                (Join-Path $TestRoot 'windows.build') -and
+            [string]$Context.ToolchainRoot -ceq
+                (Join-Path $TestRoot 'windows.tool') -and
+            [string]$Context.StageRoot -ceq
+                (Join-Path $TestRoot 'windows.stage') -and
+            [string]$Context.CacheRoot -ceq
+                (Join-Path $TestRoot 'windows.cache') -and
+            [string]$Context.LockRoot -ceq
+                (Join-Path $TestRoot 'windows.locks') -and
+            [string]$Context.LogRoot -ceq
+                (Join-Path $TestRoot 'windows.logs') -and
+            [string]$Context.RustupStageRoot -ceq
+                (Join-Path $TestRoot 'windows.stage\rustup') -and
+            [string]$Context.DownloadRoot -ceq
+                (Join-Path $TestRoot 'windows.cache\downloads') -and
+            [string]$Context.CargoHome -ceq
+                (Join-Path $TestRoot 'windows.cache\cargo') -and
+            -not (Test-Path -LiteralPath (Join-Path $TestRoot 'data')) -and
+            -not (Test-Path -LiteralPath (
+                Join-Path $TestRoot 'bootstrap.windows'
+            ))
+        ) `
+        -Message 'flat DataRepo layout is invalid'
     $Contract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
-    $PathBudgetRejected = $false
-    try {
-        [void](Get-SwawHarnessBootstrapToolchain `
-            -Context ([pscustomobject]@{ DataRoot = ('x' * 51) }) `
-            -Contract $Contract)
-    } catch {
-        $PathBudgetRejected = $_.Exception.Message -like (
-            'Windows Bootstrap v4 requires a DataRoot path no longer than*'
-        )
-    }
-    Assert-ToolchainTest `
-        -Condition $PathBudgetRejected `
-        -Message 'cold bootstrap did not enforce its Windows path budget'
     $RustupContent = 'rustup fixture'
     $Contract.RustupInitLength = [Text.Encoding]::UTF8.GetByteCount(
         $RustupContent
     )
     $Contract.RustupInitSha256 = Get-SwawHarnessTextSha256 `
         -Value $RustupContent
+    $ToolchainId = Get-SwawHarnessToolchainId -Contract $Contract
+    $CollisionId = $ToolchainId.Substring(0, 7) +
+        $(if ($ToolchainId[7] -ceq 'f') { 'e' } else { 'f' }) +
+        $ToolchainId.Substring(8)
+    $CollisionRoot = Join-Path $Context.ToolchainRoot (
+        $ToolchainId.Substring(0, 7)
+    )
+    [void][IO.Directory]::CreateDirectory($CollisionRoot)
+    [IO.File]::WriteAllText(
+        (Join-Path $CollisionRoot 'toolchain.json'),
+        (ConvertTo-SwawHarnessJsonText -Value ([ordered]@{
+            toolchainId = $CollisionId
+        })),
+        [Text.UTF8Encoding]::new($false)
+    )
     $InstallRoot = Get-SwawHarnessToolchainTargetPath `
         -Context $Context `
         -Contract $Contract
-    $RustRoot = Join-Path $InstallRoot 'rust'
-    $MsvcRoot = Join-Path $InstallRoot 'msvc'
+    Assert-ToolchainTest `
+        -Condition (
+            [IO.Path]::GetFileName($InstallRoot) -ceq
+                $ToolchainId.Substring(0, 8)
+        ) `
+        -Message 'toolchain locator did not grow after a 7-character collision'
+    $RustRoot = Join-Path $InstallRoot 'r'
+    $MsvcRoot = Join-Path $InstallRoot 'm'
     [void][IO.Directory]::CreateDirectory($RustRoot)
     [void][IO.Directory]::CreateDirectory($MsvcRoot)
 
-    Write-ToolchainFixtureFile `
-        -Root $RustRoot `
-        -RelativePath 'cargo\bin\rustup.exe' `
-        -Content $RustupContent
     foreach ($RelativePath in Get-SwawHarnessRustRequiredPaths `
         -Contract $Contract) {
-        if ($RelativePath -ceq 'cargo\bin\rustup.exe') {
-            continue
-        }
         Write-ToolchainFixtureFile `
             -Root $RustRoot `
             -RelativePath $RelativePath `
@@ -124,7 +133,7 @@ try {
         -Contract $Contract `
         -Probe $Probe `
         -RustRoot $RustRoot `
-        -ControlledRoot $Context.BootstrapWindowsRoot
+        -ControlledRoot $Context.DataRepo
 
     $ToolVersion = '14.51.36231'
     $SdkVersion = '10.0.28000.0'
@@ -168,10 +177,10 @@ try {
         }) `
         -UsedPayloads @($MsvcPayload) `
         -MsvcRoot $MsvcRoot `
-        -ControlledRoot $Context.BootstrapWindowsRoot
+        -ControlledRoot $Context.DataRepo
     $Metadata = [ordered]@{
-        schema = 'swaw.harness.bootstrap.toolchain/v3'
-        toolchainId = Get-SwawHarnessToolchainId -Contract $Contract
+        schema = 'swaw.harness.bootstrap.toolchain/v4'
+        toolchainId = $ToolchainId
         platformTargetId = [string]$Contract.PlatformTargetId
         rust = $RustRecord
         msvc = $MsvcRecord
@@ -218,6 +227,10 @@ try {
             $EnvironmentUnchanged -and
             $Plan.EnvironmentVariables.Contains('CARGO_HOME') -and
             $Plan.EnvironmentVariables.Contains('Path') -and
+            -not $Plan.EnvironmentVariables.Contains('RUSTUP_HOME') -and
+            -not $Plan.EnvironmentVariables.Contains('RUSTUP_TOOLCHAIN') -and
+            [string]$Plan.CargoPath -ceq
+                (Join-Path $RustRoot 'bin\cargo.exe') -and
             $Plan.UnsetEnvironmentVariables -contains 'RUSTFLAGS'
         ) `
         -Message 'environment plan mutated its parent or omitted isolation facts'

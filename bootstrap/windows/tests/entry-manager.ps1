@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -21,16 +21,17 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $WindowsRoot 'entry.manager\contract.ps1')
+. (Join-Path $WindowsRoot 'entry.manager\candidate-build.ps1')
 . (Join-Path $PSScriptRoot 'pe-imports.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 try {
     $SharedContext = New-SwawHarnessWindowsBootstrapContext `
-        -DataRoot $DataRoot
+        -DataRepo $DataRepo
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $InstallRoot = Get-SwawHarnessToolchainTargetPath `
@@ -74,8 +75,9 @@ try {
             $TestResult.Output
         ).Trim()
     }
-    $CandidatePath = & (Join-Path $WindowsRoot 'entry.manager\build.ps1') `
-        -DataRoot $TestRoot `
+    $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
+    $CandidatePath = Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
+        -Context $TestContext `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
@@ -83,10 +85,7 @@ try {
     $EntryManagerContract = Read-SwawHarnessWindowsEntryManagerContract `
         -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId
-    $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
-    $BuildRoot = Join-Path $TestContext.BootstrapWindowsCacheRoot (
-        "build\entry.manager\$($PlatformContract.PlatformTargetId)"
-    )
+    $BuildRoot = Join-Path $TestContext.BuildRoot 'manager'
     $Candidate = Read-SwawHarnessBootstrapCandidate `
         -Path ([string]$CandidatePath) `
         -Contract $EntryManagerContract `

@@ -35,15 +35,19 @@ function Read-SwawHarnessWindowsEntryContract {
     Assert-SwawHarnessObjectFields `
         -Value $Contract `
         -Expected @(
-            'schema', 'artifact', 'source', 'compilerArguments',
+            'schema', 'buildArtifact', 'artifact', 'source', 'compilerArguments',
             'linkerArguments', 'libraries', 'maximumBytes'
         ) `
         -Description 'Windows Entry executable build contract'
-    if ([string]$Contract.schema -cne 'swaw.harness.entry-build/v1') {
+    if ([string]$Contract.schema -cne 'swaw.harness.entry-build/v2') {
         throw 'Unsupported Windows Entry executable build contract schema.'
     }
     if ($PlatformTargetId -cne 'x86_64-pc-windows-msvc') {
-        throw 'Windows Entry executable v1 supports x86_64-pc-windows-msvc only.'
+        throw 'Windows Entry executable v2 supports x86_64-pc-windows-msvc only.'
+    }
+    $BuildArtifact = ([string]$Contract.buildArtifact).Trim()
+    if ($BuildArtifact -cne 'swaw-har-entry.exe') {
+        throw 'Windows Entry executable build artifact is invalid.'
     }
     $Artifact = ([string]$Contract.artifact).Trim()
     if ($Artifact -cne 'swaw-harness-entry.exe') {
@@ -74,6 +78,7 @@ function Read-SwawHarnessWindowsEntryContract {
         Schema = [string]$Contract.schema
         Revision = Get-SwawHarnessFileSha256 -Path $Path
         PlatformTargetId = $PlatformTargetId
+        BuildBinary = $BuildArtifact
         ProductBinary = $Artifact
         Source = $Source
         CompilerArguments = $CompilerArguments

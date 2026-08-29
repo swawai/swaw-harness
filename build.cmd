@@ -5,6 +5,5 @@ setlocal
   -NoLogo ^
   -NoProfile ^
   -ExecutionPolicy Bypass ^
-  -File "%~dp0bootstrap\windows\main.ps1" ^
-  -DataRoot "%~dp0data"
+  -File "%~dp0bootstrap\windows\main.ps1"
 exit /b %errorlevel%

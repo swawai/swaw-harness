@@ -4,28 +4,28 @@ use crate::EntryId;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EntryLayout {
-    storage_root: PathBuf,
+    data_home: PathBuf,
     executable: PathBuf,
     entry_root: PathBuf,
     record: PathBuf,
 }
 
 impl EntryLayout {
-    pub fn new(repository_root: impl AsRef<Path>, entry_id: &EntryId) -> Self {
-        let storage_root = repository_root.as_ref().join("data.entry");
-        let executable = storage_root.join(format!("{entry_id}.exe"));
-        let entry_root = storage_root.join(entry_id.as_str());
+    pub fn new(harness_root: impl AsRef<Path>, entry_id: &EntryId) -> Self {
+        let data_home = harness_root.as_ref().join("data");
+        let executable = data_home.join(format!("{entry_id}.exe"));
+        let entry_root = data_home.join(entry_id.as_str());
         let record = entry_root.join("entry.json");
         Self {
-            storage_root,
+            data_home,
             executable,
             entry_root,
             record,
         }
     }
 
-    pub fn storage_root(&self) -> &Path {
-        &self.storage_root
+    pub fn data_home(&self) -> &Path {
+        &self.data_home
     }
 
     pub fn executable(&self) -> &Path {
@@ -48,20 +48,20 @@ mod tests {
     #[test]
     fn maps_a_validated_id_to_the_managed_layout() {
         let entry_id = EntryId::parse("demo-one").unwrap();
-        let layout = EntryLayout::new("repository", &entry_id);
+        let layout = EntryLayout::new("harness", &entry_id);
 
-        assert_eq!(layout.storage_root(), Path::new("repository/data.entry"));
+        assert_eq!(layout.data_home(), Path::new("harness/data"));
         assert_eq!(
             layout.executable(),
-            Path::new("repository/data.entry/demo-one.exe")
+            Path::new("harness/data/demo-one.exe")
         );
         assert_eq!(
             layout.entry_root(),
-            Path::new("repository/data.entry/demo-one")
+            Path::new("harness/data/demo-one")
         );
         assert_eq!(
             layout.record(),
-            Path::new("repository/data.entry/demo-one/entry.json")
+            Path::new("harness/data/demo-one/entry.json")
         );
     }
 }

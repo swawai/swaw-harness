@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -18,17 +18,20 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\contract.ps1')
 . (Join-Path $WindowsRoot 'builder\release\selector.ps1')
 . (Join-Path $WindowsRoot 'publication.ps1')
+. (Join-Path $WindowsRoot 'core\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'entry\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'entry.manager\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'pe-imports.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 try {
-    $SharedContext = New-SwawHarnessWindowsBootstrapContext -DataRoot $DataRoot
+    $SharedContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
     $Contracts = @(Get-SwawHarnessWindowsProductContracts `
@@ -49,30 +52,30 @@ try {
         -Contract $PlatformContract `
         -Toolchain $Toolchain
 
-    $CoreCandidatePath = & (Join-Path $WindowsRoot 'core\build.ps1') `
-        -DataRoot $TestRoot `
+    $Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
+    $CoreCandidatePath = Invoke-SwawHarnessWindowsCoreCandidateBuild `
+        -Context $Context `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $EntryCandidatePath = & (Join-Path $WindowsRoot 'entry\build.ps1') `
-        -DataRoot $TestRoot `
+    $EntryCandidatePath = Invoke-SwawHarnessWindowsEntryCandidateBuild `
+        -Context $Context `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $EntryManagerCandidatePath = & (
-        Join-Path $WindowsRoot 'entry.manager\build.ps1'
-    ) `
-        -DataRoot $TestRoot `
+    $EntryManagerCandidatePath = `
+        Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
+        -Context $Context `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
 
     $Arguments = @{
-        DataRoot = $TestRoot
+        Context = $Context
         CoreCandidatePath = [string]$CoreCandidatePath
         EntryCandidatePath = [string]$EntryCandidatePath
         EntryManagerCandidatePath = [string]$EntryManagerCandidatePath
@@ -80,7 +83,6 @@ try {
     $First = Publish-SwawHarnessWindowsProducts @Arguments
     $FirstCreated = (Get-Item -LiteralPath $First.Root).CreationTimeUtc
     $Second = Publish-SwawHarnessWindowsProducts @Arguments
-    $Context = New-SwawHarnessWindowsBootstrapContext -DataRoot $TestRoot
     $Selected = Read-SwawHarnessSelectedRelease `
         -ReleasesRoot $Context.BootstrapReleaseRoot `
         -Contracts $Contracts

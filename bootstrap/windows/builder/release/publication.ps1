@@ -23,7 +23,7 @@ function Publish-SwawHarnessBootstrapRelease {
     }
     $ReleasesRoot = Assert-SwawHarnessPathInsideRoot `
         -Path ([string]$Context.BootstrapReleaseRoot) `
-        -Root $Context.DataRoot `
+        -Root $Context.DataRepo `
         -Activity 'using the Bootstrap Release store'
     $Artifacts = [Collections.Generic.List[object]]::new()
     for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
@@ -41,7 +41,7 @@ function Publish-SwawHarnessBootstrapRelease {
         }
         $CandidatePath = Assert-SwawHarnessPathInsideRoot `
             -Path ([string]$Candidate.ArtifactPath) `
-            -Root $Context.BootstrapWindowsCacheRoot `
+            -Root $Context.BuildRoot `
             -Activity 'reading a Bootstrap Release candidate artifact'
         $Item = Assert-SwawHarnessRegularFile `
             -Path $CandidatePath `
@@ -66,7 +66,7 @@ function Publish-SwawHarnessBootstrapRelease {
         -Path (Join-Path $Context.LockRoot (
             "publish-bootstrap-$PlatformTargetId.lock"
         )) `
-        -ControlledRoot $Context.BootstrapWindowsRoot `
+        -ControlledRoot $Context.DataRepo `
         -TimeoutSeconds 1800
     try {
         [void][IO.Directory]::CreateDirectory($ReleasesRoot)

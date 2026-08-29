@@ -89,11 +89,11 @@ function Complete-SwawHarnessMsvcAssembly {
 
     $InstallRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $InstallRoot `
-        -Root $Context.BootstrapWindowsRoot `
+        -Root $Context.StageRoot `
         -Activity 'completing an MSVC installation'
     $Versions = Get-SwawHarnessMsvcAssemblyVersions `
         -InstallRoot $InstallRoot `
-        -ControlledRoot $Context.BootstrapWindowsRoot
+        -ControlledRoot $Context.StageRoot
     $ToolVersion = [string]$Versions.ToolVersion
     $SdkVersion = [string]$Versions.SdkVersion
     $DiaSource = Join-Path $InstallRoot 'DIA SDK\bin\amd64\msdia140.dll'
@@ -123,7 +123,7 @@ function Complete-SwawHarnessMsvcAssembly {
     )) {
         Remove-SwawHarnessMsvcOptionalPath `
             -InstallRoot $InstallRoot `
-            -ControlledRoot $Context.BootstrapWindowsRoot `
+            -ControlledRoot $Context.StageRoot `
             -RelativePath $RelativePath
     }
     foreach ($Architecture in @('x86', 'arm', 'arm64')) {
@@ -134,7 +134,7 @@ function Complete-SwawHarnessMsvcAssembly {
         )) {
             Remove-SwawHarnessMsvcOptionalPath `
                 -InstallRoot $InstallRoot `
-                -ControlledRoot $Context.BootstrapWindowsRoot `
+                -ControlledRoot $Context.StageRoot `
                 -RelativePath $RelativePath
         }
     }

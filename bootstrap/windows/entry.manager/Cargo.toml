@@ -1,16 +1,16 @@
 [package]
-name = "swaw-harness-entry-manager"
+name = "swaw-har-manager"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
 publish = false
 
 [lib]
-name = "swaw_harness_entry_manager"
+name = "swaw_har_manager"
 path = "src/lib.rs"
 
 [[bin]]
-name = "swaw-harness-entry-manager"
+name = "swaw-har-manager"
 path = "src/main.rs"
 
 [dependencies]

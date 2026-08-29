@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$DataRoot = '')
+param([string]$DataRepo = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -27,10 +27,10 @@ function Write-CrossRuntimeFile {
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $PSScriptRoot 'paths.ps1')
-$DataRoot = Resolve-SwawHarnessWindowsTestDataRoot `
-    -DataRoot $DataRoot `
+$DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
+    -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
-$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRoot $DataRoot
+$TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 $TestBase = Split-Path -Path $TestRoot -Parent
 $ControlledRoot = Join-Path $TestRoot 'controlled'
 $RustRoot = Join-Path $ControlledRoot 'rust'
@@ -46,48 +46,23 @@ try {
     )
     $Contract.RustupInitSha256 = Get-SwawHarnessTextSha256 `
         -Value $RustupContent
-    Write-CrossRuntimeFile `
-        -Root $RustRoot `
-        -RelativePath 'cargo\bin\rustup.exe' `
-        -Content $RustupContent
     foreach ($RelativePath in Get-SwawHarnessRustRequiredPaths `
         -Contract $Contract) {
-        if ($RelativePath -ceq 'cargo\bin\rustup.exe') {
-            continue
-        }
         Write-CrossRuntimeFile `
             -Root $RustRoot `
             -RelativePath $RelativePath `
             -Content "rust:$RelativePath"
     }
     foreach ($RelativePath in @(
-        'rustup\sort\A.txt',
-        'rustup\sort\a-1.txt',
-        'rustup\sort\[first].txt',
-        'rustup\sort\_last.txt'
+        'sort\A.txt',
+        'sort\a-1.txt',
+        'sort\[first].txt',
+        'sort\_last.txt'
     )) {
         Write-CrossRuntimeFile `
             -Root $RustRoot `
             -RelativePath $RelativePath `
             -Content "sort:$RelativePath"
-    }
-    $ProxyBin = Join-Path $RustRoot 'cargo\bin'
-    foreach ($ProxyName in @('cargo.exe', 'cargo-miri.exe', 'rustc.exe')) {
-        $ProxyPath = Join-Path $ProxyBin $ProxyName
-        if ([IO.File]::Exists($ProxyPath)) {
-            [IO.File]::Delete($ProxyPath)
-        }
-        Push-Location $ProxyBin
-        try {
-            & $env:ComSpec /d /c (
-                "mklink `"$ProxyName`" rustup.exe"
-            ) | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-                throw "Cannot create cross-runtime proxy: $ProxyName"
-            }
-        } finally {
-            Pop-Location
-        }
     }
     $RustRecord = New-SwawHarnessRustInstallRecord `
         -Contract $Contract `

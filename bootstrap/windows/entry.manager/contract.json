@@ -1,6 +1,7 @@
 {
-  "schema": "swaw.harness.entry-manager-build/v1",
-  "package": "swaw-harness-entry-manager",
+  "schema": "swaw.harness.entry-manager-build/v2",
+  "package": "swaw-har-manager",
+  "buildArtifact": "swaw-har-manager.exe",
   "artifact": "swaw-harness-entry-manager.exe",
   "staticCrt": true,
   "maximumBytes": 16777216
