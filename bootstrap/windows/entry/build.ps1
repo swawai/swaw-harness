@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory = $true)][string]$CompilerPath,
     [Parameter(Mandatory = $true)][string]$LinkerPath,
     [Collections.IDictionary]$EnvironmentVariables = @{},
-    [string[]]$UnsetEnvironmentVariables = @()
+    [string[]]$UnsetEnvironmentVariables = @(),
+    [IO.FileStream]$CandidateLifecycleLock = $null
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,4 +21,5 @@ Invoke-SwawHarnessWindowsEntryCandidateBuild `
     -CompilerPath $CompilerPath `
     -LinkerPath $LinkerPath `
     -EnvironmentVariables $EnvironmentVariables `
-    -UnsetEnvironmentVariables $UnsetEnvironmentVariables
+    -UnsetEnvironmentVariables $UnsetEnvironmentVariables `
+    -CandidateLifecycleLock $CandidateLifecycleLock

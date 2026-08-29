@@ -15,7 +15,8 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
         [Parameter(Mandatory = $true)]$Context,
         [Parameter(Mandatory = $true)][string]$CargoPath,
         [Collections.IDictionary]$EnvironmentVariables = @{},
-        [string[]]$UnsetEnvironmentVariables = @()
+        [string[]]$UnsetEnvironmentVariables = @(),
+        [IO.FileStream]$CandidateLifecycleLock = $null
     )
 
     $EntryManagerRoot = $script:SwawHarnessWindowsEntryManagerRoot
@@ -48,13 +49,18 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
         -Description 'Entry Manager Cargo lock' `
         -MaximumBytes 1MB)
 
-    $BuildLock = Enter-SwawHarnessFileLock `
-        -Path (Join-Path $Context.LockRoot (
-            "build-entry-manager-$($Contracts[0].PlatformTargetId).lock"
-        )) `
-        -ControlledRoot $Context.DataRepo `
-        -TimeoutSeconds 1800
+    $LifecycleLock = Enter-SwawHarnessCandidateLifecycleLock `
+        -Context $Context `
+        -PlatformTargetId $Contracts[0].PlatformTargetId `
+        -ExistingLock $CandidateLifecycleLock
+    $BuildLock = $null
     try {
+        $BuildLock = Enter-SwawHarnessFileLock `
+            -Path (Join-Path $Context.LockRoot (
+                "build-entry-manager-$($Contracts[0].PlatformTargetId).lock"
+            )) `
+            -ControlledRoot $Context.DataRepo `
+            -TimeoutSeconds 1800
         $CargoTargetRoot = $BuildRoot
         Assert-SwawHarnessCargoBuildPathBudget `
             -TargetRoot $CargoTargetRoot `
@@ -110,15 +116,18 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
             if ([long]$Artifact.Length -le 0) {
                 throw "Built Windows Entry Manager $($Contract.Role) is empty."
             }
-            $CandidatePath = Publish-SwawHarnessBootstrapCandidate `
+            $CandidateRoot = Publish-SwawHarnessBootstrapCandidate `
                 -ArtifactPath $ArtifactPath `
                 -Contract $Contract `
                 -BuildRoot $BuildRoot `
                 -ControlledRoot $Context.BuildRoot
             Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
-            Write-Output $CandidatePath
+            Write-Output $CandidateRoot
         }
     } finally {
-        $BuildLock.Dispose()
+        if ($null -ne $BuildLock) {
+            $BuildLock.Dispose()
+        }
+        Exit-SwawHarnessCandidateLifecycleLock -LockHandle $LifecycleLock
     }
 }

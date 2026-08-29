@@ -106,26 +106,9 @@ try {
         (Join-Path $CandidateRoot $Contract.ProductBinary),
         $false
     )
-    $CandidatePath = Join-Path $CandidateRoot 'candidate.json'
-    $CandidateManifest = [ordered]@{
-        schema = $script:SwawHarnessCandidateSchema
-        candidateId = $CandidateId
-        contractRevision = $Contract.Revision
-        platformTargetId = $Contract.PlatformTargetId
-        artifact = [ordered]@{
-            name = $Contract.ProductBinary
-            length = $OversizedLength
-            sha256 = $Sha256
-        }
-    }
-    [IO.File]::WriteAllText(
-        $CandidatePath,
-        (ConvertTo-SwawHarnessJsonText -Value $CandidateManifest),
-        [Text.UTF8Encoding]::new($false)
-    )
     $CandidateReaderRejected = Test-ProductArtifactBoundsRejection {
         [void](Read-SwawHarnessBootstrapCandidate `
-            -Path $CandidatePath `
+            -CandidateRoot $CandidateRoot `
             -Contract $Contract `
             -BuildRoot $BuildRoot)
     }

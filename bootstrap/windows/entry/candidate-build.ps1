@@ -17,7 +17,8 @@ function Invoke-SwawHarnessWindowsEntryCandidateBuild {
         [Parameter(Mandatory = $true)][string]$CompilerPath,
         [Parameter(Mandatory = $true)][string]$LinkerPath,
         [Collections.IDictionary]$EnvironmentVariables = @{},
-        [string[]]$UnsetEnvironmentVariables = @()
+        [string[]]$UnsetEnvironmentVariables = @(),
+        [IO.FileStream]$CandidateLifecycleLock = $null
     )
 
     $EntryRoot = $script:SwawHarnessWindowsEntryRoot
@@ -44,13 +45,18 @@ function Invoke-SwawHarnessWindowsEntryCandidateBuild {
         -Path $LinkerPath `
         -Description 'linker executable')
 
-    $Lock = Enter-SwawHarnessFileLock `
-        -Path (Join-Path $Context.LockRoot (
-            "build-entry-$($Contract.PlatformTargetId).lock"
-        )) `
-        -ControlledRoot $Context.DataRepo `
-        -TimeoutSeconds 1800
+    $LifecycleLock = Enter-SwawHarnessCandidateLifecycleLock `
+        -Context $Context `
+        -PlatformTargetId $Contract.PlatformTargetId `
+        -ExistingLock $CandidateLifecycleLock
+    $Lock = $null
     try {
+        $Lock = Enter-SwawHarnessFileLock `
+            -Path (Join-Path $Context.LockRoot (
+                "build-entry-$($Contract.PlatformTargetId).lock"
+            )) `
+            -ControlledRoot $Context.DataRepo `
+            -TimeoutSeconds 1800
         $OutputRoot = $BuildRoot
         [void][IO.Directory]::CreateDirectory($OutputRoot)
         $ObjectPath = Join-Path $OutputRoot 'entry.obj'
@@ -129,14 +135,17 @@ function Invoke-SwawHarnessWindowsEntryCandidateBuild {
         if ([long]$Artifact.Length -le 0) {
             throw 'Built Windows Entry executable is empty.'
         }
-        $CandidatePath = Publish-SwawHarnessBootstrapCandidate `
+        $CandidateRoot = Publish-SwawHarnessBootstrapCandidate `
             -ArtifactPath $ArtifactPath `
             -Contract $Contract `
             -BuildRoot $BuildRoot `
             -ControlledRoot $Context.BuildRoot
         Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
-        Write-Output $CandidatePath
+        Write-Output $CandidateRoot
     } finally {
-        $Lock.Dispose()
+        if ($null -ne $Lock) {
+            $Lock.Dispose()
+        }
+        Exit-SwawHarnessCandidateLifecycleLock -LockHandle $LifecycleLock
     }
 }

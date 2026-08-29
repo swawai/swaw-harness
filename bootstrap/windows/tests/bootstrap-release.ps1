@@ -53,32 +53,51 @@ try {
         -Toolchain $Toolchain
 
     $Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
-    $CoreCandidatePath = Invoke-SwawHarnessWindowsCoreCandidateBuild `
+    $CoreCandidateRoot = Invoke-SwawHarnessWindowsCoreCandidateBuild `
         -Context $Context `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $EntryCandidatePath = Invoke-SwawHarnessWindowsEntryCandidateBuild `
+    $EntryCandidateRoot = Invoke-SwawHarnessWindowsEntryCandidateBuild `
         -Context $Context `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $EntryManagerCandidatePaths = @(
+    $EntryManagerCandidateRoots = @(
         Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
         -Context $Context `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
-        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
+            -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
     )
+    $CandidateRoots = @(
+        [string]$CoreCandidateRoot,
+        [string]$EntryCandidateRoot,
+        [string]$EntryManagerCandidateRoots[0],
+        [string]$EntryManagerCandidateRoots[1]
+    )
+    for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
+        $Members = @(Get-ChildItem `
+            -LiteralPath $CandidateRoots[$Index] `
+            -Force)
+        Assert-BootstrapReleaseTest `
+            -Condition (
+                $Members.Count -eq 1 -and
+                -not $Members[0].PSIsContainer -and
+                [string]$Members[0].Name -ceq
+                    [string]$Contracts[$Index].ProductBinary
+            ) `
+            -Message 'Candidate does not contain exactly one product binary'
+    }
 
     $Arguments = @{
         Context = $Context
-        CoreCandidatePath = [string]$CoreCandidatePath
-        EntryCandidatePath = [string]$EntryCandidatePath
-        EntryManagerCandidatePaths = $EntryManagerCandidatePaths
+        CoreCandidateRoot = [string]$CoreCandidateRoot
+        EntryCandidateRoot = [string]$EntryCandidateRoot
+        EntryManagerCandidateRoots = $EntryManagerCandidateRoots
     }
     $First = Publish-SwawHarnessWindowsProducts @Arguments
     $FirstCreated = (Get-Item -LiteralPath $First.Root).CreationTimeUtc
@@ -117,10 +136,10 @@ try {
     try {
         [void](Publish-SwawHarnessWindowsProducts `
             -Context $Context `
-            -CoreCandidatePath ([string]$CoreCandidatePath) `
-            -EntryCandidatePath ([string]$EntryCandidatePath) `
-            -EntryManagerCandidatePaths @(
-                [string]$EntryManagerCandidatePaths[0]
+            -CoreCandidateRoot ([string]$CoreCandidateRoot) `
+            -EntryCandidateRoot ([string]$EntryCandidateRoot) `
+            -EntryManagerCandidateRoots @(
+                [string]$EntryManagerCandidateRoots[0]
             ))
     } catch {
         $IncompleteManagerRejected = $true
@@ -147,14 +166,12 @@ try {
         ) `
         -Message 'the bundled Core executable did not run correctly'
 
-    $Candidate = Get-Content -Raw -LiteralPath $CoreCandidatePath |
-        ConvertFrom-Json
-    $Candidate.artifact.length = [long]$Candidate.artifact.length + 1
-    [IO.File]::WriteAllText(
-        $CoreCandidatePath,
-        (($Candidate | ConvertTo-Json -Depth 8) + "`n"),
-        [Text.UTF8Encoding]::new($false)
-    )
+    $CoreCandidateArtifact = Join-Path `
+        $CoreCandidateRoot `
+        $Contracts[0].ProductBinary
+    $CandidateBytes = [IO.File]::ReadAllBytes($CoreCandidateArtifact)
+    $CandidateBytes[0] = $CandidateBytes[0] -bxor 0xff
+    [IO.File]::WriteAllBytes($CoreCandidateArtifact, $CandidateBytes)
     $Rejected = $false
     try {
         [void](Publish-SwawHarnessWindowsProducts @Arguments)
@@ -171,6 +188,40 @@ try {
     Assert-BootstrapReleaseTest `
         -Condition ($SelectorAfterFailure -ceq [string]$First.ReleaseId) `
         -Message 'failed bundle publication changed the selector'
+
+    $LockedCandidateArtifact = Join-Path `
+        $EntryCandidateRoot `
+        $Contracts[1].ProductBinary
+    $LockedCandidateStream = [IO.File]::Open(
+        $LockedCandidateArtifact,
+        [IO.FileMode]::Open,
+        [IO.FileAccess]::Read,
+        [IO.FileShare]::None
+    )
+    try {
+        $CleanupRecords = @(
+            Clear-SwawHarnessWindowsProductCandidates -Context $Context 3>&1
+        )
+    } finally {
+        $LockedCandidateStream.Dispose()
+    }
+    $CleanupWarnings = @($CleanupRecords | Where-Object {
+        $_ -is [Management.Automation.WarningRecord]
+    })
+    Assert-BootstrapReleaseTest `
+        -Condition (
+            $CleanupWarnings.Count -ge 1 -and
+            [IO.Directory]::Exists([string]$EntryCandidateRoot)
+        ) `
+        -Message 'Candidate cleanup failure was not reported as a warning'
+
+    Clear-SwawHarnessWindowsProductCandidates -Context $Context
+    $RemainingCandidateRoots = @($CandidateRoots | Where-Object {
+        Test-SwawHarnessPathExists -Path $_
+    })
+    Assert-BootstrapReleaseTest `
+        -Condition ($RemainingCandidateRoots.Count -eq 0) `
+        -Message 'a later Candidate cleanup did not remove stale members'
 } finally {
     if ([IO.Directory]::Exists($TestRoot)) {
         [IO.Directory]::Delete($TestRoot, $true)

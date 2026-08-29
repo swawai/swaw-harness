@@ -3,7 +3,8 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot '..\foundation.ps1')
 . (Join-Path $PSScriptRoot '..\filesystem.ps1')
 
-$script:SwawHarnessCandidateSchema = 'swaw.harness.bootstrap-candidate/v3'
+$script:SwawHarnessCandidateIdentityVersion = `
+    'swaw.harness.bootstrap-candidate/v4'
 
 function Get-SwawHarnessCandidateId {
     param(
@@ -18,7 +19,7 @@ function Get-SwawHarnessCandidateId {
         [Globalization.CultureInfo]::InvariantCulture
     )
     return Get-SwawHarnessTextSha256 -Value ([string]::Join("`n", @(
-        $script:SwawHarnessCandidateSchema,
+        $script:SwawHarnessCandidateIdentityVersion,
         "contract=$ContractRevision",
         "target=$PlatformTargetId",
         "artifact=$Name",
@@ -27,9 +28,125 @@ function Get-SwawHarnessCandidateId {
     )))
 }
 
+function Enter-SwawHarnessCandidateLifecycleLock {
+    param(
+        [Parameter(Mandatory = $true)][object]$Context,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId,
+        [IO.FileStream]$ExistingLock = $null
+    )
+
+    $LockPath = Assert-SwawHarnessPathInsideRoot `
+        -Path (Join-Path $Context.LockRoot (
+            "bootstrap-$PlatformTargetId.lock"
+        )) `
+        -Root $Context.DataRepo `
+        -Activity 'coordinating the Candidate lifecycle'
+    if ($null -eq $ExistingLock) {
+        return [pscustomobject][ordered]@{
+            Stream = Enter-SwawHarnessFileLock `
+                -Path $LockPath `
+                -ControlledRoot $Context.DataRepo `
+                -TimeoutSeconds 7200
+            OwnsStream = $true
+        }
+    }
+
+    $LockIsOpen = $false
+    try {
+        $LockIsOpen = -not $ExistingLock.SafeFileHandle.IsClosed -and
+            -not $ExistingLock.SafeFileHandle.IsInvalid
+    } catch {
+        $LockIsOpen = $false
+    }
+    if (-not $LockIsOpen -or
+        -not ([IO.Path]::GetFullPath($ExistingLock.Name)).Equals(
+            $LockPath,
+            [StringComparison]::OrdinalIgnoreCase
+        )) {
+        throw "Candidate lifecycle lock is invalid for: $PlatformTargetId"
+    }
+    return [pscustomobject][ordered]@{
+        Stream = $ExistingLock
+        OwnsStream = $false
+    }
+}
+
+function Exit-SwawHarnessCandidateLifecycleLock {
+    param([Parameter(Mandatory = $true)][object]$LockHandle)
+
+    if ([bool]$LockHandle.OwnsStream) {
+        $LockHandle.Stream.Dispose()
+    }
+}
+
+function Get-SwawHarnessCandidateConsumerLockPath {
+    param(
+        [Parameter(Mandatory = $true)][object]$Context,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId
+    )
+
+    return Assert-SwawHarnessPathInsideRoot `
+        -Path (Join-Path $Context.LockRoot (
+            "candidate-consumers-$PlatformTargetId.lock"
+        )) `
+        -Root $Context.DataRepo `
+        -Activity 'coordinating Candidate consumers'
+}
+
+function Enter-SwawHarnessCandidateConsumerLock {
+    param(
+        [Parameter(Mandatory = $true)][object]$Context,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId,
+        [int]$TimeoutSeconds = 7200
+    )
+
+    $Path = Get-SwawHarnessCandidateConsumerLockPath `
+        -Context $Context `
+        -PlatformTargetId $PlatformTargetId
+    [void][IO.Directory]::CreateDirectory((Split-Path -Path $Path -Parent))
+    $Deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        try {
+            return [IO.FileStream]::new(
+                $Path,
+                [IO.FileMode]::OpenOrCreate,
+                [IO.FileAccess]::ReadWrite,
+                [IO.FileShare]::ReadWrite
+            )
+        } catch [IO.IOException] {
+            if ([DateTime]::UtcNow -ge $Deadline) {
+                throw "Timed out waiting for Candidate consumers: $Path"
+            }
+            Start-Sleep -Milliseconds 100
+        }
+    } while ($true)
+}
+
+function Enter-SwawHarnessCandidateCleanupLock {
+    param(
+        [Parameter(Mandatory = $true)][object]$Context,
+        [Parameter(Mandatory = $true)][string]$PlatformTargetId
+    )
+
+    $Path = Get-SwawHarnessCandidateConsumerLockPath `
+        -Context $Context `
+        -PlatformTargetId $PlatformTargetId
+    [void][IO.Directory]::CreateDirectory((Split-Path -Path $Path -Parent))
+    try {
+        return [IO.FileStream]::new(
+            $Path,
+            [IO.FileMode]::OpenOrCreate,
+            [IO.FileAccess]::ReadWrite,
+            [IO.FileShare]::None
+        )
+    } catch [IO.IOException] {
+        return $null
+    }
+}
+
 function Read-SwawHarnessBootstrapCandidate {
     param(
-        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$CandidateRoot,
         [Parameter(Mandatory = $true)][object]$Contract,
         [Parameter(Mandatory = $true)][string]$BuildRoot
     )
@@ -38,23 +155,19 @@ function Read-SwawHarnessBootstrapCandidate {
         -Path (Join-Path $BuildRoot 'candidates') `
         -Root $BuildRoot `
         -Activity 'reading a Bootstrap candidate store'
-    $Path = Assert-SwawHarnessPathInsideRoot `
-        -Path $Path `
+    $CandidateRoot = Assert-SwawHarnessPathInsideRoot `
+        -Path $CandidateRoot `
         -Root $CandidatesRoot `
         -Activity 'reading a Bootstrap candidate'
-    if ([IO.Path]::GetFileName($Path) -cne 'candidate.json') {
-        throw "Bootstrap candidate path must end with candidate.json: $Path"
-    }
-    $CandidateRoot = Split-Path -Path $Path -Parent
     if (-not (Split-Path -Path $CandidateRoot -Parent).Equals(
         $CandidatesRoot,
         [StringComparison]::OrdinalIgnoreCase
     )) {
-        throw "Bootstrap candidate must be a direct store member: $Path"
+        throw "Bootstrap candidate must be a direct store member: $CandidateRoot"
     }
     $CandidateId = [IO.Path]::GetFileName($CandidateRoot)
     if ($CandidateId -cnotmatch '^[a-f0-9]{64}$') {
-        throw "Bootstrap candidate directory has an invalid identity: $Path"
+        throw "Bootstrap candidate directory has an invalid identity: $CandidateRoot"
     }
     $RootItem = Get-Item `
         -LiteralPath $CandidateRoot `
@@ -65,7 +178,7 @@ function Read-SwawHarnessBootstrapCandidate {
         throw "Bootstrap candidate directory is missing or unsafe: $CandidateRoot"
     }
 
-    [string[]]$ExpectedNames = @('candidate.json', $Contract.ProductBinary)
+    [string[]]$ExpectedNames = @([string]$Contract.ProductBinary)
     [string[]]$ActualNames = @(
         Get-ChildItem -LiteralPath $CandidateRoot -Force |
             ForEach-Object { [string]$_.Name }
@@ -79,24 +192,7 @@ function Read-SwawHarnessBootstrapCandidate {
         }
     }
 
-    $Candidate = Read-SwawHarnessJsonFile `
-        -Path $Path `
-        -Description 'Bootstrap candidate'
-    Assert-SwawHarnessObjectFields `
-        -Value $Candidate `
-        -Expected @(
-            'schema', 'candidateId', 'contractRevision', 'platformTargetId', 'artifact'
-        ) `
-        -Description 'Bootstrap candidate'
-    Assert-SwawHarnessObjectFields `
-        -Value $Candidate.artifact `
-        -Expected @('name', 'length', 'sha256') `
-        -Description 'Bootstrap candidate artifact'
-
-    $ArtifactName = [string]$Candidate.artifact.name
-    if ($ArtifactName -cne [string]$Contract.ProductBinary) {
-        throw "Bootstrap candidate artifact name is invalid: $Path"
-    }
+    $ArtifactName = [string]$Contract.ProductBinary
     $ArtifactPath = Resolve-SwawHarnessChildPath `
         -Root $CandidateRoot `
         -RelativePath $ArtifactName `
@@ -105,27 +201,18 @@ function Read-SwawHarnessBootstrapCandidate {
         -Path $ArtifactPath `
         -Description 'Bootstrap candidate artifact' `
         -MaximumBytes ([long]$Contract.MaximumBytes)
-    $Sha256 = ([string]$Candidate.artifact.sha256).Trim().ToLowerInvariant()
+    $Sha256 = Get-SwawHarnessFileSha256 -Path $ArtifactPath
     $ComputedCandidateId = Get-SwawHarnessCandidateId `
-        -ContractRevision ([string]$Candidate.contractRevision) `
-        -PlatformTargetId ([string]$Candidate.platformTargetId) `
+        -ContractRevision ([string]$Contract.Revision) `
+        -PlatformTargetId ([string]$Contract.PlatformTargetId) `
         -Name $ArtifactName `
-        -Length ([long]$Candidate.artifact.length) `
+        -Length ([long]$Item.Length) `
         -Sha256 $Sha256
-    if ([string]$Candidate.schema -cne $script:SwawHarnessCandidateSchema -or
-        [string]$Candidate.candidateId -cne $CandidateId -or
-        $ComputedCandidateId -cne $CandidateId -or
-        [string]$Candidate.contractRevision -cne [string]$Contract.Revision -or
-        [string]$Candidate.platformTargetId -cne [string]$Contract.PlatformTargetId -or
-        $ArtifactName -cne [string]$Contract.ProductBinary -or
-        [long]$Candidate.artifact.length -ne [long]$Item.Length -or
-        $Sha256 -cnotmatch '^[a-f0-9]{64}$' -or
-        (Get-SwawHarnessFileSha256 -Path $ArtifactPath) -cne $Sha256) {
-        throw "Bootstrap candidate validation failed: $Path"
+    if ($ComputedCandidateId -cne $CandidateId) {
+        throw "Bootstrap candidate validation failed: $CandidateRoot"
     }
 
     return [pscustomobject][ordered]@{
-        Path = $Path
         CandidateId = $CandidateId
         Root = $CandidateRoot
         PlatformTargetId = [string]$Contract.PlatformTargetId
@@ -176,11 +263,10 @@ function Publish-SwawHarnessBootstrapCandidate {
         -Activity 'publishing a Bootstrap candidate'
     [void][IO.Directory]::CreateDirectory($CandidatesRoot)
     $CandidateRoot = Join-Path $CandidatesRoot $CandidateId
-    $CandidatePath = Join-Path $CandidateRoot 'candidate.json'
     if ([IO.Directory]::Exists($CandidateRoot)) {
         try {
             [void](Read-SwawHarnessBootstrapCandidate `
-                -Path $CandidatePath `
+                -CandidateRoot $CandidateRoot `
                 -Contract $Contract `
                 -BuildRoot $BuildRoot)
         } catch {
@@ -197,17 +283,6 @@ function Publish-SwawHarnessBootstrapCandidate {
     }
 
     if (-not [IO.Directory]::Exists($CandidateRoot)) {
-        $Candidate = [ordered]@{
-            schema = $script:SwawHarnessCandidateSchema
-            candidateId = $CandidateId
-            contractRevision = [string]$Contract.Revision
-            platformTargetId = [string]$Contract.PlatformTargetId
-            artifact = [ordered]@{
-                name = [string]$Contract.ProductBinary
-                length = [long]$Item.Length
-                sha256 = $ArtifactSha256
-            }
-        }
         $WorkParent = Join-Path $BuildRoot (
             ".candidate-$([Guid]::NewGuid().ToString('N')).tmp"
         )
@@ -225,11 +300,6 @@ function Publish-SwawHarnessBootstrapCandidate {
                     $ArtifactSha256) {
                 throw 'Staged Bootstrap candidate artifact is corrupt.'
             }
-            [IO.File]::WriteAllText(
-                (Join-Path $StagedRoot 'candidate.json'),
-                (ConvertTo-SwawHarnessJsonText -Value $Candidate),
-                [Text.UTF8Encoding]::new($false)
-            )
             [IO.Directory]::Move($StagedRoot, $CandidateRoot)
         } finally {
             if (Test-SwawHarnessPathExists -Path $WorkParent) {
@@ -242,8 +312,8 @@ function Publish-SwawHarnessBootstrapCandidate {
     }
 
     [void](Read-SwawHarnessBootstrapCandidate `
-        -Path $CandidatePath `
+        -CandidateRoot $CandidateRoot `
         -Contract $Contract `
         -BuildRoot $BuildRoot)
-    return $CandidatePath
+    return $CandidateRoot
 }

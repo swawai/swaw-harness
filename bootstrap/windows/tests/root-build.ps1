@@ -34,6 +34,16 @@ $Release = Read-SwawHarnessSelectedRelease `
     -Contracts $Contracts
 $ExpectedNames = @($Contracts | ForEach-Object { $_.ProductBinary })
 $ActualNames = @($Release.Artifacts | ForEach-Object { $_.Name })
+$CandidateMembers = @(
+    foreach ($Product in @('core', 'entry', 'manager')) {
+        $CandidatesRoot = Join-Path `
+            $RepositoryRoot `
+            "data.repo\windows.build\$Product\candidates"
+        if ([IO.Directory]::Exists($CandidatesRoot)) {
+            Get-ChildItem -LiteralPath $CandidatesRoot -Force
+        }
+    }
+)
 Assert-RootBuildTest `
     -Condition (
         $Release.Root.StartsWith(
@@ -57,7 +67,8 @@ Assert-RootBuildTest `
         ) -and
         -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'swaw-harness-cli.exe')
-        )
+        ) -and
+        $CandidateMembers.Count -eq 0
     ) `
     -Message 'build.cmd did not limit itself to one bundle publication'
 
