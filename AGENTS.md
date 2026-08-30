@@ -9,19 +9,19 @@
 - **HarnessRoot**：DataHome 的父目录；在源码检出中为仓库根，复制发布后为目标位置中 `data/` 的父目录。
 - **DataHome**：Harness 面向用户且可独立复制运行的数据目录，固定位置为 `<HarnessRoot>/data`；保存 Entry executable、EntryRoot 及其发布运行资源，不保存仓库本地 Bootstrap 状态，也不得依赖 data.repo。
 - **data.repo**：位于 `<repository>/data.repo`、仅属于源码仓库的 Bootstrap 数据目录；不随 DataHome 复制发布。
-- **Entry Manager executable**：名为 `swaw-harness-cli.exe`、负责创建和管理 Entry 的独立 console executable；它是 DataHome 中 Entry 状态的唯一写入入口。
-- **Harness GUI executable**：名为 `swaw-harness.exe`、供人类操作的 Windows GUI executable；它通过同级 Entry Manager executable 执行 Entry 操作，不得自行写入 DataHome。
+- **Entry Manager executable**：名为 `swaw-harness-cli.exe`、负责创建和管理 Entry 的独立 console executable。
+- **Harness GUI executable**：名为 `swaw-harness.exe`、供人类操作的 Windows GUI executable；它通过同级 Entry Manager executable 执行 Entry 操作。
 - **Entry**：由 Entry Manager executable 创建的受管运行实体。
 - **EntryId**：Entry Manager 为一个 Entry 确定的文件系统名称，最多 16 个字符；它同时用作 `data/<EntryId>.exe` 的文件名和 `data/<EntryId>/` EntryRoot 的目录名。
 - **EntryRoot**：与一个 Entry 唯一绑定的目录根，由 Entry Manager executable 在创建 Entry 时一并建立。
 - **Bootstrap**：无需已编译 Harness 即可运行，自动准备宿主平台声明的便携构建环境，并在无需用户预装、配置或交互干预的情况下编译出 Harness 核心的启动构建流程。
 - **PlatformTargetId**：Bootstrap 平台目标的文件系统安全标识；当前 Windows Bootstrap 使用 Rust 平台目标三元组 `x86_64-pc-windows-msvc` 作为 PlatformTargetId。
-- **Bootstrap Release**：Bootstrap 一次构建产生的配套 executable 发布单元；Windows 仓库内发布根为 `<repository>/data.repo/windows.release`，每个 `<ReleaseId>/` 不可变目录同时包含 Core、Entry executable、Entry Manager executable、Harness GUI executable 与 `manifest.json`，由一个 selector 选择当前版本。
+- **Bootstrap Release**：Bootstrap 一次构建产生的配套 executable 发布单元；Windows 仓库内发布根为 `<repository>/data.repo/windows.release`，每个 `<ReleaseId>/` 不可变目录同时包含 Core、纳入该次构建的独立 Core 模块 executable、Entry executable、Entry Manager executable、Harness GUI executable 与 `manifest.json`，由一个 selector 选择当前版本。
 - **Resource**：在一个资源空间内通过目录树寻址找到并执行操作的对象。
 - **Facet**：对已找到 Resource 执行的具名操作。
 - **资源空间**：具有独立文件系统根、事实来源、生命周期与写入权限边界的一组 Resource；不得简称为含义过宽的 `Space`。
-- **基础资源空间**：无需通过 Facet、export 或 mount 建立即可直接选择的资源空间；当前包括作者（源代码）、运行（发布）、runs（logs）和 context 模块专用上下文记录空间。
-- **派生资源空间**：由领域或用户机制通过 export、远端 mount 等方式建立的资源空间；它具有自己的文件系统根，并使用与基础资源空间相同的目录树寻址与 Facet 操作模型。
+- **基础资源空间**：当前包括规范名称为 `author` 的作者（源代码）、`runtime` 的运行（发布）、`runs` 的 logs、`export` 和 `context` 模块专用上下文记录空间；一个 Entry 的 export 资源空间根固定为 `<EntryRoot>/export`。
+- **派生资源空间**：由领域或用户机制通过某自定义 facet 等方式建立的资源空间；它具有自己的文件系统根，并使用与基础资源空间相同的目录树寻址与 Facet 操作模型。
 - **目录树寻址**：每个资源空间以其文件系统目录树作为地址域；选择资源空间后，使用该目录树根下规范化的相对文件系统路径寻找 Resource，不另建逻辑 Route 或其他地址模型。
 - **ReleaseId**：发布根下 `<ReleaseId>/` 不可变发布目录的名称，由发布目标与目录内全部发布物内容的哈希确定；发布目标与全部内容均相同时复用同一目录。
 - **selector**：产品发布根下名为 `current.<PlatformTargetId>` 的普通文本文件；它是指向 `<ReleaseId>/` 的逻辑文件指针，以原子替换完成当前版本切换。
@@ -33,7 +33,7 @@
 - **REPO-003 — 规则就近归属。** 全仓规则写入根 `AGENTS.md`，领域规则写入最近领域目录的 `AGENTS.md`；修改路径时从根向下依次读取并叠加，不得在多个文件重复维护同一规则。
 - **REPO-004 — 代码就近归属。** 代码应归入最近的稳定领域目录；允许父领域承载多个相关模块，但必须保持领域边界，不得长期堆积在总入口或总 dispatcher。
 - **REPO-005 — DataHome 可独立复制运行。** DataHome 必须位于 `<HarnessRoot>/data`，其 Entry executable、EntryRoot 及发布运行资源不得依赖 data.repo 的绝对路径；仓库本地 Bootstrap 工具链、构建、暂存、缓存、锁与日志不得写入 DataHome。
-- **REPO-006 — Entry 创建流程。** Entry Manager executable 是创建 Entry 和写入 Entry 状态的唯一入口；Harness GUI executable 必须委托同级 Entry Manager executable 执行该操作，创建时必须同时建立该 Entry 及与其唯一绑定的 EntryRoot。
+
 - **REPO-007 — 核心术语统一。** 本文件的“核心术语”是全仓 `AGENTS.md` 的统一用语源；新增或改变核心高频术语必须先更新该段落，下级 `AGENTS.md` 不得自行创造同义词或改变既有含义。
 - **REPO-008 — 内容寻址发布只前进。** 所有模块的发布物必须先在暂存区完整生成并验证，再以内容身份原子发布到尚不存在的不可变目标；需要切换当前版本时，只允许在新目标验证完成后原子更新 selector。不得覆盖已发布目标或为其维护通用 backup/rollback 副本；损坏目标仅可在同一身份锁内删除并按原内容身份重建。
 - **REPO-009 — data.repo 仅属仓库。** data.repo 固定为 `<repository>/data.repo`，只保存不随 DataHome 复制发布的仓库本地数据；各宿主平台在其中使用明确的平台领域根，不得让 data.repo 成为运行时依赖。
