@@ -16,7 +16,3 @@ path = "src/cli.rs"
 [[bin]]
 name = "swaw-harness"
 path = "src/gui.rs"
-
-[dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"

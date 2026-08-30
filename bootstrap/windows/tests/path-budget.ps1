@@ -83,6 +83,12 @@ try {
             BuildBinary = 'swaw-harness-dev.exe'
             ProductBinary = 'swaw-harness-dev.exe'
         }
+        [pscustomobject][ordered]@{
+            PlatformTargetId = [string]$Contract.PlatformTargetId
+            ProductPackage = 'swaw-harness-admin'
+            BuildBinary = 'swaw-harness-admin.exe'
+            ProductBinary = 'swaw-harness-admin.exe'
+        }
     )
     $EntryManagerContracts = @(
         [pscustomobject][ordered]@{
@@ -101,6 +107,7 @@ try {
     foreach ($Build in @(
         [pscustomobject]@{ Contract = $CoreContracts[0]; Product = 'core' }
         [pscustomobject]@{ Contract = $CoreContracts[1]; Product = 'core' }
+        [pscustomobject]@{ Contract = $CoreContracts[2]; Product = 'core' }
         [pscustomobject]@{ Contract = $EntryManagerContracts[0]; Product = 'manager' }
         [pscustomobject]@{ Contract = $EntryManagerContracts[1]; Product = 'manager' }
     )) {
@@ -121,9 +128,16 @@ try {
         'Windows Kits\10\Include\10.0.28000.0\cppwinrt\winrt\impl\' +
         'windows.applicationmodel.appointments.appointmentsprovider.0.h'
     )
+    $RuntimeAdminPath = Join-Path $BoundaryRoot (
+        "data\$('e' * 16)\runtime\$('a' * 64)\" +
+        'swaw-harness-admin.exe'
+    )
     Assert-PathBudgetTest `
-        -Condition ($RuntimeMsvcPath.Length -eq 235) `
-        -Message 'the reserved Entry runtime MSVC path is not 235 characters'
+        -Condition (
+            $RuntimeMsvcPath.Length -eq 235 -and
+            $RuntimeAdminPath.Length -eq 178
+        ) `
+        -Message 'the reserved Entry runtime paths changed unexpectedly'
 
     $OverlongRepositoryRejected = $false
     try {

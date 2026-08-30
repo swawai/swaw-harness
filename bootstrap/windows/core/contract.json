@@ -1,5 +1,5 @@
 {
-  "schema": "swaw.harness.core-build/v3",
+  "schema": "swaw.harness.core-build/v4",
   "staticCrt": true,
   "artifacts": [
     {
@@ -12,6 +12,12 @@
       "package": "swaw-harness-dev",
       "buildArtifact": "swaw-harness-dev.exe",
       "artifact": "swaw-harness-dev.exe",
+      "maximumBytes": 16777216
+    },
+    {
+      "package": "swaw-harness-admin",
+      "buildArtifact": "swaw-harness-admin.exe",
+      "artifact": "swaw-harness-admin.exe",
       "maximumBytes": 16777216
     }
   ]

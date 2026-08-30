@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "protocol",
+    "modules/admin",
     "modules/dev",
     "modules/templates/helloworld",
 ]

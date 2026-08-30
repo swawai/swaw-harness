@@ -15,7 +15,7 @@ function Read-SwawHarnessWindowsCoreContracts {
         -Value $Contract `
         -Expected @('schema', 'staticCrt', 'artifacts') `
         -Description 'Windows Core build contract'
-    if ([string]$Contract.schema -cne 'swaw.harness.core-build/v3') {
+    if ([string]$Contract.schema -cne 'swaw.harness.core-build/v4') {
         throw 'Unsupported Windows Core build contract schema.'
     }
     if ($PlatformTargetId -cne 'x86_64-pc-windows-msvc') {
@@ -38,9 +38,14 @@ function Read-SwawHarnessWindowsCoreContracts {
             BuildArtifact = 'swaw-harness-dev.exe'
             Artifact = 'swaw-harness-dev.exe'
         }
+        [pscustomobject][ordered]@{
+            Package = 'swaw-harness-admin'
+            BuildArtifact = 'swaw-harness-admin.exe'
+            Artifact = 'swaw-harness-admin.exe'
+        }
     )
     if ($Artifacts.Count -ne $Expected.Count) {
-        throw 'Windows Core build contract must declare Helloworld and Dev.'
+        throw 'Windows Core build contract must declare Helloworld, Dev, and Admin.'
     }
 
     $Revision = Get-SwawHarnessFileSha256 -Path $Path

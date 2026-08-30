@@ -63,6 +63,9 @@ Assert-RootBuildTest `
             (Join-Path $RepositoryRoot 'swaw-harness-dev.exe')
         ) -and
         -not [IO.File]::Exists(
+            (Join-Path $RepositoryRoot 'swaw-harness-admin.exe')
+        ) -and
+        -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'entry.exe')
         ) -and
         -not [IO.File]::Exists(
@@ -70,6 +73,9 @@ Assert-RootBuildTest `
         ) -and
         -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'swaw-harness-cli.exe')
+        ) -and
+        [IO.File]::Exists(
+            (Join-Path $RepositoryRoot 'data\swaw-harness\entry.json')
         ) -and
         $CandidateMembers.Count -eq 0
     ) `
