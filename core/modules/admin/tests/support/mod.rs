@@ -113,6 +113,23 @@ pub(crate) fn output_text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
+#[cfg(windows)]
+pub(crate) fn create_directory_junction(path: &Path, target: &Path) {
+    let output = Command::new("cmd.exe")
+        .args(["/d", "/c", "mklink", "/j"])
+        .arg(path)
+        .arg(target)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "cannot create junction '{}': {}{}",
+        path.display(),
+        output_text(&output.stdout),
+        output_text(&output.stderr)
+    );
+}
+
 pub(crate) fn assert_same_files(left: &Path, right: &Path) {
     let left_names = file_names(left);
     let right_names = file_names(right);

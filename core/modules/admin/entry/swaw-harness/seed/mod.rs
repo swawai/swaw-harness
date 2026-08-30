@@ -47,6 +47,11 @@ pub(crate) fn run(executable: &Path, harness_root: &Path) -> Result<SeedOutcome,
     let entry_id = EntryId::parse(ADMIN_ENTRY_ID).map_err(|error| error.to_string())?;
     let layout = EntryLayout::new(&harness_root, &entry_id);
 
+    if paths_overlap(source.root(), layout.data_home()) && !path_exists(layout.entry_root()) {
+        return Err(
+            "source Release cannot be inside the target DataHome for a fresh seed".to_owned(),
+        );
+    }
     prepare_management_directories(&layout)?;
     let _lock = FileLock::acquire(layout.lock(), LOCK_TIMEOUT)?;
     clean_stage_directories(layout.data_home(), SEED_STAGE_PREFIX)?;

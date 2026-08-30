@@ -6,6 +6,8 @@ use std::thread;
 
 use serde_json::json;
 
+#[cfg(windows)]
+use support::create_directory_junction;
 use support::{PLATFORM_TARGET_ID, TestRoot, assert_same_files, fixture, output_text, run_seed};
 
 fn entry_root(harness: &std::path::Path) -> std::path::PathBuf {
@@ -276,4 +278,68 @@ fn rejects_unrecognized_orphan_entry_objects() {
     assert!(!output.status.success());
     assert!(output_text(&output.stderr).contains("orphan Entry executable"));
     assert!(!entry_root(&harness).exists());
+}
+
+#[test]
+fn rejects_a_fresh_source_inside_data_home_without_creating_the_lock() {
+    let root = TestRoot::new();
+    let harness = root.harness("h");
+    let source = fixture(&root, "h/data/source", "one");
+
+    let rejected = run_seed(&source.executable, &harness);
+
+    assert!(!rejected.status.success());
+    assert!(output_text(&rejected.stderr).contains("inside the target DataHome"));
+    assert!(!harness.join("data").join(".entry.lock").exists());
+    assert!(!entry_root(&harness).exists());
+
+    let independent = root.harness("independent");
+    let accepted = run_seed(&source.executable, &independent);
+    assert!(
+        accepted.status.success(),
+        "{}",
+        output_text(&accepted.stderr)
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn rejects_a_reparse_ancestor_before_creating_through_it() {
+    let root = TestRoot::new();
+    let source = fixture(&root, "source", "one");
+    let physical = root.path().join("physical");
+    let alias = root.path().join("alias");
+    fs::create_dir(&physical).unwrap();
+    create_directory_junction(&alias, &physical);
+    let harness = alias.join("h");
+    assert!(harness.to_string_lossy().chars().count() <= 60);
+
+    let rejected = run_seed(&source.executable, &harness);
+    fs::remove_dir(&alias).unwrap();
+
+    assert!(!rejected.status.success());
+    assert!(output_text(&rejected.stderr).contains("regular directory"));
+    assert!(!physical.join("h").exists());
+}
+
+#[cfg(windows)]
+#[test]
+fn rejects_a_reparse_lifecycle_lock() {
+    let root = TestRoot::new();
+    let source = fixture(&root, "source", "one");
+    let harness = root.harness("h");
+    let data_home = harness.join("data");
+    let lock_target = root.path().join("lock-target");
+    fs::create_dir_all(&data_home).unwrap();
+    fs::create_dir(&lock_target).unwrap();
+    let lock = data_home.join(".entry.lock");
+    create_directory_junction(&lock, &lock_target);
+
+    let rejected = run_seed(&source.executable, &harness);
+    fs::remove_dir(&lock).unwrap();
+
+    assert!(!rejected.status.success());
+    assert!(output_text(&rejected.stderr).contains("regular non-reparse file"));
+    assert!(!entry_root(&harness).exists());
+    assert_eq!(fs::read_dir(&lock_target).unwrap().count(), 0);
 }

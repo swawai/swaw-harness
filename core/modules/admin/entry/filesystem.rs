@@ -1,65 +1,12 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::platform::{is_reparse_point, move_file_replace, path_character_count};
+use super::platform::{is_reparse_point, move_file_replace};
 
-const MAX_HARNESS_ROOT_CHARACTERS: usize = 60;
 static UNIQUE_COUNTER: AtomicU64 = AtomicU64::new(0);
-
-pub(crate) fn validate_harness_root(path: &Path) -> Result<PathBuf, String> {
-    if !path.is_absolute() {
-        return Err(format!(
-            "HarnessRoot must be an absolute path: {}",
-            path.display()
-        ));
-    }
-    if path
-        .components()
-        .any(|component| matches!(component, Component::ParentDir))
-    {
-        return Err(format!(
-            "HarnessRoot must be lexically normalized: {}",
-            path.display()
-        ));
-    }
-    let normalized: PathBuf = path.components().collect();
-    if normalized.as_os_str() != path.as_os_str() {
-        return Err(format!(
-            "HarnessRoot must be lexically normalized: {}",
-            path.display()
-        ));
-    }
-    if path_character_count(&normalized) > MAX_HARNESS_ROOT_CHARACTERS {
-        return Err(format!(
-            "HarnessRoot exceeds the 60-character Windows path budget: {}",
-            path.display()
-        ));
-    }
-    Ok(normalized)
-}
-
-pub(crate) fn ensure_root_directory(path: &Path) -> Result<(), String> {
-    fs::create_dir_all(path)
-        .map_err(|error| format!("cannot create directory '{}': {error}", path.display()))?;
-    for ancestor in path.ancestors() {
-        let metadata = fs::symlink_metadata(ancestor).map_err(|error| {
-            format!(
-                "cannot inspect HarnessRoot ancestor '{}': {error}",
-                ancestor.display()
-            )
-        })?;
-        if is_reparse_point(&metadata) {
-            return Err(format!(
-                "HarnessRoot cannot pass through a reparse point: {}",
-                ancestor.display()
-            ));
-        }
-    }
-    assert_regular_directory(path, "HarnessRoot")
-}
 
 pub(crate) fn ensure_child_directory(parent: &Path, name: &str) -> Result<PathBuf, String> {
     assert_regular_directory(parent, "managed parent directory")?;

@@ -6,6 +6,7 @@ mod lock;
 mod platform;
 mod record;
 mod release;
+mod root;
 
 #[path = "swaw-harness/mod.rs"]
 pub(crate) mod swaw_harness;
@@ -17,3 +18,4 @@ pub(crate) use lifecycle::EntryLifecycleState;
 pub(crate) use lock::FileLock;
 pub(crate) use record::{EntryRecord, ProvisioningRecord};
 pub(crate) use release::ValidatedRelease;
+pub(crate) use root::{ensure_root_directory, validate_harness_root};
