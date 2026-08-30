@@ -17,6 +17,9 @@ $RepositoryRoot = Assert-SwawHarnessRepositoryRootPathBudget `
     -RepositoryRoot (Join-Path $PSScriptRoot '..\..')
 $Context = New-SwawHarnessWindowsBootstrapContext `
     -DataRepo (Join-Path $RepositoryRoot 'data.repo')
+$CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
+    -Path (Join-Path $PSScriptRoot 'core\contract.json') `
+    -PlatformTargetId $PlatformContract.PlatformTargetId)
 
 $Toolchain = Get-SwawHarnessBootstrapToolchain `
     -Context $Context `
@@ -34,9 +37,11 @@ try {
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables `
         -CandidateLifecycleLock $LifecycleLock.Stream)
-    if ($CoreBuildResults.Count -ne 1 -or
-        [string]::IsNullOrWhiteSpace([string]$CoreBuildResults[0])) {
-        throw 'Core build must return exactly one immutable Candidate root.'
+    if ($CoreBuildResults.Count -ne $CoreContracts.Count -or
+        @($CoreBuildResults | Where-Object {
+            [string]::IsNullOrWhiteSpace([string]$_)
+        }).Count -ne 0) {
+        throw 'Core build must return every immutable Candidate root.'
     }
     $EntryBuildResults = @(& (Join-Path $PSScriptRoot 'entry\build.ps1') `
         -CompilerPath $Plan.CompilerPath `
@@ -64,7 +69,7 @@ try {
 
     $PublicationResults = @(Publish-SwawHarnessWindowsProducts `
         -Context $Context `
-        -CoreCandidateRoot ([string]$CoreBuildResults[0]) `
+        -CoreCandidateRoots ([string[]]$CoreBuildResults) `
         -EntryCandidateRoot ([string]$EntryBuildResults[0]) `
         -EntryManagerCandidateRoots @(
             [string]$EntryManagerBuildResults[0],

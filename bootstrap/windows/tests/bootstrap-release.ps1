@@ -53,12 +53,13 @@ try {
         -Toolchain $Toolchain
 
     $Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
-    $CoreCandidateRoot = Invoke-SwawHarnessWindowsCoreCandidateBuild `
-        -Context $Context `
-        -CargoPath $Plan.CargoPath `
-        -EnvironmentVariables $Plan.EnvironmentVariables `
-        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
-        Select-Object -Last 1
+    $CoreCandidateRoots = @(
+        Invoke-SwawHarnessWindowsCoreCandidateBuild `
+            -Context $Context `
+            -CargoPath $Plan.CargoPath `
+            -EnvironmentVariables $Plan.EnvironmentVariables `
+            -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
+    )
     $EntryCandidateRoot = Invoke-SwawHarnessWindowsEntryCandidateBuild `
         -Context $Context `
         -CompilerPath $Plan.CompilerPath `
@@ -74,9 +75,9 @@ try {
             -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
     )
     $CandidateRoots = @(
-        [string]$CoreCandidateRoot,
-        [string]$EntryCandidateRoot,
-        [string]$EntryManagerCandidateRoots[0],
+        [string[]]$CoreCandidateRoots
+        [string]$EntryCandidateRoot
+        [string]$EntryManagerCandidateRoots[0]
         [string]$EntryManagerCandidateRoots[1]
     )
     for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
@@ -95,7 +96,7 @@ try {
 
     $Arguments = @{
         Context = $Context
-        CoreCandidateRoot = [string]$CoreCandidateRoot
+        CoreCandidateRoots = [string[]]$CoreCandidateRoots
         EntryCandidateRoot = [string]$EntryCandidateRoot
         EntryManagerCandidateRoots = $EntryManagerCandidateRoots
     }
@@ -119,7 +120,7 @@ try {
             $ReleaseDirectories.Count -eq 1 -and
             (Get-Item -LiteralPath $Second.Root).CreationTimeUtc -eq
                 $FirstCreated -and
-            $Selected.Artifacts.Count -eq 4 -and
+            $Selected.Artifacts.Count -eq $Contracts.Count -and
             [string]::Join('|', $ActualNames) -ceq
                 [string]::Join('|', $ExpectedNames)
         ) `
@@ -136,7 +137,7 @@ try {
     try {
         [void](Publish-SwawHarnessWindowsProducts `
             -Context $Context `
-            -CoreCandidateRoot ([string]$CoreCandidateRoot) `
+            -CoreCandidateRoots ([string[]]$CoreCandidateRoots) `
             -EntryCandidateRoot ([string]$EntryCandidateRoot) `
             -EntryManagerCandidateRoots @(
                 [string]$EntryManagerCandidateRoots[0]
@@ -165,9 +166,34 @@ try {
             [string]$Output -ceq 'Hello, Bootstrap!'
         ) `
         -Message 'the bundled Core executable did not run correctly'
+    $DevArtifact = @($Selected.Artifacts | Where-Object {
+        $_.Name -ceq 'swaw-harness-dev.exe'
+    })[0]
+    $DevEntryRoot = Join-Path $TestRoot 'dev-entry'
+    [void][IO.Directory]::CreateDirectory($DevEntryRoot)
+    $DevResult = Invoke-SwawHarnessCapturedProcess `
+        -Executable $DevArtifact.Path `
+        -Arguments @('dev/bun/mode', 'managed') `
+        -WorkingDirectory $Selected.Root `
+        -EnvironmentVariables @{
+            SWAW_HARNESS_ENTRY_ROOT = $DevEntryRoot
+        }
+    $DevDocument = Join-Path `
+        $DevEntryRoot `
+        'export\dev\bun\mode\mode.json'
+    Assert-BootstrapReleaseTest `
+        -Condition (
+            $DevResult.ExitCode -eq 0 -and
+            $DevResult.Output -ceq 'managed' -and
+            [IO.File]::Exists($DevDocument) -and
+            [IO.File]::ReadAllText($DevDocument).Contains(
+                '"mode": "managed"'
+            )
+        ) `
+        -Message 'the bundled Dev executable did not persist Bun mode'
 
     $CoreCandidateArtifact = Join-Path `
-        $CoreCandidateRoot `
+        $CoreCandidateRoots[0] `
         $Contracts[0].ProductBinary
     $CandidateBytes = [IO.File]::ReadAllBytes($CoreCandidateArtifact)
     $CandidateBytes[0] = $CandidateBytes[0] -bxor 0xff
@@ -189,9 +215,10 @@ try {
         -Condition ($SelectorAfterFailure -ceq [string]$First.ReleaseId) `
         -Message 'failed bundle publication changed the selector'
 
+    $EntryContractIndex = $CoreCandidateRoots.Count
     $LockedCandidateArtifact = Join-Path `
         $EntryCandidateRoot `
-        $Contracts[1].ProductBinary
+        $Contracts[$EntryContractIndex].ProductBinary
     $LockedCandidateStream = [IO.File]::Open(
         $LockedCandidateArtifact,
         [IO.FileMode]::Open,

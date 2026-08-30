@@ -70,12 +70,20 @@ try {
         -Contract $Contract `
         -ToolchainId $ToolchainId
 
-    $CoreContract = [pscustomobject][ordered]@{
-        PlatformTargetId = [string]$Contract.PlatformTargetId
-        ProductPackage = 'swaw-harness-helloworld'
-        BuildBinary = 'swaw-harness-helloworld.exe'
-        ProductBinary = 'helloworld.exe'
-    }
+    $CoreContracts = @(
+        [pscustomobject][ordered]@{
+            PlatformTargetId = [string]$Contract.PlatformTargetId
+            ProductPackage = 'swaw-harness-helloworld'
+            BuildBinary = 'swaw-harness-helloworld.exe'
+            ProductBinary = 'helloworld.exe'
+        }
+        [pscustomobject][ordered]@{
+            PlatformTargetId = [string]$Contract.PlatformTargetId
+            ProductPackage = 'swaw-harness-dev'
+            BuildBinary = 'swaw-harness-dev.exe'
+            ProductBinary = 'swaw-harness-dev.exe'
+        }
+    )
     $EntryManagerContracts = @(
         [pscustomobject][ordered]@{
             PlatformTargetId = [string]$Contract.PlatformTargetId
@@ -91,7 +99,8 @@ try {
         }
     )
     foreach ($Build in @(
-        [pscustomobject]@{ Contract = $CoreContract; Product = 'core' }
+        [pscustomobject]@{ Contract = $CoreContracts[0]; Product = 'core' }
+        [pscustomobject]@{ Contract = $CoreContracts[1]; Product = 'core' }
         [pscustomobject]@{ Contract = $EntryManagerContracts[0]; Product = 'manager' }
         [pscustomobject]@{ Contract = $EntryManagerContracts[1]; Product = 'manager' }
     )) {

@@ -1,8 +1,18 @@
 {
-  "schema": "swaw.harness.core-build/v2",
-  "package": "swaw-harness-helloworld",
-  "buildArtifact": "swaw-harness-helloworld.exe",
-  "artifact": "helloworld.exe",
+  "schema": "swaw.harness.core-build/v3",
   "staticCrt": true,
-  "maximumBytes": 16777216
+  "artifacts": [
+    {
+      "package": "swaw-harness-helloworld",
+      "buildArtifact": "swaw-harness-helloworld.exe",
+      "artifact": "helloworld.exe",
+      "maximumBytes": 16777216
+    },
+    {
+      "package": "swaw-harness-dev",
+      "buildArtifact": "swaw-harness-dev.exe",
+      "artifact": "swaw-harness-dev.exe",
+      "maximumBytes": 16777216
+    }
+  ]
 }

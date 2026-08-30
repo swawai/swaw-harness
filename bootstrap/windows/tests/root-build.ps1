@@ -50,14 +50,17 @@ Assert-RootBuildTest `
             $ReleasesRoot + [IO.Path]::DirectorySeparatorChar,
             [StringComparison]::OrdinalIgnoreCase
         ) -and
-        $Release.Artifacts.Count -eq 4 -and
+        $Release.Artifacts.Count -eq $Contracts.Count -and
         [string]::Join('|', $ActualNames) -ceq
             [string]::Join('|', $ExpectedNames) -and
         @($Release.Artifacts | Where-Object {
             [IO.File]::Exists([string]$_.Path)
-        }).Count -eq 4 -and
+        }).Count -eq $Contracts.Count -and
         -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'helloworld.exe')
+        ) -and
+        -not [IO.File]::Exists(
+            (Join-Path $RepositoryRoot 'swaw-harness-dev.exe')
         ) -and
         -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'entry.exe')
