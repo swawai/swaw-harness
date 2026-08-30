@@ -18,12 +18,13 @@ function Invoke-BuildDeterminismPass {
         [Parameter(Mandatory = $true)]$Plan
     )
 
-    $CoreCandidateRoot = Invoke-SwawHarnessWindowsCoreCandidateBuild `
-        -Context $Context `
-        -CargoPath $Plan.CargoPath `
-        -EnvironmentVariables $Plan.EnvironmentVariables `
-        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
-        Select-Object -Last 1
+    $CoreCandidateRoots = @(
+        Invoke-SwawHarnessWindowsCoreCandidateBuild `
+            -Context $Context `
+            -CargoPath $Plan.CargoPath `
+            -EnvironmentVariables $Plan.EnvironmentVariables `
+            -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
+    )
     $EntryCandidateRoot = Invoke-SwawHarnessWindowsEntryCandidateBuild `
         -Context $Context `
         -CompilerPath $Plan.CompilerPath `
@@ -41,7 +42,7 @@ function Invoke-BuildDeterminismPass {
 
     return Publish-SwawHarnessWindowsProducts `
         -Context $Context `
-        -CoreCandidateRoot ([string]$CoreCandidateRoot) `
+        -CoreCandidateRoots ([string[]]$CoreCandidateRoots) `
         -EntryCandidateRoot ([string]$EntryCandidateRoot) `
         -EntryManagerCandidateRoots $ManagerCandidateRoots
 }
@@ -82,6 +83,9 @@ try {
         -DataRepo $DataRepo
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $WindowsRoot 'contract.json')
+    $ProductContracts = @(Get-SwawHarnessWindowsProductContracts `
+        -WindowsRoot $WindowsRoot `
+        -PlatformTargetId $PlatformContract.PlatformTargetId)
     $InstallRoot = Get-SwawHarnessToolchainTargetPath `
         -Context $SharedContext `
         -Contract $PlatformContract
@@ -126,10 +130,10 @@ try {
 
     Assert-BuildDeterminismTest `
         -Condition (
-            $FirstSnapshot.Count -eq 4 -and
-            $SecondSnapshot.Count -eq 4
+            $FirstSnapshot.Count -eq $ProductContracts.Count -and
+            $SecondSnapshot.Count -eq $ProductContracts.Count
         ) `
-        -Message 'a clean build did not produce exactly four artifacts'
+        -Message 'a clean build did not produce every contracted artifact'
     $Differences = [Collections.Generic.List[string]]::new()
     for ($Index = 0; $Index -lt $FirstSnapshot.Count; $Index++) {
         $FirstArtifact = $FirstSnapshot[$Index]

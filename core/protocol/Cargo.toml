@@ -1,0 +1,10 @@
+[package]
+name = "swaw-harness-core-protocol"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "swaw_harness_core_protocol"
+path = "lib.rs"

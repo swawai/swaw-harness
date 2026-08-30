@@ -77,7 +77,8 @@ $RunnerSource = @'
 param(
     [Parameter(Mandatory = $true)][string]$WindowsRoot,
     [Parameter(Mandatory = $true)][string]$DataRepo,
-    [Parameter(Mandatory = $true)][string]$CoreCandidateRoot,
+    [Parameter(Mandatory = $true)][string]$CoreHelloworldCandidateRoot,
+    [Parameter(Mandatory = $true)][string]$CoreDevCandidateRoot,
     [Parameter(Mandatory = $true)][string]$EntryCandidateRoot,
     [Parameter(Mandatory = $true)][string]$EntryManagerCliCandidateRoot,
     [Parameter(Mandatory = $true)][string]$HarnessGuiCandidateRoot,
@@ -97,7 +98,10 @@ $Context = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
 )
 $Results = @(Publish-SwawHarnessWindowsProducts `
     -Context $Context `
-    -CoreCandidateRoot $CoreCandidateRoot `
+    -CoreCandidateRoots @(
+        $CoreHelloworldCandidateRoot,
+        $CoreDevCandidateRoot
+    ) `
     -EntryCandidateRoot $EntryCandidateRoot `
     -EntryManagerCandidateRoots @(
         $EntryManagerCliCandidateRoot,
@@ -122,9 +126,9 @@ try {
         -Path (Join-Path $WindowsRoot 'contract.json')
     $Context = New-SwawHarnessWindowsBootstrapContext `
         -DataRepo $PublicationDataRepo
-    $CoreContract = Read-SwawHarnessWindowsCoreContract `
+    $CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
         -Path (Join-Path $WindowsRoot 'core\contract.json') `
-        -PlatformTargetId $PlatformContract.PlatformTargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId)
     $EntryContract = Read-SwawHarnessWindowsEntryContract `
         -Path (Join-Path $WindowsRoot 'entry\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId
@@ -133,8 +137,13 @@ try {
         -PlatformTargetId $PlatformContract.PlatformTargetId)
     $Definitions = @(
         [pscustomobject]@{
-            Name = 'core'
-            Contract = $CoreContract
+            Name = 'core-helloworld'
+            Contract = $CoreContracts[0]
+            BuildRoot = Join-Path $Context.BuildRoot 'core'
+        },
+        [pscustomobject]@{
+            Name = 'core-dev'
+            Contract = $CoreContracts[1]
             BuildRoot = Join-Path $Context.BuildRoot 'core'
         },
         [pscustomobject]@{
@@ -181,7 +190,9 @@ try {
             '-File', $RunnerPath,
             '-WindowsRoot', $WindowsRoot,
             '-DataRepo', $PublicationDataRepo,
-            '-CoreCandidateRoot', $CandidateSets[$SetName]['core'],
+            '-CoreHelloworldCandidateRoot',
+                $CandidateSets[$SetName]['core-helloworld'],
+            '-CoreDevCandidateRoot', $CandidateSets[$SetName]['core-dev'],
             '-EntryCandidateRoot', $CandidateSets[$SetName]['entry'],
             '-EntryManagerCliCandidateRoot',
                 $CandidateSets[$SetName]['manager-cli'],
@@ -275,7 +286,7 @@ try {
         Assert-PublicationConcurrencyTest `
             -Condition (
                 [string]$Result.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
-                $Result.Artifacts.Count -eq 4
+                $Result.Artifacts.Count -eq 5
             ) `
             -Message 'a concurrent publication returned an incomplete set'
         $Results.Add($Result)
@@ -289,9 +300,9 @@ try {
     $Selected = Read-SwawHarnessSelectedRelease `
         -ReleasesRoot $Context.BootstrapReleaseRoot `
         -Contracts @(
-            $CoreContract,
-            $EntryContract,
-            $EntryManagerContracts[0],
+            $CoreContracts
+            $EntryContract
+            $EntryManagerContracts[0]
             $EntryManagerContracts[1]
         )
     Assert-PublicationConcurrencyTest `
@@ -305,7 +316,10 @@ try {
     try {
         Publish-SwawHarnessWindowsProducts `
             -Context $Context `
-            -CoreCandidateRoot (Join-Path $TestRoot 'missing-candidate') `
+            -CoreCandidateRoots @(
+                (Join-Path $TestRoot 'missing-candidate'),
+                $CandidateSets['A']['core-dev']
+            ) `
             -EntryCandidateRoot $CandidateSets['A']['entry'] `
             -EntryManagerCandidateRoots @(
                 $CandidateSets['A']['manager-cli'],
@@ -327,7 +341,10 @@ try {
     $Probe.Dispose()
     $AfterFailure = @(Publish-SwawHarnessWindowsProducts `
         -Context $Context `
-        -CoreCandidateRoot $CandidateSets['B']['core'] `
+        -CoreCandidateRoots @(
+            $CandidateSets['B']['core-helloworld'],
+            $CandidateSets['B']['core-dev']
+        ) `
         -EntryCandidateRoot $CandidateSets['B']['entry'] `
         -EntryManagerCandidateRoots @(
             $CandidateSets['B']['manager-cli'],

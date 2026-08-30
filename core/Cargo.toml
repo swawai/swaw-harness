@@ -1,6 +1,13 @@
 [workspace]
-members = ["templates/helloworld"]
+members = [
+    "protocol",
+    "modules/dev",
+    "modules/templates/helloworld",
+]
 resolver = "3"
+
+[workspace.dependencies]
+swaw-harness-core-protocol = { path = "protocol" }
 
 [workspace.package]
 version = "0.1.0"

@@ -17,7 +17,7 @@ function Get-SwawHarnessWindowsProductContracts {
     )
 
     return @(
-        Read-SwawHarnessWindowsCoreContract `
+        Read-SwawHarnessWindowsCoreContracts `
             -Path (Join-Path $WindowsRoot 'core\contract.json') `
             -PlatformTargetId $PlatformTargetId
         Read-SwawHarnessWindowsEntryContract `
@@ -33,7 +33,7 @@ function Publish-SwawHarnessWindowsProducts {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]$Context,
-        [Parameter(Mandatory = $true)][string]$CoreCandidateRoot,
+        [Parameter(Mandatory = $true)][string[]]$CoreCandidateRoots,
         [Parameter(Mandatory = $true)][string]$EntryCandidateRoot,
         [Parameter(Mandatory = $true)][string[]]$EntryManagerCandidateRoots,
         [IO.FileStream]$CandidateLifecycleLock = $null
@@ -45,16 +45,27 @@ function Publish-SwawHarnessWindowsProducts {
     $Contracts = @(Get-SwawHarnessWindowsProductContracts `
         -WindowsRoot $WindowsRoot `
         -PlatformTargetId $PlatformContract.PlatformTargetId)
+    $CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
+        -Path (Join-Path $WindowsRoot 'core\contract.json') `
+        -PlatformTargetId $PlatformContract.PlatformTargetId)
+    if ($CoreCandidateRoots.Count -ne $CoreContracts.Count) {
+        throw 'Windows publication requires every Core artifact Candidate.'
+    }
     if ($EntryManagerCandidateRoots.Count -ne 2) {
         throw 'Windows publication requires both Entry Manager candidates.'
     }
     $CandidateRoots = @(
-        $CoreCandidateRoot,
-        $EntryCandidateRoot,
-        $EntryManagerCandidateRoots[0],
+        $CoreCandidateRoots
+        $EntryCandidateRoot
+        $EntryManagerCandidateRoots[0]
         $EntryManagerCandidateRoots[1]
     )
-    $ProductNames = @('core', 'entry', 'manager', 'manager')
+    $ProductNames = @(
+        @($CoreContracts | ForEach-Object { 'core' })
+        'entry'
+        'manager'
+        'manager'
+    )
     $ConsumerLock = Enter-SwawHarnessCandidateConsumerLock `
         -Context $Context `
         -PlatformTargetId $PlatformContract.PlatformTargetId

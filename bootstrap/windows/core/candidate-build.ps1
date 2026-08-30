@@ -24,9 +24,9 @@ function Invoke-SwawHarnessWindowsCoreCandidateBuild {
         -RepositoryRoot (Join-Path $CoreRoot '..\..\..')
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
         -Path (Join-Path $CoreRoot '..\contract.json')
-    $Contract = Read-SwawHarnessWindowsCoreContract `
+    $Contracts = @(Read-SwawHarnessWindowsCoreContracts `
         -Path (Join-Path $CoreRoot 'contract.json') `
-        -PlatformTargetId $PlatformContract.PlatformTargetId
+        -PlatformTargetId $PlatformContract.PlatformTargetId)
     $BuildRoot = Join-Path $Context.BuildRoot 'core'
     $BuildRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $BuildRoot `
@@ -46,46 +46,57 @@ function Invoke-SwawHarnessWindowsCoreCandidateBuild {
 
     $LifecycleLock = Enter-SwawHarnessCandidateLifecycleLock `
         -Context $Context `
-        -PlatformTargetId $Contract.PlatformTargetId `
+        -PlatformTargetId $Contracts[0].PlatformTargetId `
         -ExistingLock $CandidateLifecycleLock
     $BuildLock = $null
     try {
         $BuildLock = Enter-SwawHarnessFileLock `
             -Path (Join-Path $Context.LockRoot (
-                "build-core-$($Contract.PlatformTargetId).lock"
+                "build-core-$($Contracts[0].PlatformTargetId).lock"
             )) `
             -ControlledRoot $Context.DataRepo `
             -TimeoutSeconds 1800
         $CargoTargetRoot = $BuildRoot
-        Assert-SwawHarnessCargoBuildPathBudget `
-            -TargetRoot $CargoTargetRoot `
-            -Contract $Contract `
-            -CargoPath $CargoPath `
-            -ManifestPath $WorkspaceManifest `
-            -WorkingDirectory (Join-Path $RepositoryRoot 'core')
+        foreach ($Contract in $Contracts) {
+            Assert-SwawHarnessCargoBuildPathBudget `
+                -TargetRoot $CargoTargetRoot `
+                -Contract $Contract `
+                -CargoPath $CargoPath `
+                -ManifestPath $WorkspaceManifest `
+                -WorkingDirectory (Join-Path $RepositoryRoot 'core')
+        }
         $RustTargetConfiguration = (
-            "target.$($Contract.PlatformTargetId).rustflags=" +
+            "target.$($Contracts[0].PlatformTargetId).rustflags=" +
             '["-C","target-feature=+crt-static",' +
             '"-C","link-arg=/Brepro"]'
         )
-        $Arguments = @(
+        $Arguments = [Collections.Generic.List[string]]::new()
+        foreach ($Argument in @(
             '--config',
             $RustTargetConfiguration,
             'build',
             '--locked',
-            '--release',
-            '--package',
-            $Contract.ProductPackage,
+            '--release'
+        )) {
+            $Arguments.Add([string]$Argument)
+        }
+        foreach ($Contract in $Contracts) {
+            $Arguments.Add('--package')
+            $Arguments.Add([string]$Contract.ProductPackage)
+        }
+        foreach ($Argument in @(
             '--manifest-path',
             $WorkspaceManifest,
             '--target',
-            $Contract.PlatformTargetId,
+            $Contracts[0].PlatformTargetId,
             '--target-dir',
             $CargoTargetRoot
-        )
+        )) {
+            $Arguments.Add([string]$Argument)
+        }
         $Result = Invoke-SwawHarnessCapturedProcess `
             -Executable $CargoPath `
-            -Arguments $Arguments `
+            -Arguments $Arguments.ToArray() `
             -WorkingDirectory (Join-Path $RepositoryRoot 'core') `
             -EnvironmentVariables $EnvironmentVariables `
             -UnsetEnvironmentVariables $UnsetEnvironmentVariables `
@@ -100,20 +111,25 @@ function Invoke-SwawHarnessWindowsCoreCandidateBuild {
             -Root $CargoTargetRoot `
             -Description 'Core Cargo output path')
 
-        $ArtifactPath = Join-Path $CargoTargetRoot (
-            "$($Contract.PlatformTargetId)\release\$($Contract.BuildBinary)"
-        )
-        [void](Assert-SwawHarnessRegularFile `
-            -Path $ArtifactPath `
-            -Description 'Built Windows Core' `
-            -MaximumBytes $Contract.MaximumBytes)
-        $CandidateRoot = Publish-SwawHarnessBootstrapCandidate `
-            -ArtifactPath $ArtifactPath `
-            -Contract $Contract `
-            -BuildRoot $BuildRoot `
-            -ControlledRoot $Context.BuildRoot
-        Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
-        Write-Output $CandidateRoot
+        $CandidateRoots = [Collections.Generic.List[string]]::new()
+        foreach ($Contract in $Contracts) {
+            $ArtifactPath = Join-Path $CargoTargetRoot (
+                "$($Contract.PlatformTargetId)\release\" +
+                $Contract.BuildBinary
+            )
+            [void](Assert-SwawHarnessRegularFile `
+                -Path $ArtifactPath `
+                -Description 'Built Windows Core artifact' `
+                -MaximumBytes $Contract.MaximumBytes)
+            $CandidateRoot = Publish-SwawHarnessBootstrapCandidate `
+                -ArtifactPath $ArtifactPath `
+                -Contract $Contract `
+                -BuildRoot $BuildRoot `
+                -ControlledRoot $Context.BuildRoot
+            Write-Host "[BUILT] $ArtifactPath" -ForegroundColor Green
+            $CandidateRoots.Add([string]$CandidateRoot)
+        }
+        Write-Output $CandidateRoots.ToArray()
     } finally {
         if ($null -ne $BuildLock) {
             $BuildLock.Dispose()
