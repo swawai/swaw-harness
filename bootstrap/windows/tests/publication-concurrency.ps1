@@ -79,6 +79,7 @@ param(
     [Parameter(Mandatory = $true)][string]$DataRepo,
     [Parameter(Mandatory = $true)][string]$CoreHelloworldCandidateRoot,
     [Parameter(Mandatory = $true)][string]$CoreDevCandidateRoot,
+    [Parameter(Mandatory = $true)][string]$CoreAdminCandidateRoot,
     [Parameter(Mandatory = $true)][string]$EntryCandidateRoot,
     [Parameter(Mandatory = $true)][string]$EntryManagerCliCandidateRoot,
     [Parameter(Mandatory = $true)][string]$HarnessGuiCandidateRoot,
@@ -100,7 +101,8 @@ $Results = @(Publish-SwawHarnessWindowsProducts `
     -Context $Context `
     -CoreCandidateRoots @(
         $CoreHelloworldCandidateRoot,
-        $CoreDevCandidateRoot
+        $CoreDevCandidateRoot,
+        $CoreAdminCandidateRoot
     ) `
     -EntryCandidateRoot $EntryCandidateRoot `
     -EntryManagerCandidateRoots @(
@@ -144,6 +146,11 @@ try {
         [pscustomobject]@{
             Name = 'core-dev'
             Contract = $CoreContracts[1]
+            BuildRoot = Join-Path $Context.BuildRoot 'core'
+        },
+        [pscustomobject]@{
+            Name = 'core-admin'
+            Contract = $CoreContracts[2]
             BuildRoot = Join-Path $Context.BuildRoot 'core'
         },
         [pscustomobject]@{
@@ -193,6 +200,8 @@ try {
             '-CoreHelloworldCandidateRoot',
                 $CandidateSets[$SetName]['core-helloworld'],
             '-CoreDevCandidateRoot', $CandidateSets[$SetName]['core-dev'],
+            '-CoreAdminCandidateRoot',
+                $CandidateSets[$SetName]['core-admin'],
             '-EntryCandidateRoot', $CandidateSets[$SetName]['entry'],
             '-EntryManagerCliCandidateRoot',
                 $CandidateSets[$SetName]['manager-cli'],
@@ -286,7 +295,7 @@ try {
         Assert-PublicationConcurrencyTest `
             -Condition (
                 [string]$Result.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
-                $Result.Artifacts.Count -eq 5
+                $Result.Artifacts.Count -eq 6
             ) `
             -Message 'a concurrent publication returned an incomplete set'
         $Results.Add($Result)
@@ -318,7 +327,8 @@ try {
             -Context $Context `
             -CoreCandidateRoots @(
                 (Join-Path $TestRoot 'missing-candidate'),
-                $CandidateSets['A']['core-dev']
+                $CandidateSets['A']['core-dev'],
+                $CandidateSets['A']['core-admin']
             ) `
             -EntryCandidateRoot $CandidateSets['A']['entry'] `
             -EntryManagerCandidateRoots @(
@@ -343,7 +353,8 @@ try {
         -Context $Context `
         -CoreCandidateRoots @(
             $CandidateSets['B']['core-helloworld'],
-            $CandidateSets['B']['core-dev']
+            $CandidateSets['B']['core-dev'],
+            $CandidateSets['B']['core-admin']
         ) `
         -EntryCandidateRoot $CandidateSets['B']['entry'] `
         -EntryManagerCandidateRoots @(

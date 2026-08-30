@@ -30,6 +30,9 @@ $DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
     -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
 $TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
+$SeedFixtureRoot = Join-Path `
+    (Join-Path $DataRepo 'windows.test') `
+    ("sh" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 try {
     $SharedContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
@@ -192,6 +195,84 @@ try {
         ) `
         -Message 'the bundled Dev executable did not persist Bun mode'
 
+    if ($SeedFixtureRoot.Length -gt 58) {
+        throw "Admin seed fixture exceeds the HarnessRoot path budget: $SeedFixtureRoot"
+    }
+    [void][IO.Directory]::CreateDirectory($SeedFixtureRoot)
+    $CopiedReleasesRoot = Join-Path $SeedFixtureRoot 'source'
+    [void][IO.Directory]::CreateDirectory($CopiedReleasesRoot)
+    $CopiedReleaseRoot = Join-Path $CopiedReleasesRoot $First.ReleaseId
+    Copy-Item `
+        -LiteralPath $First.Root `
+        -Destination $CopiedReleaseRoot `
+        -Recurse `
+        -Force
+    $SeedHarnessRoot = Join-Path $SeedFixtureRoot 'h'
+    $CopiedAdmin = Join-Path $CopiedReleaseRoot 'swaw-harness-admin.exe'
+    $SeedResult = Invoke-SwawHarnessCapturedProcess `
+        -Executable $CopiedAdmin `
+        -Arguments @(
+            'admin/entry/swaw-harness',
+            'seed',
+            $SeedHarnessRoot
+        ) `
+        -WorkingDirectory $CopiedReleaseRoot
+    $EntryRecordPath = Join-Path `
+        $SeedHarnessRoot `
+        'data\swaw-harness\entry.json'
+    $EntryRecord = Read-SwawHarnessJsonFile `
+        -Path $EntryRecordPath `
+        -Description 'seeded Admin Entry record'
+    Assert-SwawHarnessObjectFields `
+        -Value $EntryRecord `
+        -Expected @('schema', 'entryId', 'lifecycle') `
+        -Description 'seeded Admin Entry record'
+    $RuntimeRoot = Join-Path $SeedHarnessRoot 'data\swaw-harness\runtime'
+    $RuntimeRelease = Read-SwawHarnessSelectedRelease `
+        -ReleasesRoot $RuntimeRoot `
+        -Contracts $Contracts
+    Assert-BootstrapReleaseTest `
+        -Condition (
+            $SeedResult.ExitCode -eq 0 -and
+            [string]$EntryRecord.schema -ceq 'swaw.harness.entry/v1' -and
+            [string]$EntryRecord.entryId -ceq 'swaw-harness' -and
+            [string]$EntryRecord.lifecycle -ceq 'active' -and
+            [string]$RuntimeRelease.ReleaseId -ceq [string]$First.ReleaseId
+        ) `
+        -Message 'Admin executable did not seed one exact active Runtime Release'
+
+    $CopiedEntry = Join-Path $CopiedReleaseRoot 'entry.exe'
+    $InstalledEntry = Join-Path $RuntimeRelease.Root 'entry.exe'
+    $InstalledEntryHash = Get-SwawHarnessFileSha256 -Path $InstalledEntry
+    $CopiedEntryBytes = [IO.File]::ReadAllBytes($CopiedEntry)
+    $CopiedEntryBytes[0] = $CopiedEntryBytes[0] -bxor 0xff
+    [IO.File]::WriteAllBytes($CopiedEntry, $CopiedEntryBytes)
+    Assert-BootstrapReleaseTest `
+        -Condition (
+            (Get-SwawHarnessFileSha256 -Path $InstalledEntry) -ceq
+                $InstalledEntryHash
+        ) `
+        -Message 'seeded Runtime Release was hard-linked to its source Release'
+    [IO.Directory]::Delete($CopiedReleasesRoot, $true)
+
+    $InstalledAdmin = Join-Path `
+        $RuntimeRelease.Root `
+        'swaw-harness-admin.exe'
+    $IdempotentResult = Invoke-SwawHarnessCapturedProcess `
+        -Executable $InstalledAdmin `
+        -Arguments @(
+            'admin/entry/swaw-harness',
+            'seed',
+            $SeedHarnessRoot
+        ) `
+        -WorkingDirectory $RuntimeRelease.Root
+    Assert-BootstrapReleaseTest `
+        -Condition (
+            $IdempotentResult.ExitCode -eq 0 -and
+            $IdempotentResult.Output -match 'already active'
+        ) `
+        -Message 'installed Admin module depended on its hidden source Release'
+
     $CoreCandidateArtifact = Join-Path `
         $CoreCandidateRoots[0] `
         $Contracts[0].ProductBinary
@@ -250,6 +331,9 @@ try {
         -Condition ($RemainingCandidateRoots.Count -eq 0) `
         -Message 'a later Candidate cleanup did not remove stale members'
 } finally {
+    if ([IO.Directory]::Exists($SeedFixtureRoot)) {
+        [IO.Directory]::Delete($SeedFixtureRoot, $true)
+    }
     if ([IO.Directory]::Exists($TestRoot)) {
         [IO.Directory]::Delete($TestRoot, $true)
     }

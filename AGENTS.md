@@ -9,14 +9,16 @@
 - **HarnessRoot**：DataHome 的父目录；在源码检出中为仓库根，复制发布后为目标位置中 `data/` 的父目录。
 - **DataHome**：Harness 面向用户且可独立复制运行的数据目录，固定位置为 `<HarnessRoot>/data`；保存 Entry executable、EntryRoot 及其发布运行资源，不保存仓库本地 Bootstrap 状态，也不得依赖 data.repo。
 - **data.repo**：位于 `<repository>/data.repo`、仅属于源码仓库的 Bootstrap 数据目录；不随 DataHome 复制发布。
-- **Entry Manager executable**：名为 `swaw-harness-cli.exe`、负责创建和管理 Entry 的独立 console executable。
+- **Admin Core module executable**：名为 `swaw-harness-admin.exe`、拥有 `admin/entry` Resource、Entry 布局与生命周期实现的独立 Core module executable；Bootstrap 只可从一个完整且已验证的 Bootstrap Release 直接调用其 `seed` Facet，其他 Entry 操作通过 canonical Admin Entry 运行上下文调用。
+- **Entry Manager executable**：名为 `swaw-harness-cli.exe`、把人类发起的 Entry 操作委托给 canonical Admin Entry 的独立 console frontend；它不拥有 Entry 布局或生命周期实现，也不得直接写入 DataHome。
 - **Harness GUI executable**：名为 `swaw-harness.exe`、供人类操作的 Windows GUI executable；它通过同级 Entry Manager executable 执行 Entry 操作。
-- **Entry**：由 Entry Manager executable 创建的受管运行实体。
-- **EntryId**：Entry Manager 为一个 Entry 确定的文件系统名称，最多 16 个字符；它同时用作 `data/<EntryId>.exe` 的文件名和 `data/<EntryId>/` EntryRoot 的目录名。
-- **EntryRoot**：与一个 Entry 唯一绑定的目录根，由 Entry Manager executable 在创建 Entry 时一并建立。
+- **Entry**：由 Admin Core module executable 创建和管理的受管运行实体。
+- **EntryId**：Admin Core module executable 为一个 Entry 验证的文件系统名称，最多 16 个字符；它同时用作 `data/<EntryId>.exe` 的文件名和 `data/<EntryId>/` EntryRoot 的目录名。
+- **EntryRoot**：与一个 Entry 唯一绑定、由 Admin Core module executable 在创建 Entry 时一并建立的目录根。
 - **Bootstrap**：无需已编译 Harness 即可运行，自动准备宿主平台声明的便携构建环境，并在无需用户预装、配置或交互干预的情况下编译出 Harness 核心的启动构建流程。
 - **PlatformTargetId**：Bootstrap 平台目标的文件系统安全标识；当前 Windows Bootstrap 使用 Rust 平台目标三元组 `x86_64-pc-windows-msvc` 作为 PlatformTargetId。
 - **Bootstrap Release**：Bootstrap 一次构建产生的配套 executable 发布单元；Windows 仓库内发布根为 `<repository>/data.repo/windows.release`，每个 `<ReleaseId>/` 不可变目录同时包含 Core、纳入该次构建的独立 Core 模块 executable、Entry executable、Entry Manager executable、Harness GUI executable 与 `manifest.json`，由一个 selector 选择当前版本。
+- **Runtime Release**：安装在 `<EntryRoot>/runtime/<ReleaseId>/`、供该 Entry 运行的完整不可变 Release；`<EntryRoot>/runtime/current.<PlatformTargetId>` selector 选择该 Entry 当前使用的 Runtime Release，Runtime Release 不得依赖其来源 Bootstrap Release 或 data.repo。
 - **Resource**：在一个资源空间内通过目录树寻址找到并执行操作的对象。
 - **Facet**：对已找到 Resource 执行的具名操作。
 - **资源空间**：具有独立文件系统根、事实来源、生命周期与写入权限边界的一组 Resource；不得简称为含义过宽的 `Space`。
@@ -45,6 +47,7 @@
 ## Maintainer Notes
 
 - 待办：验证并实现 `swaw-harness` 脱离 `swaw-kit` 父目录和源码树后仍可独立构建、测试、打包与发布；完成前不得将其表述为当前能力。
+- swaw-kit 中对应本项目的旧代码在： D:/2026.7/swaw-kit/_lib\proj，迁移注意参考
 
 ## Agent 工作约束
 

@@ -173,7 +173,10 @@ try {
         -Condition (
             $DeepRoot.Length -eq 60 -and
             ([string]$LongestNativePath).Length -le 240 -and
-            $Release.Artifacts.Count -eq 5
+            $Release.Artifacts.Count -eq 6 -and
+            [IO.File]::Exists((Join-Path `
+                $DeepRoot `
+                'data\swaw-harness\entry.json'))
         ) `
         -Message 'deep build exceeded its declared repository or native budget'
 
@@ -216,6 +219,11 @@ try {
         -Executable $Artifacts['swaw-harness-cli.exe'] `
         -Arguments @() `
         -WorkingDirectory $Release.Root
+    $AdminRuntimeRoot = Join-Path $DeepRoot 'data\swaw-harness\runtime'
+    $AdminSelector = @(Get-ChildItem `
+        -LiteralPath $AdminRuntimeRoot `
+        -File `
+        -Filter 'current.*')
     Assert-DeepPathTest `
         -Condition (
             $Core.ExitCode -eq 0 -and
@@ -228,7 +236,8 @@ try {
             $Entry.ExitCode -eq 1 -and
             $Entry.Error -cmatch '^\[ERROR\] ' -and
             $EntryManager.ExitCode -eq 1 -and
-            $EntryManager.Error -cmatch '^\[ERROR\] '
+            $EntryManager.Error -cmatch '^\[ERROR\] ' -and
+            $AdminSelector.Count -eq 1
         ) `
         -Message 'published executables depended on unavailable native data'
 
