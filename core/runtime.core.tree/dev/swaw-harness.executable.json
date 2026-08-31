@@ -1,0 +1,6 @@
+{
+  "schema": "swaw.harness.executable/v1",
+  "releaseRoot": "runtime/core/dev",
+  "releaseId": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "executable": "swaw-harness-dev.exe"
+}

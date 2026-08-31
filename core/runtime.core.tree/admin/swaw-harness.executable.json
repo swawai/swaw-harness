@@ -1,0 +1,6 @@
+{
+  "schema": "swaw.harness.executable/v1",
+  "releaseRoot": "runtime/core/admin",
+  "releaseId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "executable": "swaw-harness-admin.exe"
+}
