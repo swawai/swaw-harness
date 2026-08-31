@@ -1,7 +1,9 @@
 /data/*
-!/data/modules/
-/data/modules/*
-!/data/modules/AGENTS.md
+!/data/.harness/
+/data/.harness/*
+!/data/.harness/modules/
+/data/.harness/modules/*
+!/data/.harness/modules/AGENTS.md
 !/data/swaw-harness/
 /data/swaw-harness/*
 !/data/swaw-harness/core/

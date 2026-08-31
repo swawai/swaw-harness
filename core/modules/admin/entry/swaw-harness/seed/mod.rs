@@ -97,6 +97,10 @@ fn prepare_management_directories(layout: &EntryLayout) -> Result<(), String> {
     if data_home != layout.data_home() {
         return Err("managed directory construction did not match the canonical layout".to_owned());
     }
+    let control_root = ensure_child_directory(layout.data_home(), ".harness")?;
+    if control_root != layout.control_root() {
+        return Err("managed control directory did not match the canonical layout".to_owned());
+    }
     Ok(())
 }
 

@@ -117,11 +117,6 @@ fn validate(value: &str) -> Result<(), EntryIdError> {
             "EntryId cannot be a Windows reserved device name",
         ));
     }
-    if value == "modules" {
-        return Err(EntryIdError::new(
-            "EntryId cannot use the reserved DataHome modules name",
-        ));
-    }
     Ok(())
 }
 
@@ -137,7 +132,7 @@ mod tests {
 
     #[test]
     fn accepts_canonical_lowercase_ascii_ids() {
-        for value in ["a", "entry1", "project-one", "a1-b2", "con-safe"] {
+        for value in ["a", "entry1", "project-one", "a1-b2", "con-safe", "modules"] {
             let entry_id = EntryId::parse(value).unwrap();
             assert_eq!(entry_id.as_str(), value);
         }
@@ -156,7 +151,6 @@ mod tests {
             "entry--one",
             "entry one",
             "entrée",
-            "modules",
         ] {
             assert!(EntryId::parse(value).is_err(), "{value}");
         }

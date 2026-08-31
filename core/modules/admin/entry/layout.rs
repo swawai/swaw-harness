@@ -8,6 +8,7 @@ pub(crate) const ADMIN_ENTRY_ID: &str = "swaw-harness";
 pub(crate) struct EntryLayout {
     harness_root: PathBuf,
     data_home: PathBuf,
+    control_root: PathBuf,
     lock: PathBuf,
     executable: PathBuf,
     entry_root: PathBuf,
@@ -20,15 +21,17 @@ impl EntryLayout {
     pub(crate) fn new(harness_root: impl AsRef<Path>, entry_id: &EntryId) -> Self {
         let harness_root = harness_root.as_ref().to_path_buf();
         let data_home = harness_root.join("data");
+        let control_root = data_home.join(".harness");
         let entry_root = data_home.join(entry_id.as_str());
         Self {
             harness_root,
-            lock: data_home.join(".entry.lock"),
+            lock: control_root.join("entry.lock"),
             executable: data_home.join(format!("{entry_id}.exe")),
             record: entry_root.join("entry.json"),
             provisioning: entry_root.join("provisioning.json"),
             runtime_root: entry_root.join("runtime"),
             data_home,
+            control_root,
             entry_root,
         }
     }
@@ -39,6 +42,10 @@ impl EntryLayout {
 
     pub(crate) fn data_home(&self) -> &Path {
         &self.data_home
+    }
+
+    pub(crate) fn control_root(&self) -> &Path {
+        &self.control_root
     }
 
     pub(crate) fn lock(&self) -> &Path {
@@ -85,7 +92,8 @@ mod tests {
         let layout = EntryLayout::new("harness", &entry_id);
 
         assert_eq!(layout.data_home(), Path::new("harness/data"));
-        assert_eq!(layout.lock(), Path::new("harness/data/.entry.lock"));
+        assert_eq!(layout.control_root(), Path::new("harness/data/.harness"));
+        assert_eq!(layout.lock(), Path::new("harness/data/.harness/entry.lock"));
         assert_eq!(layout.executable(), Path::new("harness/data/demo-one.exe"));
         assert_eq!(layout.entry_root(), Path::new("harness/data/demo-one"));
         assert_eq!(

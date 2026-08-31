@@ -42,7 +42,7 @@ fn prepare_provisioning(harness: &std::path::Path, release_id: &str) {
 
 fn assert_no_staging_remains(harness: &std::path::Path) {
     let data = harness.join("data");
-    assert!(data.join(".entry.lock").is_file());
+    assert!(data.join(".harness").join("entry.lock").is_file());
     assert!(!data.join(".admin").exists());
     assert!(!fs::read_dir(&data).unwrap().any(|entry| {
         entry
@@ -290,7 +290,7 @@ fn rejects_a_fresh_source_inside_data_home_without_creating_the_lock() {
 
     assert!(!rejected.status.success());
     assert!(output_text(&rejected.stderr).contains("inside the target DataHome"));
-    assert!(!harness.join("data").join(".entry.lock").exists());
+    assert!(!harness.join("data").join(".harness").exists());
     assert!(!entry_root(&harness).exists());
 
     let independent = root.harness("independent");
@@ -324,15 +324,38 @@ fn rejects_a_reparse_ancestor_before_creating_through_it() {
 
 #[cfg(windows)]
 #[test]
+fn rejects_a_reparse_data_home_control_root() {
+    let root = TestRoot::new();
+    let source = fixture(&root, "source", "one");
+    let harness = root.harness("h");
+    let data_home = harness.join("data");
+    let control_target = root.path().join("control-target");
+    fs::create_dir_all(&data_home).unwrap();
+    fs::create_dir(&control_target).unwrap();
+    let control_root = data_home.join(".harness");
+    create_directory_junction(&control_root, &control_target);
+
+    let rejected = run_seed(&source.executable, &harness);
+    fs::remove_dir(&control_root).unwrap();
+
+    assert!(!rejected.status.success());
+    assert!(output_text(&rejected.stderr).contains("regular directory"));
+    assert!(!entry_root(&harness).exists());
+    assert_eq!(fs::read_dir(&control_target).unwrap().count(), 0);
+}
+
+#[cfg(windows)]
+#[test]
 fn rejects_a_reparse_lifecycle_lock() {
     let root = TestRoot::new();
     let source = fixture(&root, "source", "one");
     let harness = root.harness("h");
     let data_home = harness.join("data");
     let lock_target = root.path().join("lock-target");
-    fs::create_dir_all(&data_home).unwrap();
+    let control_root = data_home.join(".harness");
+    fs::create_dir_all(&control_root).unwrap();
     fs::create_dir(&lock_target).unwrap();
-    let lock = data_home.join(".entry.lock");
+    let lock = control_root.join("entry.lock");
     create_directory_junction(&lock, &lock_target);
 
     let rejected = run_seed(&source.executable, &harness);

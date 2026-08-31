@@ -18,4 +18,4 @@
 
 ## Maintainer Notes
 
-- `dev/setup` Facet 当前只有目标配置，`swaw-harness-dev.exe` 尚未实现该 Resource；`data/modules/` 也尚无真实模块版本，因此本树当前不是可执行发布物。
+- `dev/setup` Facet 当前只有目标配置，`swaw-harness-dev.exe` 尚未实现该 Resource；`data/.harness/modules/` 也尚无真实模块版本，因此本树当前不是可执行发布物。
