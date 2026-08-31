@@ -1,0 +1,9 @@
+{
+  "schema": "swaw.harness.facet/v1",
+  "module": "swaw/core/dev",
+  "version": "1.*",
+  "executable": "swaw-harness-dev.exe",
+  "arguments": [
+    "dev/bun/mode"
+  ]
+}

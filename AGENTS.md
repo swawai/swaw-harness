@@ -13,15 +13,16 @@
 - **Entry Manager executable**：名为 `swaw-harness-cli.exe`、把人类发起的 Entry 操作委托给 canonical Admin Entry 的独立 console frontend；它不拥有 Entry 布局或生命周期实现，也不得直接写入 DataHome。
 - **Harness GUI executable**：名为 `swaw-harness.exe`、供人类操作的 Windows GUI executable；它通过同级 Entry Manager executable 执行 Entry 操作。
 - **Entry**：由 Admin Core module executable 创建和管理的受管运行实体。
-- **EntryId**：Admin Core module executable 为一个 Entry 验证的文件系统名称，最多 16 个字符；它同时用作 `data/<EntryId>.exe` 的文件名和 `data/<EntryId>/` EntryRoot 的目录名。
+- **EntryId**：Admin Core module executable 为一个 Entry 验证的文件系统名称，最多 16 个字符；它同时用作 `data/<EntryId>.exe` 的文件名和 `data/<EntryId>/` EntryRoot 的目录名。`modules` 是 DataHome 保留目录名，不得作为 EntryId。
 - **EntryRoot**：与一个 Entry 唯一绑定、由 Admin Core module executable 在创建 Entry 时一并建立的目录根。
 - **Bootstrap**：无需已编译 Harness 即可运行，自动准备宿主平台声明的便携构建环境，并在无需用户预装、配置或交互干预的情况下编译出 Harness 核心的启动构建流程。
 - **PlatformTargetId**：Bootstrap 平台目标的文件系统安全标识；当前 Windows Bootstrap 使用 Rust 平台目标三元组 `x86_64-pc-windows-msvc` 作为 PlatformTargetId。
 - **Bootstrap Release**：Bootstrap 一次构建产生的配套 executable 发布单元；Windows 仓库内发布根为 `<repository>/data.repo/windows.release`，每个 `<ReleaseId>/` 不可变目录同时包含 Core、纳入该次构建的独立 Core 模块 executable、Entry executable、Entry Manager executable、Harness GUI executable 与 `manifest.json`，由一个 selector 选择当前版本。
-- **Runtime Release**：当前已实现为安装在 `<EntryRoot>/runtime/<ReleaseId>/`、供该 Entry 运行的完整不可变 Release；`<EntryRoot>/runtime/current.<PlatformTargetId>` selector 选择该 Entry 当前使用的 Runtime Release，Runtime Release 不得依赖其来源 Bootstrap Release 或 data.repo。它与目标 Core module Release 的最终内容边界仍属 `REPO-010`。
-- **Runtime Core Tree**：目标状态中以真实文件系统目录树声明运行 Resource、Facet 及 executable 选择的配置树；仓库中的协议样例固定为 `core/runtime.core.tree/`，目标 Entry 中的实例根固定为 `<EntryRoot>/core/`。实例从已物化具体 ReleaseId 的模板复制后由该 Entry 自己持有，本协议不规定用户如何更新、整体切换或版本管理该实例。
-- **Core module Release**：目标状态中安装在 `<EntryRoot>/runtime/core/<ModulePath>/<ReleaseId>/`、包含一个 Core module executable 及其不可变私有运行文件的发布目录；`ModulePath` 是 `runtime/core/` 下的规范相对目录路径，不由 Resource 路径或 `core/modules/` 作者目录推断。当前尚未实现该发布目录。
-- **Core executable binding**：Runtime Core Tree 的一个 Resource 目录中名为 `swaw-harness.executable.json` 的版本化 JSON 文件；它使用 `releaseRoot`、`releaseId` 和 `executable` 直接选择一个具体 Core module Release executable，并作用于该 Resource 及没有更近绑定的后代 Resource。
+- **Runtime Release**：当前已实现为安装在 `<EntryRoot>/runtime/<ReleaseId>/`、供该 Entry 运行的完整不可变 Release；`<EntryRoot>/runtime/current.<PlatformTargetId>` selector 选择该 Entry 当前使用的 Runtime Release，Runtime Release 不得依赖其来源 Bootstrap Release 或 data.repo。它与目标 Module Release 的最终内容边界仍属 `REPO-010`。
+- **Runtime Core Tree**：以真实文件系统目录树声明运行 Resource、Facet 及其模块选择的配置树；仓库纳入 Git 的唯一默认树及源码检出中的 canonical Admin Entry 实例固定为 `data/swaw-harness/core/`，其他 Entry 的实例根固定为 `<EntryRoot>/core/`。本协议不规定用户如何整体切换、并发修改或版本管理一个实例。
+- **ModuleId**：由规范小写文件系统名称 `<Publisher>/<Group>/<Module>` 组成的三段模块身份，例如 `swaw/core/admin`；它独立于源码仓库地址、Resource 路径和 executable 文件名。
+- **Module Release**：目标状态中安装在 `<DataHome>/modules/<Publisher>/<Group>/<Module>/<PlatformTargetId>/<Version>/`、包含一个模块在一个平台上的不可变程序及私有运行文件的发布目录；`Version` 是不含预发布或构建后缀的 `MAJOR.MINOR.PATCH` 语义化版本。源码检出中的对应 DataHome 路径是 `data/modules/`；当前尚未实现 Module Release 发布。
+- **Facet declaration**：Runtime Core Tree 的一个 Facet 叶目录中名为 `swaw-harness.facet.json` 的版本化 JSON 文件；它使用 `module`、`version`、`executable` 和 `arguments` 直接声明该 Facet 的模块选择与固定命令参数，不使用 Resource 声明文件或可继承 executable binding。
 - **Resource**：在一个资源空间内通过目录树寻址找到并执行操作的对象。
 - **Facet**：对已找到 Resource 执行的具名操作。
 - **资源空间**：具有独立文件系统根、事实来源、生命周期与写入权限边界的一组 Resource；不得简称为含义过宽的 `Space`。
@@ -37,20 +38,20 @@
 - **REPO-002 — 小核心与领域自治。** 核心只保留跨领域稳定且必要的最小机制与薄协议；领域代码、规则、文档及其他资源由各自目录自治，领域间通过显式边界协作，不得把领域逻辑集中到核心或总调度器。新增或扩展领域不得修改核心协议，除非出现新的、稳定的跨领域共同约束。
 - **REPO-003 — 规则就近归属。** 全仓规则写入根 `AGENTS.md`，领域规则写入最近领域目录的 `AGENTS.md`；修改路径时从根向下依次读取并叠加，不得在多个文件重复维护同一规则。
 - **REPO-004 — 代码就近归属。** 代码应归入最近的稳定领域目录；允许父领域承载多个相关模块，但必须保持领域边界，不得长期堆积在总入口或总 dispatcher。
-- **REPO-005 — DataHome 可独立复制运行。** DataHome 必须位于 `<HarnessRoot>/data`，其 Entry executable、EntryRoot 及发布运行资源不得依赖 data.repo 的绝对路径；仓库本地 Bootstrap 工具链、构建、暂存、缓存、锁与日志不得写入 DataHome。
+- **REPO-005 — DataHome 可独立复制运行。** DataHome 必须位于 `<HarnessRoot>/data`，其 Entry executable、EntryRoot、`<DataHome>/modules/` Module Release 及其他发布运行资源不得依赖 data.repo 的绝对路径；仓库本地 Bootstrap 工具链、构建、暂存、缓存、锁与日志不得写入 DataHome。`<DataHome>/modules/` 是 DataHome 共享模块发布根并保留 `modules` 名称，Admin Core module executable 必须拒绝 `modules` EntryId。
 
 - **REPO-007 — 核心术语统一。** 本文件的“核心术语”是全仓 `AGENTS.md` 的统一用语源；新增或改变核心高频术语必须先更新该段落，下级 `AGENTS.md` 不得自行创造同义词或改变既有含义。
-- **REPO-008 — 内容寻址发布只前进。** 所有模块的发布物必须先在暂存区完整生成并验证，再以内容身份原子发布到尚不存在的不可变目标；Runtime Release selector 只允许在新目标验证完成后原子更新，写入 `<EntryRoot>/core/` 实例的 Core executable binding 只允许引用已经验证的 Core module Release。不得覆盖已发布目标或为其维护通用 backup/rollback 副本；损坏目标仅可在同一身份锁内删除并按原内容身份重建。本规则不规定用户如何批量修改或切换 `<EntryRoot>/core/` 实例。
+- **REPO-008 — 不可变发布只前进。** Bootstrap Release 与 Runtime Release 继续以 ReleaseId 内容身份发布；Module Release 使用 ModuleId、PlatformTargetId 与精确语义化版本定位。所有发布物必须先在暂存区完整生成并验证，再原子发布到尚不存在的不可变目标，不得覆盖或合并写入已发布目标。Facet declaration 只允许选择已经验证的 Module Release；本规则不规定用户如何批量修改或切换 `<EntryRoot>/core/` 实例。
 - **REPO-009 — data.repo 仅属仓库。** data.repo 固定为 `<repository>/data.repo`，只保存不随 DataHome 复制发布的仓库本地数据；各宿主平台在其中使用明确的平台领域根，不得让 data.repo 成为运行时依赖。
 
 ## Open
 
-- **REPO-010 — Runtime Release 与 Core module Release 的内容边界。** 当前 Runtime Release 仍包含 Core、各 Core module executable 及前端 executable；引入 Runtime Core Tree 和独立 Core module Release 后，哪些共同文件继续留在 `<EntryRoot>/runtime/<ReleaseId>/`、哪些文件移入 `<EntryRoot>/runtime/core/<ModulePath>/<ReleaseId>/`，以及 Bootstrap Release 如何运输两者，留待重新对齐 Issue #47 时确定。
+- **REPO-010 — Runtime Release 与 Module Release 的内容边界。** 当前 Runtime Release 仍包含 Core、各 Core module executable 及前端 executable；引入 `<DataHome>/modules/<Publisher>/<Group>/<Module>/<PlatformTargetId>/<Version>/` Module Release 后，哪些共同文件继续留在 `<EntryRoot>/runtime/<ReleaseId>/`、哪些文件移入共享 Module Release，以及 Bootstrap Release 如何运输两者，留待重新对齐 Issue #47 时确定。
 
 ## Maintainer Notes
 
 - 待办：验证并实现 `swaw-harness` 脱离 `swaw-kit` 父目录和源码树后仍可独立构建、测试、打包与发布；完成前不得将其表述为当前能力。
-- `core/runtime.core.tree/` 当前 executable binding 中重复字符组成的 ReleaseId 仅是协议样例值；`RuntimeCoreTree::validate()` 只验证目录和 JSON 结构，不验证这些样例 Release 是否存在。Bootstrap Release 物化真实 ReleaseId 并由 seed 建立 `<EntryRoot>/core/` 的流程尚未实现，完成前不得将样例树表述为可运行模板。
+- `data/swaw-harness/core/` 当前 Facet declaration 使用模糊模块版本，但 `data/modules/` 尚无真实 Module Release；`RuntimeCoreTree::validate()` 只验证目录与 JSON 结构。Module Release 发布、模块清单验证和其他 Entry 的 Core 配置树复制流程尚未实现，完成前不得将该树表述为可运行发布物。
 - swaw-kit 中对应本项目的旧代码在： D:/2026.7/swaw-kit/_lib\proj，迁移注意参考
 
 ## Agent 工作约束

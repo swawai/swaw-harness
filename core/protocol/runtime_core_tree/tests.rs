@@ -1,101 +1,81 @@
-use super::document::EXECUTABLE_SCHEMA;
 use super::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const ADMIN_RELEASE_ID: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-const DEV_RELEASE_ID: &str = "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
-
 #[test]
-fn repository_tree_is_valid_and_uses_nearest_executable_binding() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../runtime.core.tree");
+fn repository_tree_is_valid_and_facets_select_modules_directly() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/swaw-harness/core");
     let tree = RuntimeCoreTree::open(root).unwrap();
     tree.validate().unwrap();
 
-    for (resource, facet, release_root, release_id, executable) in [
+    for (resource, facet, module, executable, arguments) in [
         (
             "admin/entry/swaw-harness",
             "seed",
-            "runtime/core/admin",
-            ADMIN_RELEASE_ID,
+            "swaw/core/admin",
             "swaw-harness-admin.exe",
+            &["admin/entry/swaw-harness", "seed"][..],
         ),
         (
             "dev/setup",
             "execute",
-            "runtime/core/dev",
-            DEV_RELEASE_ID,
+            "swaw/core/dev",
             "swaw-harness-dev.exe",
+            &["dev/setup"][..],
         ),
         (
             "dev/bun/mode",
             "execute",
-            "runtime/core/dev",
-            DEV_RELEASE_ID,
+            "swaw/core/dev",
             "swaw-harness-dev.exe",
+            &["dev/bun/mode"][..],
         ),
     ] {
         let resolved = tree.resolve(resource, facet).unwrap();
         assert_eq!(resolved.resource(), resource);
         assert_eq!(resolved.facet(), facet);
-        assert_eq!(resolved.binding().release_root(), Path::new(release_root));
-        assert_eq!(resolved.binding().release_id(), release_id);
-        assert_eq!(resolved.binding().executable(), executable);
+        assert_eq!(resolved.definition().module().as_str(), module);
+        assert_eq!(resolved.definition().version().to_string(), "1.*");
+        assert_eq!(resolved.definition().executable(), executable);
+        assert_eq!(resolved.definition().arguments(), arguments);
     }
 }
 
 #[test]
-fn child_resource_can_replace_its_inherited_binding() {
-    let root = temporary_tree("nearest-binding");
-    write_resource(&root.join("dev"));
-    write_binding(
-        &root.join("dev"),
-        "runtime/core/dev",
-        DEV_RELEASE_ID,
-        "dev.exe",
-    );
-    write_resource(&root.join("dev/setup"));
-    write_binding(
-        &root.join("dev/setup"),
-        "runtime/core/dev-setup",
-        ADMIN_RELEASE_ID,
-        "setup.exe",
-    );
-    write_facet(&root.join("dev/setup/execute"));
-
-    let tree = RuntimeCoreTree::open(&root).unwrap();
-    let resolved = tree.resolve("dev/setup", "execute").unwrap();
-    assert_eq!(
-        resolved.binding().release_root(),
-        Path::new("runtime/core/dev-setup")
-    );
-    assert_eq!(resolved.binding().executable(), "setup.exe");
-    let entry_root = root.join("entry");
-    let executable = entry_root
-        .join("runtime/core/dev-setup")
-        .join(ADMIN_RELEASE_ID)
-        .join("setup.exe");
-    fs::create_dir_all(executable.parent().unwrap()).unwrap();
-    fs::write(&executable, b"fixture").unwrap();
-    assert_eq!(
-        resolved.binding().executable_path(&entry_root).unwrap(),
-        executable
-    );
-    assert!(
-        resolved
-            .binding()
-            .executable_path(Path::new("relative-entry"))
-            .is_err()
-    );
-    fs::remove_dir_all(root).unwrap();
+fn semantic_version_selectors_are_small_and_deterministic() {
+    let versions = [
+        Version::parse("1.0.0").unwrap(),
+        Version::parse("1.2.4").unwrap(),
+        Version::parse("1.3.0").unwrap(),
+        Version::parse("2.0.0").unwrap(),
+    ];
+    for (selector, expected) in [
+        ("1.2.4", "1.2.4"),
+        ("1.2.*", "1.2.4"),
+        ("1.*", "1.3.0"),
+        ("2.*", "2.0.0"),
+    ] {
+        let selected = VersionSelector::parse(selector)
+            .unwrap()
+            .select_highest(versions)
+            .unwrap();
+        assert_eq!(selected.to_string(), expected);
+    }
+    for invalid in ["", "1", "1.2", "01.2.3", "1.02.*", "0.*", "0.2.*", "^1.2"] {
+        assert!(VersionSelector::parse(invalid).is_err(), "{invalid}");
+    }
 }
 
 #[test]
-fn unsafe_routes_and_binding_documents_are_rejected() {
-    let root = temporary_tree("invalid-binding");
-    write_resource(&root.join("dev"));
-    write_facet(&root.join("dev/execute"));
+fn unsafe_routes_and_facet_documents_are_rejected() {
+    let root = temporary_tree("invalid-facet");
+    write_facet(
+        &root.join("dev/setup/execute"),
+        "swaw/core/dev",
+        "1.*",
+        "swaw-harness-dev.exe",
+        &["dev/setup"],
+    );
     let tree = RuntimeCoreTree::open(&root).unwrap();
-    assert!(tree.resolve("dev", "execute").is_err());
     for resource in [
         "",
         "../dev",
@@ -105,109 +85,80 @@ fn unsafe_routes_and_binding_documents_are_rejected() {
         "dev\\setup",
         "dev//setup",
     ] {
-        let tree = RuntimeCoreTree::open(&root).unwrap();
         assert!(tree.resolve(resource, "execute").is_err(), "{resource}");
     }
-    let tree = RuntimeCoreTree::open(&root).unwrap();
-    assert!(tree.resolve("dev", "Execute").is_err());
+    assert!(tree.resolve("dev/setup", "Execute").is_err());
 
-    for (release_root, release_id, executable) in [
-        ("../runtime/core/dev", DEV_RELEASE_ID, "dev.exe"),
-        ("runtime/other/dev", DEV_RELEASE_ID, "dev.exe"),
-        ("runtime/core/dev", "short", "dev.exe"),
-        ("runtime/core/dev", DEV_RELEASE_ID, "../dev.exe"),
+    for (module, version, executable) in [
+        ("swaw/dev", "1.*", "dev.exe"),
+        ("swaw/core/dev/extra", "1.*", "dev.exe"),
+        ("Swaw/core/dev", "1.*", "dev.exe"),
+        ("swaw/core/dev", "0.*", "dev.exe"),
+        ("swaw/core/dev", "1.02.*", "dev.exe"),
+        ("swaw/core/dev", "1.*", "../dev.exe"),
     ] {
-        write_binding(&root.join("dev"), release_root, release_id, executable);
+        write_facet(
+            &root.join("dev/setup/execute"),
+            module,
+            version,
+            executable,
+            &[],
+        );
         let tree = RuntimeCoreTree::open(&root).unwrap();
-        assert!(tree.resolve("dev", "execute").is_err(), "{release_root}");
+        assert!(tree.resolve("dev/setup", "execute").is_err(), "{module}");
     }
 
     fs::write(
-        root.join("dev").join(EXECUTABLE_DOCUMENT_NAME),
-        format!(
-            "{{\"schema\":\"{EXECUTABLE_SCHEMA}\",\"releaseRoot\":\"runtime/core/dev\",\"releaseId\":\"{DEV_RELEASE_ID}\",\"executable\":\"dev.exe\",\"extra\":true}}\n"
-        ),
+        root.join("dev/setup/execute").join(FACET_DOCUMENT_NAME),
+        "{\"schema\":\"swaw.harness.facet/v1\",\"module\":\"swaw/core/dev\",\"version\":\"1.*\",\"executable\":\"dev.exe\",\"arguments\":[],\"extra\":true}\n",
     )
     .unwrap();
     let tree = RuntimeCoreTree::open(&root).unwrap();
-    assert!(tree.resolve("dev", "execute").is_err());
+    assert!(tree.resolve("dev/setup", "execute").is_err());
     fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
-fn binding_requires_a_resource_owner_and_all_required_fields() {
-    let root = temporary_tree("binding-owner");
-    write_resource(&root.join("dev"));
-    write_facet(&root.join("dev/execute"));
-
-    write_binding(&root, "runtime/core/dev", DEV_RELEASE_ID, "dev.exe");
-    let tree = RuntimeCoreTree::open(&root).unwrap();
-    assert!(tree.validate().is_err());
-    assert!(tree.resolve("dev", "execute").is_err());
-
-    fs::remove_file(root.join(EXECUTABLE_DOCUMENT_NAME)).unwrap();
-    fs::write(
-        root.join("dev").join(EXECUTABLE_DOCUMENT_NAME),
-        format!(
-            "{{\"schema\":\"{EXECUTABLE_SCHEMA}\",\"releaseRoot\":\"runtime/core/dev\",\"releaseId\":\"{DEV_RELEASE_ID}\"}}\n"
-        ),
-    )
-    .unwrap();
+fn tree_rejects_legacy_files_and_non_leaf_facets() {
+    let root = temporary_tree("tree-shape");
+    write_facet(
+        &root.join("dev/setup/execute"),
+        "swaw/core/dev",
+        "1.*",
+        "dev.exe",
+        &[],
+    );
+    fs::write(root.join("dev/setup/swaw-harness.resource.json"), "{}\n").unwrap();
     let tree = RuntimeCoreTree::open(&root).unwrap();
     assert!(tree.validate().is_err());
 
+    fs::remove_file(root.join("dev/setup/swaw-harness.resource.json")).unwrap();
+    fs::create_dir(root.join("dev/setup/execute/child")).unwrap();
+    let tree = RuntimeCoreTree::open(&root).unwrap();
+    assert!(tree.validate().is_err());
     fs::remove_dir_all(root).unwrap();
 }
 
 #[cfg(windows)]
 #[test]
-fn reparse_directories_cannot_enter_the_tree_or_module_release_path() {
+fn reparse_resource_directories_cannot_enter_resolution() {
     let root = temporary_tree("tree-reparse");
     let resource_target = temporary_tree("resource-target");
-    write_resource(&resource_target);
-    write_binding(
-        &resource_target,
-        "runtime/core/dev",
-        DEV_RELEASE_ID,
+    write_facet(
+        &resource_target.join("execute"),
+        "swaw/core/dev",
+        "1.*",
         "dev.exe",
+        &[],
     );
-    write_facet(&resource_target.join("execute"));
     create_junction(&root.join("dev"), &resource_target);
     let tree = RuntimeCoreTree::open(&root).unwrap();
     assert!(tree.validate().is_err());
     assert!(tree.resolve("dev", "execute").is_err());
+
     fs::remove_dir(root.join("dev")).unwrap();
     fs::remove_dir_all(root).unwrap();
     fs::remove_dir_all(resource_target).unwrap();
-
-    let tree_root = temporary_tree("release-reparse-tree");
-    write_resource(&tree_root.join("dev"));
-    write_binding(
-        &tree_root.join("dev"),
-        "runtime/core/dev",
-        DEV_RELEASE_ID,
-        "dev.exe",
-    );
-    write_facet(&tree_root.join("dev/execute"));
-    let binding = RuntimeCoreTree::open(&tree_root)
-        .unwrap()
-        .resolve("dev", "execute")
-        .unwrap()
-        .binding()
-        .clone();
-
-    let entry_root = temporary_tree("release-reparse-entry");
-    fs::create_dir_all(entry_root.join("runtime/core/dev")).unwrap();
-    let release_target = temporary_tree("release-target");
-    fs::write(release_target.join("dev.exe"), b"fixture").unwrap();
-    let release_junction = entry_root.join("runtime/core/dev").join(DEV_RELEASE_ID);
-    create_junction(&release_junction, &release_target);
-    assert!(binding.executable_path(&entry_root).is_err());
-
-    fs::remove_dir(release_junction).unwrap();
-    fs::remove_dir_all(entry_root).unwrap();
-    fs::remove_dir_all(release_target).unwrap();
-    fs::remove_dir_all(tree_root).unwrap();
 }
 
 fn temporary_tree(label: &str) -> PathBuf {
@@ -223,29 +174,23 @@ fn temporary_tree(label: &str) -> PathBuf {
     root
 }
 
-fn write_resource(directory: &Path) {
+fn write_facet(
+    directory: &Path,
+    module: &str,
+    version: &str,
+    executable: &str,
+    arguments: &[&str],
+) {
     fs::create_dir_all(directory).unwrap();
-    fs::write(
-        directory.join(RESOURCE_DOCUMENT_NAME),
-        format!("{{\"schema\":\"{RESOURCE_SCHEMA}\"}}\n"),
-    )
-    .unwrap();
-}
-
-fn write_facet(directory: &Path) {
-    fs::create_dir_all(directory).unwrap();
+    let arguments = arguments
+        .iter()
+        .map(|argument| format!("\"{argument}\""))
+        .collect::<Vec<_>>()
+        .join(",");
     fs::write(
         directory.join(FACET_DOCUMENT_NAME),
-        format!("{{\"schema\":\"{FACET_SCHEMA}\"}}\n"),
-    )
-    .unwrap();
-}
-
-fn write_binding(directory: &Path, release_root: &str, release_id: &str, executable: &str) {
-    fs::write(
-        directory.join(EXECUTABLE_DOCUMENT_NAME),
         format!(
-            "{{\"schema\":\"{EXECUTABLE_SCHEMA}\",\"releaseRoot\":\"{release_root}\",\"releaseId\":\"{release_id}\",\"executable\":\"{executable}\"}}\n"
+            "{{\"schema\":\"swaw.harness.facet/v1\",\"module\":\"{module}\",\"version\":\"{version}\",\"executable\":\"{executable}\",\"arguments\":[{arguments}]}}\n"
         ),
     )
     .unwrap();

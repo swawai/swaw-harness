@@ -1,0 +1,10 @@
+{
+  "schema": "swaw.harness.facet/v1",
+  "module": "swaw/core/admin",
+  "version": "1.*",
+  "executable": "swaw-harness-admin.exe",
+  "arguments": [
+    "admin/entry/swaw-harness",
+    "seed"
+  ]
+}

@@ -1,4 +1,11 @@
-/data/
+/data/*
+!/data/modules/
+/data/modules/*
+!/data/modules/AGENTS.md
+!/data/swaw-harness/
+/data/swaw-harness/*
+!/data/swaw-harness/core/
+!/data/swaw-harness/core/**
 /data.entry/
 /data.repo/
 /core/target/

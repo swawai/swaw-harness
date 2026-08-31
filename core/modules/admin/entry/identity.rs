@@ -117,6 +117,11 @@ fn validate(value: &str) -> Result<(), EntryIdError> {
             "EntryId cannot be a Windows reserved device name",
         ));
     }
+    if value == "modules" {
+        return Err(EntryIdError::new(
+            "EntryId cannot use the reserved DataHome modules name",
+        ));
+    }
     Ok(())
 }
 
@@ -151,6 +156,7 @@ mod tests {
             "entry--one",
             "entry one",
             "entrée",
+            "modules",
         ] {
             assert!(EntryId::parse(value).is_err(), "{value}");
         }

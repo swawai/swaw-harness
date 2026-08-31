@@ -1,120 +1,229 @@
+use std::fmt;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::Deserialize;
 
-use super::{
-    assert_regular_directory, assert_regular_file, assert_release_id, assert_safe_segment,
-    join_segments, metadata_is_reparse, parse_relative_path,
-};
+use super::{assert_safe_segment, metadata_is_reparse};
 
-pub const RESOURCE_DOCUMENT_NAME: &str = "swaw-harness.resource.json";
 pub const FACET_DOCUMENT_NAME: &str = "swaw-harness.facet.json";
-pub const EXECUTABLE_DOCUMENT_NAME: &str = "swaw-harness.executable.json";
 
-pub(super) const RESOURCE_SCHEMA: &str = "swaw.harness.resource/v1";
-pub(super) const FACET_SCHEMA: &str = "swaw.harness.facet/v1";
-pub(super) const EXECUTABLE_SCHEMA: &str = "swaw.harness.executable/v1";
+const FACET_SCHEMA: &str = "swaw.harness.facet/v1";
+const MAXIMUM_ARGUMENTS: usize = 64;
+const MAXIMUM_ARGUMENT_BYTES: usize = 4096;
 const MAXIMUM_DOCUMENT_BYTES: u64 = 16 * 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ExecutableBinding {
-    release_root: PathBuf,
-    release_id: String,
+pub struct FacetDefinition {
+    module: ModuleId,
+    version: VersionSelector,
     executable: String,
+    arguments: Vec<String>,
 }
 
-impl ExecutableBinding {
-    pub fn release_root(&self) -> &Path {
-        &self.release_root
+impl FacetDefinition {
+    pub fn module(&self) -> &ModuleId {
+        &self.module
     }
 
-    pub fn release_id(&self) -> &str {
-        &self.release_id
+    pub fn version(&self) -> VersionSelector {
+        self.version
     }
 
     pub fn executable(&self) -> &str {
         &self.executable
     }
 
-    pub fn executable_path(&self, entry_root: &Path) -> Result<PathBuf, String> {
-        if !entry_root.is_absolute() {
-            return Err(format!(
-                "EntryRoot must be absolute when resolving an executable: {}",
-                entry_root.display()
-            ));
-        }
-        assert_regular_directory(entry_root, "EntryRoot")?;
-        let mut path = entry_root.to_path_buf();
-        for segment in self.release_root.iter() {
-            path.push(segment);
-            assert_regular_directory(&path, "Core module product directory")?;
-        }
-        path.push(&self.release_id);
-        assert_regular_directory(&path, "Core module Release directory")?;
-        path.push(&self.executable);
-        assert_regular_file(&path, "Core module executable")?;
-        Ok(path)
+    pub fn arguments(&self) -> &[String] {
+        &self.arguments
     }
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct MarkerDocument {
-    schema: String,
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct ModuleId(String);
+
+impl ModuleId {
+    pub fn parse(value: impl Into<String>) -> Result<Self, String> {
+        let value = value.into();
+        let segments: Vec<_> = value.split('/').collect();
+        if segments.len() != 3 {
+            return Err(format!(
+                "module must contain exactly Publisher/Group/Module: {value}"
+            ));
+        }
+        for segment in segments {
+            assert_safe_segment(segment, "module identity segment")?;
+        }
+        Ok(Self(value))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn segments(&self) -> impl Iterator<Item = &str> {
+        self.0.split('/')
+    }
+}
+
+impl fmt::Display for ModuleId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Version {
+    major: u64,
+    minor: u64,
+    patch: u64,
+}
+
+impl Version {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        let components: Vec<_> = value.split('.').collect();
+        let [major, minor, patch] = components.as_slice() else {
+            return Err(format!(
+                "version must contain exact MAJOR.MINOR.PATCH: {value}"
+            ));
+        };
+        Ok(Self {
+            major: parse_version_component(major, value)?,
+            minor: parse_version_component(minor, value)?,
+            patch: parse_version_component(patch, value)?,
+        })
+    }
+
+    pub fn major(self) -> u64 {
+        self.major
+    }
+
+    pub fn minor(self) -> u64 {
+        self.minor
+    }
+
+    pub fn patch(self) -> u64 {
+        self.patch
+    }
+}
+
+impl fmt::Display for Version {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}.{}.{}", self.major, self.minor, self.patch)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum VersionSelector {
+    Exact(Version),
+    Major(u64),
+    Minor { major: u64, minor: u64 },
+}
+
+impl VersionSelector {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        let Some(prefix) = value.strip_suffix(".*") else {
+            return Version::parse(value).map(Self::Exact);
+        };
+        let components: Vec<_> = prefix.split('.').collect();
+        let selector = match components.as_slice() {
+            [major] => Self::Major(parse_version_component(major, value)?),
+            [major, minor] => Self::Minor {
+                major: parse_version_component(major, value)?,
+                minor: parse_version_component(minor, value)?,
+            },
+            _ => {
+                return Err(format!(
+                    "version selector must be exact, MAJOR.*, or MAJOR.MINOR.*: {value}"
+                ));
+            }
+        };
+        if matches!(selector, Self::Major(0) | Self::Minor { major: 0, .. }) {
+            return Err("major 0 requires an exact module version".to_owned());
+        }
+        Ok(selector)
+    }
+
+    pub fn matches(self, version: Version) -> bool {
+        match self {
+            Self::Exact(expected) => expected == version,
+            Self::Major(major) => version.major == major,
+            Self::Minor { major, minor } => version.major == major && version.minor == minor,
+        }
+    }
+
+    pub fn select_highest(self, versions: impl IntoIterator<Item = Version>) -> Option<Version> {
+        versions
+            .into_iter()
+            .filter(|version| self.matches(*version))
+            .max()
+    }
+}
+
+impl fmt::Display for VersionSelector {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Exact(version) => version.fmt(formatter),
+            Self::Major(major) => write!(formatter, "{major}.*"),
+            Self::Minor { major, minor } => write!(formatter, "{major}.{minor}.*"),
+        }
+    }
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ExecutableDocument {
+struct FacetDocument {
     schema: String,
-    release_root: String,
-    release_id: String,
+    module: String,
+    version: String,
     executable: String,
+    arguments: Vec<String>,
 }
 
-pub(super) fn parse_marker(
-    path: &Path,
-    expected_schema: &str,
-    description: &str,
-) -> Result<(), String> {
-    let document: MarkerDocument = parse_document(path, description)?;
-    if document.schema != expected_schema {
+pub(super) fn parse_facet(path: &Path) -> Result<FacetDefinition, String> {
+    let document: FacetDocument = parse_document(path, "Facet declaration")?;
+    if document.schema != FACET_SCHEMA {
         return Err(format!(
-            "unsupported {description} schema '{}' in '{}'",
+            "unsupported Facet schema '{}' in '{}'; expected '{FACET_SCHEMA}'",
             document.schema,
             path.display()
         ));
     }
-    Ok(())
-}
-
-pub(super) fn parse_executable(path: &Path) -> Result<ExecutableBinding, String> {
-    let document: ExecutableDocument = parse_document(path, "executable binding")?;
-    if document.schema != EXECUTABLE_SCHEMA {
-        return Err(format!(
-            "unsupported executable binding schema '{}' in '{}'",
-            document.schema,
-            path.display()
-        ));
-    }
-    let release_segments = parse_relative_path(&document.release_root, "releaseRoot")?;
-    if release_segments.len() < 3
-        || release_segments[0] != "runtime"
-        || release_segments[1] != "core"
-    {
-        return Err(format!(
-            "releaseRoot must identify a product root below 'runtime/core': {}",
-            document.release_root
-        ));
-    }
-    assert_release_id(&document.release_id)?;
+    let module = ModuleId::parse(document.module)?;
+    let version = VersionSelector::parse(&document.version)?;
     assert_safe_segment(&document.executable, "executable name")?;
-    Ok(ExecutableBinding {
-        release_root: join_segments(Path::new(""), &release_segments),
-        release_id: document.release_id,
+    if document.arguments.len() > MAXIMUM_ARGUMENTS {
+        return Err(format!(
+            "Facet arguments exceed {MAXIMUM_ARGUMENTS} items: {}",
+            path.display()
+        ));
+    }
+    for argument in &document.arguments {
+        if argument.as_bytes().len() > MAXIMUM_ARGUMENT_BYTES || argument.contains('\0') {
+            return Err(format!(
+                "Facet argument is too large or contains NUL: {}",
+                path.display()
+            ));
+        }
+    }
+    Ok(FacetDefinition {
+        module,
+        version,
         executable: document.executable,
+        arguments: document.arguments,
     })
+}
+
+fn parse_version_component(component: &str, source: &str) -> Result<u64, String> {
+    if component.is_empty()
+        || !component.bytes().all(|byte| byte.is_ascii_digit())
+        || (component.len() > 1 && component.starts_with('0'))
+    {
+        return Err(format!("invalid numeric version component in '{source}'"));
+    }
+    component
+        .parse()
+        .map_err(|_| format!("numeric version component is too large in '{source}'"))
 }
 
 fn parse_document<T: for<'de> Deserialize<'de>>(

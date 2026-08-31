@@ -4,18 +4,17 @@ use std::path::{Path, PathBuf};
 
 mod document;
 
-pub use document::{
-    EXECUTABLE_DOCUMENT_NAME, ExecutableBinding, FACET_DOCUMENT_NAME, RESOURCE_DOCUMENT_NAME,
-};
-use document::{FACET_SCHEMA, RESOURCE_SCHEMA, parse_executable, parse_marker};
+use document::parse_facet;
+pub use document::{FACET_DOCUMENT_NAME, FacetDefinition, ModuleId, Version, VersionSelector};
 
+const AGENT_DOCUMENT_NAME: &str = "AGENTS.md";
 const MAXIMUM_TREE_DEPTH: usize = 64;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedFacet {
     resource: String,
     facet: String,
-    binding: ExecutableBinding,
+    definition: FacetDefinition,
 }
 
 impl ResolvedFacet {
@@ -27,8 +26,8 @@ impl ResolvedFacet {
         &self.facet
     }
 
-    pub fn binding(&self) -> &ExecutableBinding {
-        &self.binding
+    pub fn definition(&self) -> &FacetDefinition {
+        &self.definition
     }
 }
 
@@ -55,12 +54,7 @@ impl RuntimeCoreTree {
     }
 
     pub fn validate(&self) -> Result<(), String> {
-        let mut facets = Vec::new();
-        validate_directory(&self.root, &self.root, 0, &mut facets)?;
-        for (resource, facet) in facets {
-            self.resolve(&resource, &facet)?;
-        }
-        Ok(())
+        validate_directory(&self.root, &self.root, 0)
     }
 
     pub fn resolve(&self, resource: &str, facet: &str) -> Result<ResolvedFacet, String> {
@@ -69,63 +63,19 @@ impl RuntimeCoreTree {
 
         let resource_directory =
             join_regular_directories(&self.root, &resource_segments, "Resource directory")?;
-        parse_marker(
-            &resource_directory.join(RESOURCE_DOCUMENT_NAME),
-            RESOURCE_SCHEMA,
-            "Resource declaration",
-        )?;
         let facet_directory = resource_directory.join(facet);
         assert_regular_directory(&facet_directory, "Facet directory")?;
-        parse_marker(
-            &facet_directory.join(FACET_DOCUMENT_NAME),
-            FACET_SCHEMA,
-            "Facet declaration",
-        )?;
-
-        let mut owner = resource_directory.as_path();
-        let binding = loop {
-            let candidate = owner.join(EXECUTABLE_DOCUMENT_NAME);
-            if regular_file_exists(&candidate)? {
-                parse_marker(
-                    &owner.join(RESOURCE_DOCUMENT_NAME),
-                    RESOURCE_SCHEMA,
-                    "executable binding owner Resource declaration",
-                )?;
-                break parse_executable(&candidate)?;
-            }
-            if owner == self.root {
-                return Err(format!(
-                    "Resource '{resource}' Facet '{facet}' has no executable binding"
-                ));
-            }
-            owner = owner.parent().ok_or_else(|| {
-                format!(
-                    "executable binding search escaped Runtime Core Tree '{}'",
-                    self.root.display()
-                )
-            })?;
-            if !owner.starts_with(&self.root) {
-                return Err(format!(
-                    "executable binding search escaped Runtime Core Tree '{}'",
-                    self.root.display()
-                ));
-            }
-        };
+        let definition = parse_facet(&facet_directory.join(FACET_DOCUMENT_NAME))?;
 
         Ok(ResolvedFacet {
             resource: resource.to_owned(),
             facet: facet.to_owned(),
-            binding,
+            definition,
         })
     }
 }
 
-fn validate_directory(
-    root: &Path,
-    directory: &Path,
-    depth: usize,
-    facets: &mut Vec<(String, String)>,
-) -> Result<(), String> {
+fn validate_directory(root: &Path, directory: &Path, depth: usize) -> Result<(), String> {
     if depth > MAXIMUM_TREE_DEPTH {
         return Err(format!(
             "Runtime Core Tree exceeds {MAXIMUM_TREE_DEPTH} directory levels: {}",
@@ -134,51 +84,22 @@ fn validate_directory(
     }
     assert_regular_directory(directory, "Runtime Core Tree directory")?;
 
-    let resource = directory.join(RESOURCE_DOCUMENT_NAME);
-    let facet = directory.join(FACET_DOCUMENT_NAME);
-    let executable = directory.join(EXECUTABLE_DOCUMENT_NAME);
-    let has_resource = regular_file_exists(&resource)?;
-    let has_facet = regular_file_exists(&facet)?;
-    let has_executable = regular_file_exists(&executable)?;
-    if has_resource && has_facet {
-        return Err(format!(
-            "a Runtime Core Tree directory cannot declare both Resource and Facet: {}",
-            directory.display()
-        ));
-    }
-    if has_resource {
-        parse_marker(&resource, RESOURCE_SCHEMA, "Resource declaration")?;
-    }
-    if has_executable {
-        if !has_resource {
-            return Err(format!(
-                "executable binding must be beside a Resource declaration: {}",
-                executable.display()
-            ));
-        }
-        parse_executable(&executable)?;
-    }
+    let facet_document = directory.join(FACET_DOCUMENT_NAME);
+    let has_facet = regular_file_exists(&facet_document)?;
     if has_facet {
-        parse_marker(&facet, FACET_SCHEMA, "Facet declaration")?;
-        let resource_directory = directory.parent().ok_or_else(|| {
-            format!(
-                "Facet directory has no containing Resource: {}",
-                directory.display()
-            )
-        })?;
-        if !regular_file_exists(&resource_directory.join(RESOURCE_DOCUMENT_NAME))? {
+        if directory == root {
+            return Err("Runtime Core Tree root cannot be a Facet".to_owned());
+        }
+        let resource_directory = directory
+            .parent()
+            .ok_or_else(|| format!("Facet has no Resource parent: {}", directory.display()))?;
+        if resource_directory == root {
             return Err(format!(
-                "Facet must be an immediate child of a Resource: {}",
+                "Facet must have a non-empty Resource path: {}",
                 directory.display()
             ));
         }
-        let relative = resource_directory
-            .strip_prefix(root)
-            .map_err(|_| format!("Facet escaped Runtime Core Tree: {}", directory.display()))?;
-        facets.push((
-            path_to_route(relative)?,
-            directory_name(directory, "Facet")?,
-        ));
+        parse_facet(&facet_document)?;
     }
 
     for entry in fs::read_dir(directory).map_err(|error| {
@@ -199,6 +120,12 @@ fn validate_directory(
             ));
         }
         if metadata.is_dir() {
+            if has_facet {
+                return Err(format!(
+                    "Facet directory must be a leaf: {}",
+                    directory.display()
+                ));
+            }
             assert_safe_segment(
                 entry
                     .file_name()
@@ -206,7 +133,25 @@ fn validate_directory(
                     .ok_or_else(|| "Runtime Core Tree directory name is not Unicode".to_owned())?,
                 "Runtime Core Tree directory name",
             )?;
-            validate_directory(root, &entry_path, depth + 1, facets)?;
+            validate_directory(root, &entry_path, depth + 1)?;
+        } else if metadata.is_file() {
+            let name = entry.file_name();
+            let name = name
+                .to_str()
+                .ok_or_else(|| "Runtime Core Tree file name is not Unicode".to_owned())?;
+            let allowed =
+                name == FACET_DOCUMENT_NAME || (directory == root && name == AGENT_DOCUMENT_NAME);
+            if !allowed {
+                return Err(format!(
+                    "unexpected Runtime Core Tree file: {}",
+                    entry_path.display()
+                ));
+            }
+        } else {
+            return Err(format!(
+                "Runtime Core Tree entry is not a regular file or directory: {}",
+                entry_path.display()
+            ));
         }
     }
     Ok(())
@@ -215,7 +160,7 @@ fn validate_directory(
 fn regular_file_exists(path: &Path) -> Result<bool, String> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata_is_reparse(&metadata) || !metadata.is_file() => Err(format!(
-            "expected a regular non-reparse file when declaration exists: {}",
+            "expected a regular non-reparse file when Facet declaration exists: {}",
             path.display()
         )),
         Ok(_) => Ok(true),
@@ -230,19 +175,6 @@ fn assert_regular_directory(path: &Path, description: &str) -> Result<(), String
     if metadata_is_reparse(&metadata) || !metadata.is_dir() {
         Err(format!(
             "{description} is not a regular non-reparse directory: {}",
-            path.display()
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn assert_regular_file(path: &Path, description: &str) -> Result<(), String> {
-    let metadata = fs::symlink_metadata(path)
-        .map_err(|error| format!("cannot inspect {description} '{}': {error}", path.display()))?;
-    if metadata_is_reparse(&metadata) || !metadata.is_file() {
-        Err(format!(
-            "{description} is not a regular non-reparse file: {}",
             path.display()
         ))
     } else {
@@ -304,24 +236,6 @@ fn assert_safe_segment(value: &str, description: &str) -> Result<(), String> {
     }
 }
 
-fn assert_release_id(value: &str) -> Result<(), String> {
-    if value.len() == 64
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
-        Ok(())
-    } else {
-        Err(format!("invalid ReleaseId '{value}'"))
-    }
-}
-
-fn join_segments(root: &Path, segments: &[&str]) -> PathBuf {
-    segments
-        .iter()
-        .fold(root.to_path_buf(), |path, segment| path.join(segment))
-}
-
 fn join_regular_directories(
     root: &Path,
     segments: &[&str],
@@ -333,30 +247,6 @@ fn join_regular_directories(
         assert_regular_directory(&path, description)?;
     }
     Ok(path)
-}
-
-fn path_to_route(path: &Path) -> Result<String, String> {
-    path.iter()
-        .map(|segment| {
-            segment
-                .to_str()
-                .map(str::to_owned)
-                .ok_or_else(|| "Runtime Core Tree path is not Unicode".to_owned())
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map(|segments| segments.join("/"))
-}
-
-fn directory_name(path: &Path, description: &str) -> Result<String, String> {
-    path.file_name()
-        .and_then(|value| value.to_str())
-        .map(str::to_owned)
-        .ok_or_else(|| {
-            format!(
-                "{description} directory name is not Unicode: {}",
-                path.display()
-            )
-        })
 }
 
 #[cfg(test)]
