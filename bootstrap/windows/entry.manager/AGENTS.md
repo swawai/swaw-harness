@@ -2,7 +2,7 @@
 
 ## Scope
 
-本目录拥有 Entry Manager executable、Harness GUI executable 及其共享 Rust frontend library；两个 frontend 都不拥有 Entry 布局或生命周期实现，Entry Manager executable 必须把 Entry 操作委托给 canonical Admin Entry，Harness GUI executable 必须委托同级 Entry Manager executable。Rule ID 前缀为 `ENTRY-MANAGEMENT`。
+本目录拥有 Entry Manager executable、Harness GUI executable 及其共享 Rust frontend library；两个 frontend 都不拥有 Entry 布局或生命周期实现，Entry Manager executable 必须把 Entry 操作委托给固定 Admin Entry，Harness GUI executable 必须委托同级 Entry Manager executable。Rule ID 前缀为 `ENTRY-MANAGEMENT`。
 
 ## Accepted
 
@@ -15,4 +15,4 @@
 
 ## Maintainer Notes
 
-- 待办：当前 Entry Manager executable 与 Harness GUI executable 只实现独立界面占位、共享 library 构建并参与统一 Bootstrap Release；在 canonical Admin Entry 运行链路完成前，不得表述为已经能够委托 Entry 操作。
+- 待办：当前 Entry Manager executable 与 Harness GUI executable 只实现独立界面占位、共享 library 构建并参与统一 Bootstrap Release；在固定 Admin Entry 运行链路完成前，不得表述为已经能够委托 Entry 操作。

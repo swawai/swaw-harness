@@ -117,6 +117,11 @@ fn validate(value: &str) -> Result<(), EntryIdError> {
             "EntryId cannot be a Windows reserved device name",
         ));
     }
+    if value == "admin" {
+        return Err(EntryIdError::new(
+            "EntryId cannot use the fixed Admin Entry name",
+        ));
+    }
     Ok(())
 }
 
@@ -151,6 +156,7 @@ mod tests {
             "entry--one",
             "entry one",
             "entrée",
+            "admin",
         ] {
             assert!(EntryId::parse(value).is_err(), "{value}");
         }

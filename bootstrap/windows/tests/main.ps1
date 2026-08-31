@@ -13,6 +13,8 @@ function Assert-MainTest {
 }
 
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
+. (Join-Path $WindowsRoot 'builder\contract.ps1')
+. (Join-Path $WindowsRoot 'core\contract.ps1')
 if ([string]::IsNullOrWhiteSpace($DataRepo)) {
     $DataRepo = [IO.Path]::GetFullPath((
         Join-Path $WindowsRoot '..\..\data.repo'
@@ -23,6 +25,18 @@ Assert-MainTest `
     -Condition ($FirstResults.Count -eq 1) `
     -Message 'first invocation did not return exactly one Bootstrap Release'
 $First = $FirstResults[0]
+$PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
+    -Path (Join-Path $WindowsRoot 'contract.json')
+$CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
+    -Path (Join-Path $WindowsRoot 'core\contract.json') `
+    -PlatformTargetId $PlatformContract.PlatformTargetId)
+$HarnessRoot = Split-Path -Path $DataRepo -Parent
+$ModuleManifestPaths = @($CoreContracts | ForEach-Object {
+    Join-Path `
+        (Join-Path $HarnessRoot 'data\admin\modules') `
+        ($_.ModuleId.Replace('/', '\') + "\" + $_.PlatformTargetId +
+            "\" + $_.ModuleVersion + '\swaw-harness.module.json')
+})
 $FirstCandidateMembers = @(
     foreach ($Product in @('core', 'entry', 'manager')) {
         $CandidatesRoot = Join-Path `
@@ -43,9 +57,18 @@ Assert-MainTest `
             [StringComparison]::OrdinalIgnoreCase
         ) -and
         $First.Artifacts.Count -eq 6 -and
-        [IO.File]::Exists((Join-Path `
-            (Split-Path -Path $DataRepo -Parent) `
-            'data\swaw-harness\entry.json')) -and
+        [IO.Directory]::Exists((Join-Path `
+            $HarnessRoot `
+            'data\admin\core')) -and
+        @($ModuleManifestPaths | Where-Object {
+            [IO.File]::Exists($_)
+        }).Count -eq $CoreContracts.Count -and
+        -not [IO.File]::Exists((Join-Path `
+            $HarnessRoot `
+            'data\admin\entry.json')) -and
+        -not [IO.Directory]::Exists((Join-Path `
+            $HarnessRoot `
+            'data\admin\runtime')) -and
         $FirstCandidateMembers.Count -eq 0
     ) `
     -Message 'main did not publish one complete Bootstrap Release'

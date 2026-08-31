@@ -11,6 +11,7 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'publication.ps1')
+. (Join-Path $PSScriptRoot 'core\module-publication.ps1')
 
 $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot 'contract.json')
@@ -81,29 +82,12 @@ try {
         throw 'Bootstrap publication must return exactly one Release.'
     }
     $Release = $PublicationResults[0]
-    $AdminArtifacts = @($Release.Artifacts | Where-Object {
-        [string]$_.Name -ceq 'swaw-harness-admin.exe'
-    })
-    if ($AdminArtifacts.Count -ne 1) {
-        throw 'Bootstrap Release must contain exactly one Admin executable.'
+    $ModuleReleases = @(Publish-SwawHarnessWindowsCoreModules `
+        -Context $Context `
+        -BootstrapRelease $Release)
+    if ($ModuleReleases.Count -ne $CoreContracts.Count) {
+        throw 'Bootstrap must publish every Core Module Release.'
     }
-    $SeedResult = Invoke-SwawHarnessCapturedProcess `
-        -Executable ([string]$AdminArtifacts[0].Path) `
-        -Arguments @(
-            'admin/entry/swaw-harness',
-            'seed',
-            [string]$Context.HarnessRoot
-        ) `
-        -WorkingDirectory ([string]$Release.Root) `
-        -TimeoutSeconds 1800
-    if ($SeedResult.ExitCode -ne 0) {
-        throw (
-            'Admin Entry seed failed with exit code ' +
-            "$($SeedResult.ExitCode). $($SeedResult.Error) " +
-            $SeedResult.Output
-        ).Trim()
-    }
-    Write-Host "[ADMIN] $($SeedResult.Output)" -ForegroundColor Green
     Clear-SwawHarnessWindowsProductCandidates `
         -Context $Context `
         -CandidateLifecycleLock $LifecycleLock.Stream

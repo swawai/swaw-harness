@@ -176,7 +176,9 @@ try {
             $Release.Artifacts.Count -eq 6 -and
             [IO.File]::Exists((Join-Path `
                 $DeepRoot `
-                'data\swaw-harness\entry.json'))
+                ('data\admin\modules\swaw\core\dev\' +
+                    'x86_64-pc-windows-msvc\1.0.0\' +
+                    'swaw-harness.module.json')))
         ) `
         -Message 'deep build exceeded its declared repository or native budget'
 
@@ -204,8 +206,12 @@ try {
         -WorkingDirectory $Release.Root
     $DevEntryRoot = Join-Path $DeepRoot 'data\deep'
     [void][IO.Directory]::CreateDirectory($DevEntryRoot)
+    $InstalledDev = Join-Path `
+        $DeepRoot `
+        ('data\admin\modules\swaw\core\dev\' +
+            'x86_64-pc-windows-msvc\1.0.0\swaw-harness-dev.exe')
     $Dev = Invoke-SwawHarnessCapturedProcess `
-        -Executable $Artifacts['swaw-harness-dev.exe'] `
+        -Executable $InstalledDev `
         -Arguments @('dev/bun/mode', 'managed') `
         -WorkingDirectory $Release.Root `
         -EnvironmentVariables @{
@@ -219,11 +225,6 @@ try {
         -Executable $Artifacts['swaw-harness-cli.exe'] `
         -Arguments @() `
         -WorkingDirectory $Release.Root
-    $AdminRuntimeRoot = Join-Path $DeepRoot 'data\swaw-harness\runtime'
-    $AdminSelector = @(Get-ChildItem `
-        -LiteralPath $AdminRuntimeRoot `
-        -File `
-        -Filter 'current.*')
     Assert-DeepPathTest `
         -Condition (
             $Core.ExitCode -eq 0 -and
@@ -237,7 +238,12 @@ try {
             $Entry.Error -cmatch '^\[ERROR\] ' -and
             $EntryManager.ExitCode -eq 1 -and
             $EntryManager.Error -cmatch '^\[ERROR\] ' -and
-            $AdminSelector.Count -eq 1
+            -not [IO.Directory]::Exists((Join-Path `
+                $DeepRoot `
+                'data\admin\runtime')) -and
+            -not [IO.File]::Exists((Join-Path `
+                $DeepRoot `
+                'data\admin\entry.json'))
         ) `
         -Message 'published executables depended on unavailable native data'
 

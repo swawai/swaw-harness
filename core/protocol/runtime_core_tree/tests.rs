@@ -3,18 +3,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
 fn repository_tree_is_valid_and_facets_select_modules_directly() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/swaw-harness/core");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/admin/core");
     let tree = RuntimeCoreTree::open(root).unwrap();
     tree.validate().unwrap();
 
     for (resource, facet, module, executable, arguments) in [
-        (
-            "admin/entry/swaw-harness",
-            "seed",
-            "swaw/core/admin",
-            "swaw-harness-admin.exe",
-            &["admin/entry/swaw-harness", "seed"][..],
-        ),
         (
             "dev/setup",
             "execute",

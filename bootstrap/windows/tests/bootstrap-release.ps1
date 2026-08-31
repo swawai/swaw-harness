@@ -19,6 +19,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\release\selector.ps1')
 . (Join-Path $WindowsRoot 'publication.ps1')
 . (Join-Path $WindowsRoot 'core\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'core\module-publication.ps1')
 . (Join-Path $WindowsRoot 'entry\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'entry.manager\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
@@ -30,9 +31,9 @@ $DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
     -DataRepo $DataRepo `
     -RepositoryRoot $RepositoryRoot
 $TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
-$SeedFixtureRoot = Join-Path `
+$ModuleFixtureRoot = Join-Path `
     (Join-Path $DataRepo 'windows.test') `
-    ("sh" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+    ("mh" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 try {
     $SharedContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
@@ -195,83 +196,89 @@ try {
         ) `
         -Message 'the bundled Dev executable did not persist Bun mode'
 
-    if ($SeedFixtureRoot.Length -gt 58) {
-        throw "Admin seed fixture exceeds the HarnessRoot path budget: $SeedFixtureRoot"
-    }
-    [void][IO.Directory]::CreateDirectory($SeedFixtureRoot)
-    $CopiedReleasesRoot = Join-Path $SeedFixtureRoot 'source'
-    [void][IO.Directory]::CreateDirectory($CopiedReleasesRoot)
-    $CopiedReleaseRoot = Join-Path $CopiedReleasesRoot $First.ReleaseId
+    $ModuleAdminRoot = Join-Path $ModuleFixtureRoot 'data\admin'
+    [void][IO.Directory]::CreateDirectory($ModuleAdminRoot)
     Copy-Item `
-        -LiteralPath $First.Root `
-        -Destination $CopiedReleaseRoot `
-        -Recurse `
-        -Force
-    $SeedHarnessRoot = Join-Path $SeedFixtureRoot 'h'
-    $CopiedAdmin = Join-Path $CopiedReleaseRoot 'swaw-harness-admin.exe'
-    $SeedResult = Invoke-SwawHarnessCapturedProcess `
-        -Executable $CopiedAdmin `
-        -Arguments @(
-            'admin/entry/swaw-harness',
-            'seed',
-            $SeedHarnessRoot
-        ) `
-        -WorkingDirectory $CopiedReleaseRoot
-    $EntryRecordPath = Join-Path `
-        $SeedHarnessRoot `
-        'data\swaw-harness\entry.json'
-    $EntryRecord = Read-SwawHarnessJsonFile `
-        -Path $EntryRecordPath `
-        -Description 'seeded Admin Entry record'
-    Assert-SwawHarnessObjectFields `
-        -Value $EntryRecord `
-        -Expected @('schema', 'entryId', 'lifecycle') `
-        -Description 'seeded Admin Entry record'
-    $RuntimeRoot = Join-Path $SeedHarnessRoot 'data\swaw-harness\runtime'
-    $RuntimeRelease = Read-SwawHarnessSelectedRelease `
-        -ReleasesRoot $RuntimeRoot `
-        -Contracts $Contracts
+        -LiteralPath (Join-Path $RepositoryRoot 'data\admin\core') `
+        -Destination (Join-Path $ModuleAdminRoot 'core') `
+        -Recurse
+    $ModuleContext = New-SwawHarnessWindowsBootstrapContext `
+        -DataRepo (Join-Path $ModuleFixtureRoot 'data.repo')
+    $FirstModules = @(Publish-SwawHarnessWindowsCoreModules `
+        -Context $ModuleContext `
+        -BootstrapRelease $First)
+    $FirstModuleCreated = @($FirstModules | ForEach-Object {
+        (Get-Item -LiteralPath $_.Root).CreationTimeUtc
+    })
+    $SecondModules = @(Publish-SwawHarnessWindowsCoreModules `
+        -Context $ModuleContext `
+        -BootstrapRelease $First)
+    $CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
+        -Path (Join-Path $WindowsRoot 'core\contract.json') `
+        -PlatformTargetId $PlatformContract.PlatformTargetId)
+    $ExpectedModuleRoots = @($CoreContracts | ForEach-Object {
+        Join-Path `
+            $ModuleAdminRoot `
+            ("modules\" + $_.ModuleId.Replace('/', '\') + "\" +
+                $_.PlatformTargetId + "\" + $_.ModuleVersion)
+    })
     Assert-BootstrapReleaseTest `
         -Condition (
-            $SeedResult.ExitCode -eq 0 -and
-            [string]$EntryRecord.schema -ceq 'swaw.harness.entry/v1' -and
-            [string]$EntryRecord.entryId -ceq 'swaw-harness' -and
-            [string]$EntryRecord.lifecycle -ceq 'active' -and
-            [string]$RuntimeRelease.ReleaseId -ceq [string]$First.ReleaseId
+            $FirstModules.Count -eq $CoreContracts.Count -and
+            $SecondModules.Count -eq $CoreContracts.Count -and
+            @($ExpectedModuleRoots | Where-Object {
+                [IO.File]::Exists((Join-Path `
+                    $_ `
+                    'swaw-harness.module.json'))
+            }).Count -eq $CoreContracts.Count -and
+            @($SecondModules | ForEach-Object {
+                (Get-Item -LiteralPath $_.Root).CreationTimeUtc
+            } | Where-Object {
+                $FirstModuleCreated -cnotcontains $_
+            }).Count -eq 0 -and
+            -not [IO.File]::Exists((Join-Path `
+                $ModuleAdminRoot `
+                'entry.json')) -and
+            -not [IO.Directory]::Exists((Join-Path `
+                $ModuleAdminRoot `
+                'runtime'))
         ) `
-        -Message 'Admin executable did not seed one exact active Runtime Release'
+        -Message 'Core modules were not published directly and idempotently'
 
-    $CopiedEntry = Join-Path $CopiedReleaseRoot 'entry.exe'
-    $InstalledEntry = Join-Path $RuntimeRelease.Root 'entry.exe'
-    $InstalledEntryHash = Get-SwawHarnessFileSha256 -Path $InstalledEntry
-    $CopiedEntryBytes = [IO.File]::ReadAllBytes($CopiedEntry)
-    $CopiedEntryBytes[0] = $CopiedEntryBytes[0] -bxor 0xff
-    [IO.File]::WriteAllBytes($CopiedEntry, $CopiedEntryBytes)
+    $InstalledDev = @($SecondModules | Where-Object {
+        $_.ModuleId -ceq 'swaw/core/dev'
+    })[0]
+    $InstalledDevEntryRoot = Join-Path $ModuleFixtureRoot 'data\dev'
+    [void][IO.Directory]::CreateDirectory($InstalledDevEntryRoot)
+    $InstalledDevResult = Invoke-SwawHarnessCapturedProcess `
+        -Executable $InstalledDev.ExecutablePath `
+        -Arguments @('dev/bun/mode', 'disabled') `
+        -WorkingDirectory $InstalledDev.Root `
+        -EnvironmentVariables @{
+            SWAW_HARNESS_ENTRY_ROOT = $InstalledDevEntryRoot
+        }
     Assert-BootstrapReleaseTest `
         -Condition (
-            (Get-SwawHarnessFileSha256 -Path $InstalledEntry) -ceq
-                $InstalledEntryHash
+            $InstalledDevResult.ExitCode -eq 0 -and
+            $InstalledDevResult.Output -ceq 'disabled'
         ) `
-        -Message 'seeded Runtime Release was hard-linked to its source Release'
-    [IO.Directory]::Delete($CopiedReleasesRoot, $true)
+        -Message 'installed Module Release did not run independently'
 
-    $InstalledAdmin = Join-Path `
-        $RuntimeRelease.Root `
-        'swaw-harness-admin.exe'
-    $IdempotentResult = Invoke-SwawHarnessCapturedProcess `
-        -Executable $InstalledAdmin `
-        -Arguments @(
-            'admin/entry/swaw-harness',
-            'seed',
-            $SeedHarnessRoot
-        ) `
-        -WorkingDirectory $RuntimeRelease.Root
+    $TamperedModule = $SecondModules[0]
+    $TamperedBytes = [IO.File]::ReadAllBytes($TamperedModule.ExecutablePath)
+    $TamperedBytes[0] = $TamperedBytes[0] -bxor 0xff
+    [IO.File]::WriteAllBytes($TamperedModule.ExecutablePath, $TamperedBytes)
+    $TamperedModuleRejected = $false
+    try {
+        [void](Publish-SwawHarnessWindowsCoreModules `
+            -Context $ModuleContext `
+            -BootstrapRelease $First)
+    } catch {
+        $TamperedModuleRejected = $true
+    }
     Assert-BootstrapReleaseTest `
-        -Condition (
-            $IdempotentResult.ExitCode -eq 0 -and
-            $IdempotentResult.Output -match 'already active'
-        ) `
-        -Message 'installed Admin module depended on its hidden source Release'
+        -Condition $TamperedModuleRejected `
+        -Message 'Module publication overwrote or accepted a changed exact version'
 
     $CoreCandidateArtifact = Join-Path `
         $CoreCandidateRoots[0] `
@@ -331,8 +338,8 @@ try {
         -Condition ($RemainingCandidateRoots.Count -eq 0) `
         -Message 'a later Candidate cleanup did not remove stale members'
 } finally {
-    if ([IO.Directory]::Exists($SeedFixtureRoot)) {
-        [IO.Directory]::Delete($SeedFixtureRoot, $true)
+    if ([IO.Directory]::Exists($ModuleFixtureRoot)) {
+        [IO.Directory]::Delete($ModuleFixtureRoot, $true)
     }
     if ([IO.Directory]::Exists($TestRoot)) {
         [IO.Directory]::Delete($TestRoot, $true)

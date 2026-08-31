@@ -6,12 +6,11 @@
 
 ## Accepted
 
-- **ADMIN-001 — Entry 生命周期单点所有。** Admin Core module executable 是 EntryId 验证、Entry 布局、受管记录、生命周期转换、staging、互斥锁、恢复与激活的唯一实现所有者；Bootstrap、Entry Manager executable、Harness GUI executable、Entry launcher 与测试不得维护替代实现。
-- **ADMIN-002 — Entry 与 Runtime Release 布局。** 每个 Entry 由同级 `data/<EntryId>.exe` 与 `data/<EntryId>/` EntryRoot 组成；`<EntryRoot>/entry.json` 保存受管身份与生命周期，`<EntryRoot>/runtime/<ReleaseId>/` 保存完整不可变 Runtime Release，`<EntryRoot>/runtime/current.<PlatformTargetId>` selector 选择当前 Release；DataHome 的 Entry 生命周期锁固定为 `data/.harness/entry.lock`，Admin 必须安全建立并验证 `data/.harness/` 后再获取该锁。新 Entry 的 staging 只可临时使用 `data/.<EntryId>.<Facet>-<process-unique>.tmp/`，已有 Entry 的 Runtime Release staging 只可临时使用 `<EntryRoot>/runtime/.release-<process-unique>.tmp/`，完成或失败后必须清理且不得建立持久 staging 目录。
-- **ADMIN-003 — EntryId 语法。** EntryId 必须是 1 至 16 字节的规范小写 ASCII 标识：首字符为 `a-z`，其余字符仅可为 `a-z`、`0-9` 或单个 `-`，末字符必须为字母或数字；不得静默转换大小写，不得包含连续 `--`，不得使用 Windows 保留设备名 `con`、`prn`、`aux`、`nul`、`com1` 至 `com9`、`lpt1` 至 `lpt9`。
-- **ADMIN-004 — Entry 受管记录。** `<EntryRoot>/entry.json` 必须使用 `swaw.harness.entry/v1` schema，只保存与路径一致的 `entryId` 以及 `provisioning`、`active`、`deleting` 之一的 `lifecycle`；未知 schema、字段、生命周期或不一致身份必须拒绝，不得从无效记录推断受管状态。
-- **ADMIN-005 — seed 固定来源与目标。** `admin/entry/swaw-harness seed` 只可把包含当前 Admin Core module executable 的一个完整已验证 Release 播种为 canonical `swaw-harness` Entry；它必须接受显式绝对 HarnessRoot、固定 EntryId、复制而非 hard-link 全部 Runtime Release 文件，并在同一生命周期锁内恢复未完成 provisioning，且不得覆盖或升级已 active 的另一 Release。
+- **ADMIN-001 — 管理写入单点所有。** 目标中 Admin Core module executable 是运行时 Module Release 安装、EntryId 验证、Entry 创建与生命周期写入的唯一实现所有者；Windows Bootstrap 只可从已验证 Bootstrap Release 初始物化本次构建的 Module Release，Entry Manager executable、Harness GUI executable、Entry launcher 与其他模块不得维护替代实现。
+- **ADMIN-002 — 固定 Admin Entry。** Admin EntryRoot 固定为 `data/admin/`，当前配置树固定为 `data/admin/core/`，共享模块发布根固定为 `data/admin/modules/`，Entry 生命周期锁固定为 `data/admin/entry.lock`；Admin Entry 不使用旧 seed Runtime Release，不得整体替换或删除。
+- **ADMIN-003 — 普通 EntryId 语法。** 普通 EntryId 必须是 1 至 16 字节的规范小写 ASCII 标识：首字符为 `a-z`，其余字符仅可为 `a-z`、`0-9` 或单个 `-`，末字符必须为字母或数字；不得静默转换大小写，不得包含连续 `--`，不得使用 Windows 保留设备名 `con`、`prn`、`aux`、`nul`、`com1` 至 `com9`、`lpt1` 至 `lpt9`，也不得使用固定 Admin Entry 保留的 `admin`。
 
 ## Open
 
-无。
+- **ADMIN-004 — 普通 Entry 创建。** 普通 Entry 的最小目录、受管记录、配置树来源、launcher 安装与恢复流程，留待首个 `admin/entry create` Facet 实现确定；旧 seed 专用实现不得作为当前能力保留。
+- **ADMIN-005 — Admin 调用授权。** Core dispatcher 如何证明调用来自 Admin Entry，以及普通 Entry 如何被禁止调用 Admin 专用操作，留待 dispatcher 首次实现确定；EntryId、环境变量和 `admin/` 文件系统路径均不得单独作为授权凭据。

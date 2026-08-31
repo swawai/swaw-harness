@@ -7,13 +7,6 @@ publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = "0.10"
-
-[target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61.2", features = [
-    "Win32_Storage_FileSystem",
-] }
 
 [lib]
 name = "swaw_harness_admin"
