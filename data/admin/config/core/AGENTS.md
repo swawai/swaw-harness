@@ -1,12 +1,12 @@
-# Admin Runtime Core Tree 规则
+# Admin Core 配置树规则
 
 ## Scope
 
-本文件适用于 `data/admin/core/` 目录，Rule ID 前缀为 `ADMIN-CORE-TREE`。
+本文件适用于 `data/admin/config/core/` 目录，Rule ID 前缀为 `ADMIN-CORE-TREE`。
 
 ## Accepted
 
-- **ADMIN-CORE-TREE-001 — Admin 当前配置树。** `data/admin/core/` 是仓库纳入 Git 的唯一默认 Runtime Core Tree，也是 Admin Entry 当前持有的实例；不得在源码空间另建第二棵默认模板。
+- **ADMIN-CORE-TREE-001 — Admin 当前 Core 配置树。** `data/admin/config/core/` 是仓库纳入 Git 的唯一默认 Core 配置树，也是 Admin Entry 当前持有的实例；它不是资源空间，只按 Resource 路径和 Facet 名称提供可执行绑定，不保存 Resource 的事实数据，不得在源码空间另建第二棵默认模板。
 - **ADMIN-CORE-TREE-002 — 目录直接声明地址。** 一个包含 `swaw-harness.facet.json` 的叶目录声明一个 Facet，该目录名是 Facet 名称，其父目录相对本树根的路径是 Resource 路径；本树不得使用 `swaw-harness.resource.json`、`swaw-harness.executable.json` 或另一套逻辑地址声明。
 - **ADMIN-CORE-TREE-003 — Facet 文件直接选择模块。** 每个 `swaw-harness.facet.json` 只包含精确字段 `schema`、`module`、`version`、`executable` 和 `arguments`；`module` 使用 `<Publisher>/<Group>/<Module>`，`version` 使用精确版本、`MAJOR.*` 或 `MAJOR.MINOR.*`，`executable` 是所选 Module Release 根下由模块清单验证的安全文件名，`arguments` 是调用方动态参数之前传给 executable 的固定参数数组。
 - **ADMIN-CORE-TREE-004 — 模糊版本显式选择。** `MAJOR.*` 选择本机已验证的最高同 major 稳定版本，`MAJOR.MINOR.*` 选择最高同 major/minor 稳定版本；配置相同但本机已安装版本不同，解析结果可以不同。要求完全复现的 Facet 必须写精确版本。
@@ -14,7 +14,7 @@
 
 ## Open
 
-- **ADMIN-CORE-TREE-006 — 动态参数与授权。** 调用方动态参数如何传递，以及普通 Entry 选择 Admin 安装模块时如何拒绝 Admin 专用操作，留待 Core dispatcher 首次实现时确定；目录位置不得被当作授权凭据。
+- **ADMIN-CORE-TREE-006 — 动态参数与授权。** 调用方动态参数如何传递，以及普通 Entry 选择 Admin 安装模块时如何拒绝 Admin 专用操作，留待 Core dispatcher 首次实现时确定；dispatcher 必须先在调用方选择的资源空间解析 Resource，再以相同 Resource 路径在本树解析 Facet；目录位置不得被当作授权凭据。
 
 ## Maintainer Notes
 

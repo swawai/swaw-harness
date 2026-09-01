@@ -3,8 +3,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
 fn repository_tree_is_valid_and_facets_select_modules_directly() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/admin/core");
-    let tree = RuntimeCoreTree::open(root).unwrap();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/admin/config/core");
+    let tree = CoreConfigurationTree::open(root).unwrap();
     tree.validate().unwrap();
 
     for (resource, facet, module, executable, arguments) in [
@@ -68,7 +68,7 @@ fn unsafe_routes_and_facet_documents_are_rejected() {
         "swaw-harness-dev.exe",
         &["dev/setup"],
     );
-    let tree = RuntimeCoreTree::open(&root).unwrap();
+    let tree = CoreConfigurationTree::open(&root).unwrap();
     for resource in [
         "",
         "../dev",
@@ -97,7 +97,7 @@ fn unsafe_routes_and_facet_documents_are_rejected() {
             executable,
             &[],
         );
-        let tree = RuntimeCoreTree::open(&root).unwrap();
+        let tree = CoreConfigurationTree::open(&root).unwrap();
         assert!(tree.resolve("dev/setup", "execute").is_err(), "{module}");
     }
 
@@ -106,7 +106,7 @@ fn unsafe_routes_and_facet_documents_are_rejected() {
         "{\"schema\":\"swaw.harness.facet/v1\",\"module\":\"swaw/core/dev\",\"version\":\"1.*\",\"executable\":\"dev.exe\",\"arguments\":[],\"extra\":true}\n",
     )
     .unwrap();
-    let tree = RuntimeCoreTree::open(&root).unwrap();
+    let tree = CoreConfigurationTree::open(&root).unwrap();
     assert!(tree.resolve("dev/setup", "execute").is_err());
     fs::remove_dir_all(root).unwrap();
 }
@@ -122,12 +122,12 @@ fn tree_rejects_legacy_files_and_non_leaf_facets() {
         &[],
     );
     fs::write(root.join("dev/setup/swaw-harness.resource.json"), "{}\n").unwrap();
-    let tree = RuntimeCoreTree::open(&root).unwrap();
+    let tree = CoreConfigurationTree::open(&root).unwrap();
     assert!(tree.validate().is_err());
 
     fs::remove_file(root.join("dev/setup/swaw-harness.resource.json")).unwrap();
     fs::create_dir(root.join("dev/setup/execute/child")).unwrap();
-    let tree = RuntimeCoreTree::open(&root).unwrap();
+    let tree = CoreConfigurationTree::open(&root).unwrap();
     assert!(tree.validate().is_err());
     fs::remove_dir_all(root).unwrap();
 }
@@ -145,7 +145,7 @@ fn reparse_resource_directories_cannot_enter_resolution() {
         &[],
     );
     create_junction(&root.join("dev"), &resource_target);
-    let tree = RuntimeCoreTree::open(&root).unwrap();
+    let tree = CoreConfigurationTree::open(&root).unwrap();
     assert!(tree.validate().is_err());
     assert!(tree.resolve("dev", "execute").is_err());
 
@@ -160,7 +160,7 @@ fn temporary_tree(label: &str) -> PathBuf {
         .unwrap()
         .as_nanos();
     let root = std::env::temp_dir().join(format!(
-        "swaw-harness-runtime-core-tree-{label}-{}-{unique}",
+        "swaw-harness-core-configuration-tree-{label}-{}-{unique}",
         std::process::id()
     ));
     fs::create_dir(&root).unwrap();

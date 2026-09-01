@@ -198,9 +198,11 @@ try {
 
     $ModuleAdminRoot = Join-Path $ModuleFixtureRoot 'data\admin'
     [void][IO.Directory]::CreateDirectory($ModuleAdminRoot)
+    $ModuleConfigRoot = Join-Path $ModuleAdminRoot 'config'
+    [void][IO.Directory]::CreateDirectory($ModuleConfigRoot)
     Copy-Item `
-        -LiteralPath (Join-Path $RepositoryRoot 'data\admin\core') `
-        -Destination (Join-Path $ModuleAdminRoot 'core') `
+        -LiteralPath (Join-Path $RepositoryRoot 'data\admin\config\core') `
+        -Destination (Join-Path $ModuleConfigRoot 'core') `
         -Recurse
     $ModuleContext = New-SwawHarnessWindowsBootstrapContext `
         -DataRepo (Join-Path $ModuleFixtureRoot 'data.repo')

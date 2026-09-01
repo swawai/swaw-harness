@@ -7,7 +7,7 @@
 ## Accepted
 
 - **CORE-MODULE-001 — 核心模块按作者目录归属。** `core/modules/<ModuleName>/` 是 Core 模块的作者目录；Core 模块身份由该目录归属确定，不依赖目录名前缀或 Resource 声明。
-- **CORE-MODULE-002 — 作者目录不声明运行地址。** `core/modules/` 中 Rust package、模块、函数和资产目录只按作者代码职责组织，不得使用 `swaw-harness.resource.json`、`swaw-harness.facet.json` 或目录位置声明 Runtime Core Tree 地址；运行 Resource、Facet 与 ModuleId 选择只由 `data/admin/core/` 声明。
+- **CORE-MODULE-002 — 作者目录不声明运行地址。** `core/modules/` 中 Rust package、模块、函数和资产目录只按作者代码职责组织，不得使用 `swaw-harness.resource.json`、`swaw-harness.facet.json` 或目录位置声明 Core 配置树地址；运行 Resource、Facet 与 ModuleId 选择只由 `data/admin/config/core/` 声明。
 - **CORE-MODULE-003 — Rust package 显式登记。** `core/modules/` 下具有 `Cargo.toml` 且参与 Core workspace 构建的 Rust package 必须在 `core/Cargo.toml` 的 `workspace.members` 中逐项登记；Core 模块身份不得由 Cargo workspace membership 推断。
 
 ## Open

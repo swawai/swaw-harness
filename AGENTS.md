@@ -15,21 +15,24 @@
 - **Entry**：由 Admin Core module executable 创建和管理的受管运行实体；固定 Admin Entry 是管理根，其他 Entry 均由它创建。
 - **EntryId**：Admin Core module executable 为一个普通 Entry 验证的文件系统名称，最多 16 个字符；目标中同时用作 `data/<EntryId>.exe` 的文件名和 `data/<EntryId>/` EntryRoot 的目录名。`admin` 固定属于 Admin Entry，不得作为普通 EntryId。
 - **EntryRoot**：与一个 Entry 唯一绑定、由 Admin Core module executable 在创建 Entry 时一并建立的目录根。
-- **Admin Entry**：DataHome 中固定管理 Entry；其 EntryRoot 固定为 `<DataHome>/admin/`，当前直接包含 `core/` Runtime Core Tree、`modules/` 共享模块发布根，并在管理 Entry 时使用 `entry.lock`。Admin EntryRoot 持续存在，不得整体替换或删除。
+- **Admin Entry**：DataHome 中固定管理 Entry；其 EntryRoot 固定为 `<DataHome>/admin/`，当前直接包含 `config/` 配置根、`modules/` 共享模块发布根，并在管理 Entry 时使用 `entry.lock`。Admin EntryRoot 持续存在，不得整体替换或删除。
 - **Bootstrap**：无需已编译 Harness 即可运行，自动准备宿主平台声明的便携构建环境，并在无需用户预装、配置或交互干预的情况下编译出 Harness 核心的启动构建流程。
 - **PlatformTargetId**：Bootstrap 平台目标的文件系统安全标识；当前 Windows Bootstrap 使用 Rust 平台目标三元组 `x86_64-pc-windows-msvc` 作为 PlatformTargetId。
 - **Bootstrap Release**：Bootstrap 一次构建产生的配套 executable 发布单元；Windows 仓库内发布根为 `<repository>/data.repo/windows.release`，每个 `<ReleaseId>/` 不可变目录同时包含 Core、纳入该次构建的独立 Core 模块 executable、Entry executable、Entry Manager executable、Harness GUI executable 与 `manifest.json`，由一个 selector 选择当前版本。
-- **Runtime Release**：旧 seed 流程曾安装在 `<EntryRoot>/runtime/<ReleaseId>/` 的完整 executable 集合；改由 Runtime Core Tree 选择独立 Module Release 后不再用于初始化 Admin Entry。普通 Entry 是否仍需保留 Runtime Release 及其内容边界属于 `REPO-010`。
-- **Runtime Core Tree**：以真实文件系统目录树声明运行 Resource、Facet 及其模块选择的配置树；仓库纳入 Git 的唯一默认树及 Admin Entry 当前实例固定为 `data/admin/core/`，其他 Entry 的目标实例根固定为 `<EntryRoot>/core/`。本协议不规定用户如何整体切换、并发修改或版本管理一个实例。
+- **Runtime Release**：旧 seed 流程曾安装在 `<EntryRoot>/runtime/<ReleaseId>/` 的完整 executable 集合；改由 Core 配置树选择独立 Module Release 后不再用于初始化 Admin Entry。普通 Entry 是否仍需保留 Runtime Release 及其内容边界属于 `REPO-010`。
+- **配置根**：一个 Entry 保存配置树的固定目录 `<EntryRoot>/config/`；Admin Entry 的配置根是 `data/admin/config/`。配置根不属于资源空间，不得因为某个文件位于配置根中就把它解释为 Resource、Facet 或 executable 声明。
+- **配置树**：配置根下由某个具体协议拥有、使用真实文件系统层级和版本化声明文件表达 Entry 控制配置的目录树；每种配置树必须分别规定根目录、允许的文件、验证方式和解释方式，不共享一套含义宽泛的通用声明文件。配置树不是资源空间。
+- **Core 配置树**：配置树的一种，以真实文件系统目录树把 Resource 路径和 Facet 名称绑定到 Module Release 选择；仓库纳入 Git 的唯一默认树及 Admin Entry 当前实例固定为 `data/admin/config/core/`，其他 Entry 的目标实例根固定为 `<EntryRoot>/config/core/`。它不保存 Resource 的事实数据，是当前唯一允许 Facet declaration 选择 executable 的配置树；本协议不规定用户如何整体切换、并发修改或版本管理一个实例。
+- **编排配置树**：目标中的一种多实例配置树；每个实例根为 `<EntryRoot>/config/playbooks/<PlaybookId>/`，其中 PlaybookId 是一个遵循 Core 配置树目录段语法的规范小写 ASCII 文件系统安全名称。编排步骤选择资源空间、Resource 路径与 Facet 并提供调用参数，由 Core 配置树解析 Module Release；当前尚无编排步骤 schema 或执行器。
 - **ModuleId**：由规范小写文件系统名称 `<Publisher>/<Group>/<Module>` 组成的三段模块身份，例如 `swaw/core/admin`；它独立于源码仓库地址、Resource 路径和 executable 文件名。
 - **Module Release**：安装在 `<DataHome>/admin/modules/<Publisher>/<Group>/<Module>/<PlatformTargetId>/<Version>/`、包含一个模块在一个平台上的不可变 executable、私有运行文件及 `swaw-harness.module.json` 清单的发布目录；`Version` 是不含预发布或构建后缀的 `MAJOR.MINOR.PATCH` 语义化版本。Windows Bootstrap 负责从完整且已验证的 Bootstrap Release 初始物化本次构建的 Module Release；运行时安装目标由 Admin Core module executable 拥有。
-- **Facet declaration**：Runtime Core Tree 的一个 Facet 叶目录中名为 `swaw-harness.facet.json` 的版本化 JSON 文件；它使用 `module`、`version`、`executable` 和 `arguments` 直接声明该 Facet 的模块选择与固定命令参数，不使用 Resource 声明文件或可继承 executable binding。
+- **Facet declaration**：Core 配置树的一个 Facet 叶目录中名为 `swaw-harness.facet.json` 的版本化 JSON 文件；它使用 `module`、`version`、`executable` 和 `arguments` 直接声明该 Facet 的模块选择与固定命令参数，不使用 Resource 声明文件或可继承 executable binding。
 - **Resource**：在一个资源空间内通过目录树寻址找到并执行操作的对象。
 - **Facet**：对已找到 Resource 执行的具名操作。
-- **资源空间**：具有独立文件系统根、事实来源、生命周期与写入权限边界的一组 Resource；不得简称为含义过宽的 `Space`。
-- **基础资源空间**：当前包括规范名称为 `author` 的作者（源代码）、`runtime` 的运行（发布）、`runs` 的 logs、`export` 和 `context` 模块专用上下文记录空间；一个 Entry 的 export 资源空间根固定为 `<EntryRoot>/export`。
+- **资源空间**：一个 Entry 中具有独立文件系统根、事实来源、生命周期与写入权限边界的一组 Resource；不得简称为含义过宽的 `Space`。资源空间保存被模块读取或写入的数据，不保存 executable 绑定；配置根与 Module Release 根均不属于资源空间。
+- **基础资源空间**：Core 协议保留规范名称 `author` 的作者（源代码）、`runtime` 的运行（发布）、`runs` 的 logs、`export` 和 `context` 模块专用上下文记录空间；对应根分别为 `<EntryRoot>/author/`、`<EntryRoot>/runtime/`、`<EntryRoot>/runs/`、`<EntryRoot>/export/` 和 `<EntryRoot>/context/`，需要时才建立。`config` 不是基础资源空间。
 - **派生资源空间**：由领域或用户机制通过某自定义 facet 等方式建立的资源空间；它具有自己的文件系统根，并使用与基础资源空间相同的目录树寻址与 Facet 操作模型。
-- **目录树寻址**：每个资源空间以其文件系统目录树作为地址域；选择资源空间后，使用该目录树根下规范化的相对文件系统路径寻找 Resource，不另建逻辑 Route 或其他地址模型。
+- **目录树寻址**：每个资源空间以其文件系统目录树作为地址域；选择资源空间后，使用该树根下规范化的相对文件系统路径寻找 Resource，再使用相同 Resource 路径和 Facet 名称在当前 Entry 的 Core 配置树寻找 Facet declaration，不另建逻辑 Route 或其他地址模型。
 - **ReleaseId**：发布根下 `<ReleaseId>/` 不可变发布目录的名称，由发布目标与目录内全部发布物内容的哈希确定；发布目标与全部内容均相同时复用同一目录。
 - **selector**：产品发布根下名为 `current.<PlatformTargetId>` 的普通文本文件；它是指向 `<ReleaseId>/` 的逻辑文件指针，以原子替换完成当前版本切换。
 
@@ -42,7 +45,7 @@
 - **REPO-005 — DataHome 可独立复制运行。** DataHome 必须位于 `<HarnessRoot>/data`，其 Admin Entry、普通 Entry、Module Release 及其他发布运行资源不得依赖 data.repo 的绝对路径；仓库本地 Bootstrap 工具链、构建、暂存、缓存与日志不得写入 DataHome。`<DataHome>/admin/` 是持续存在的 Admin EntryRoot，不得整体替换；模块原子发布只作用于其 `modules/` 下具体的 `<Version>/`。
 
 - **REPO-007 — 核心术语统一。** 本文件的“核心术语”是全仓 `AGENTS.md` 的统一用语源；新增或改变核心高频术语必须先更新该段落，下级 `AGENTS.md` 不得自行创造同义词或改变既有含义。
-- **REPO-008 — 不可变发布只前进。** Bootstrap Release 与 Runtime Release 继续以 ReleaseId 内容身份发布；Module Release 使用 ModuleId、PlatformTargetId 与精确语义化版本定位。所有发布物必须先在暂存区完整生成并验证，再原子发布到尚不存在的不可变目标，不得覆盖或合并写入已发布目标。Facet declaration 只允许选择已经验证的 Module Release；本规则不规定用户如何批量修改或切换 `<EntryRoot>/core/` 实例。
+- **REPO-008 — 不可变发布只前进。** Bootstrap Release 与 Runtime Release 继续以 ReleaseId 内容身份发布；Module Release 使用 ModuleId、PlatformTargetId 与精确语义化版本定位。所有发布物必须先在暂存区完整生成并验证，再原子发布到尚不存在的不可变目标，不得覆盖或合并写入已发布目标。Facet declaration 只允许选择已经验证的 Module Release；本规则不规定用户如何批量修改或切换 `<EntryRoot>/config/core/` 实例。
 - **REPO-009 — data.repo 仅属仓库。** data.repo 固定为 `<repository>/data.repo`，只保存不随 DataHome 复制发布的仓库本地数据；各宿主平台在其中使用明确的平台领域根，不得让 data.repo 成为运行时依赖。
 
 ## Open
@@ -52,7 +55,7 @@
 ## Maintainer Notes
 
 - 待办：验证并实现 `swaw-harness` 脱离 `swaw-kit` 父目录和源码树后仍可独立构建、测试、打包与发布；完成前不得将其表述为当前能力。
-- `data/admin/core/` 当前 Facet declaration 使用模糊模块版本；Windows Bootstrap 已实现本次构建 Module Release 的物化与清单验证，但 Core dispatcher 与其他 Entry 的配置树复制流程尚未实现，完成前不得将该树表述为可运行系统。
+- `data/admin/config/core/` 当前 Facet declaration 使用模糊模块版本；Windows Bootstrap 已实现本次构建 Module Release 的物化与清单验证，但 Core dispatcher、资源空间 Resource 验证与其他 Entry 的配置树复制流程尚未实现，完成前不得将该树表述为可运行系统。
 - swaw-kit 中对应本项目的旧代码在： D:/2026.7/swaw-kit/_lib\proj，迁移注意参考
 
 ## Agent 工作约束

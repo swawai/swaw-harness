@@ -32,17 +32,17 @@ impl ResolvedFacet {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RuntimeCoreTree {
+pub struct CoreConfigurationTree {
     root: PathBuf,
 }
 
-impl RuntimeCoreTree {
+impl CoreConfigurationTree {
     pub fn open(root: impl AsRef<Path>) -> Result<Self, String> {
         let root = root.as_ref();
-        assert_regular_directory(root, "Runtime Core Tree root")?;
+        assert_regular_directory(root, "Core Configuration Tree root")?;
         let root = fs::canonicalize(root).map_err(|error| {
             format!(
-                "cannot resolve Runtime Core Tree root '{}': {error}",
+                "cannot resolve Core Configuration Tree root '{}': {error}",
                 root.display()
             )
         })?;
@@ -78,17 +78,17 @@ impl RuntimeCoreTree {
 fn validate_directory(root: &Path, directory: &Path, depth: usize) -> Result<(), String> {
     if depth > MAXIMUM_TREE_DEPTH {
         return Err(format!(
-            "Runtime Core Tree exceeds {MAXIMUM_TREE_DEPTH} directory levels: {}",
+            "Core Configuration Tree exceeds {MAXIMUM_TREE_DEPTH} directory levels: {}",
             directory.display()
         ));
     }
-    assert_regular_directory(directory, "Runtime Core Tree directory")?;
+    assert_regular_directory(directory, "Core Configuration Tree directory")?;
 
     let facet_document = directory.join(FACET_DOCUMENT_NAME);
     let has_facet = regular_file_exists(&facet_document)?;
     if has_facet {
         if directory == root {
-            return Err("Runtime Core Tree root cannot be a Facet".to_owned());
+            return Err("Core Configuration Tree root cannot be a Facet".to_owned());
         }
         let resource_directory = directory
             .parent()
@@ -104,18 +104,18 @@ fn validate_directory(root: &Path, directory: &Path, depth: usize) -> Result<(),
 
     for entry in fs::read_dir(directory).map_err(|error| {
         format!(
-            "cannot enumerate Runtime Core Tree directory '{}': {error}",
+            "cannot enumerate Core Configuration Tree directory '{}': {error}",
             directory.display()
         )
     })? {
         let entry =
-            entry.map_err(|error| format!("cannot enumerate Runtime Core Tree: {error}"))?;
+            entry.map_err(|error| format!("cannot enumerate Core Configuration Tree: {error}"))?;
         let entry_path = entry.path();
         let metadata = fs::symlink_metadata(&entry_path)
             .map_err(|error| format!("cannot inspect '{}': {error}", entry_path.display()))?;
         if metadata_is_reparse(&metadata) {
             return Err(format!(
-                "Runtime Core Tree cannot contain a symbolic link or reparse point: {}",
+                "Core Configuration Tree cannot contain a symbolic link or reparse point: {}",
                 entry_path.display()
             ));
         }
@@ -127,29 +127,28 @@ fn validate_directory(root: &Path, directory: &Path, depth: usize) -> Result<(),
                 ));
             }
             assert_safe_segment(
-                entry
-                    .file_name()
-                    .to_str()
-                    .ok_or_else(|| "Runtime Core Tree directory name is not Unicode".to_owned())?,
-                "Runtime Core Tree directory name",
+                entry.file_name().to_str().ok_or_else(|| {
+                    "Core Configuration Tree directory name is not Unicode".to_owned()
+                })?,
+                "Core Configuration Tree directory name",
             )?;
             validate_directory(root, &entry_path, depth + 1)?;
         } else if metadata.is_file() {
             let name = entry.file_name();
             let name = name
                 .to_str()
-                .ok_or_else(|| "Runtime Core Tree file name is not Unicode".to_owned())?;
+                .ok_or_else(|| "Core Configuration Tree file name is not Unicode".to_owned())?;
             let allowed =
                 name == FACET_DOCUMENT_NAME || (directory == root && name == AGENT_DOCUMENT_NAME);
             if !allowed {
                 return Err(format!(
-                    "unexpected Runtime Core Tree file: {}",
+                    "unexpected Core Configuration Tree file: {}",
                     entry_path.display()
                 ));
             }
         } else {
             return Err(format!(
-                "Runtime Core Tree entry is not a regular file or directory: {}",
+                "Core Configuration Tree entry is not a regular file or directory: {}",
                 entry_path.display()
             ));
         }
