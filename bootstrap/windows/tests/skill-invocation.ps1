@@ -9,8 +9,12 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\context.ps1')
 . (Join-Path $WindowsRoot 'builder\contract.ps1')
 . (Join-Path $WindowsRoot 'builder\process.ps1')
+. (Join-Path $WindowsRoot 'publication.ps1')
+. (Join-Path $WindowsRoot 'core\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'core\contract.ps1')
 . (Join-Path $WindowsRoot 'core\module-publication.ps1')
+. (Join-Path $WindowsRoot 'entry\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'entry.manager\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
@@ -35,43 +39,61 @@ if ($HelloworldContracts.Count -ne 1 -or $DevContracts.Count -ne 1) {
 $HelloworldContract = $HelloworldContracts[0]
 $DevContract = $DevContracts[0]
 
-$Releases = @(& (Join-Path $WindowsRoot 'main.ps1'))
-if ($Releases.Count -ne 1) {
-    throw 'Skill invocation test requires one Bootstrap Release.'
-}
-
+$SharedContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
+$Toolchain = Get-SwawHarnessBootstrapToolchain `
+    -Context $SharedContext `
+    -Contract $PlatformContract
+$Plan = Get-SwawHarnessToolchainEnvironment `
+    -Context $SharedContext `
+    -Contract $PlatformContract `
+    -Toolchain $Toolchain
 $TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 try {
+    $Context = New-SwawHarnessWindowsBootstrapContext `
+        -DataRepo (Join-Path $TestRoot 'data.repo')
+    $CoreCandidateRoots = @(
+        Invoke-SwawHarnessWindowsCoreCandidateBuild `
+            -Context $Context `
+            -CargoPath $Plan.CargoPath `
+            -EnvironmentVariables $Plan.EnvironmentVariables `
+            -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
+    )
+    $EntryCandidateRoot = Invoke-SwawHarnessWindowsEntryCandidateBuild `
+        -Context $Context `
+        -CompilerPath $Plan.CompilerPath `
+        -LinkerPath $Plan.LinkerPath `
+        -EnvironmentVariables $Plan.EnvironmentVariables `
+        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
+        Select-Object -Last 1
+    $EntryManagerCandidateRoots = @(
+        Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
+            -Context $Context `
+            -CargoPath $Plan.CargoPath `
+            -EnvironmentVariables $Plan.EnvironmentVariables `
+            -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
+    )
+    $Releases = @(Publish-SwawHarnessWindowsProducts `
+        -Context $Context `
+        -CoreCandidateRoots ([string[]]$CoreCandidateRoots) `
+        -EntryCandidateRoot ([string]$EntryCandidateRoot) `
+        -EntryManagerCandidateRoots ([string[]]$EntryManagerCandidateRoots))
+    if ($Releases.Count -ne 1) {
+        throw 'Skill invocation test requires one Bootstrap Release.'
+    }
+
     $ModuleAdminRoot = Join-Path $TestRoot 'data\admin'
     [void][IO.Directory]::CreateDirectory($ModuleAdminRoot)
     Copy-Item `
         -LiteralPath (Join-Path $RepositoryRoot 'data\admin\map') `
         -Destination (Join-Path $ModuleAdminRoot 'map') `
         -Recurse
-    $ModuleContext = New-SwawHarnessWindowsBootstrapContext `
-        -DataRepo (Join-Path $TestRoot 'data.repo')
     $PublishedModules = @(Publish-SwawHarnessWindowsCoreModules `
-        -Context $ModuleContext `
+        -Context $Context `
         -BootstrapRelease $Releases[0])
     if ($PublishedModules.Count -ne $CoreContracts.Count) {
         throw 'Skill invocation fixture must publish every Core Module Release.'
     }
 
-    $SharedContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
-    $ToolchainRoot = Get-SwawHarnessToolchainTargetPath `
-        -Context $SharedContext `
-        -Contract $PlatformContract
-    $Toolchain = Get-SwawHarnessValidToolchain `
-        -Context $SharedContext `
-        -Contract $PlatformContract `
-        -InstallRoot $ToolchainRoot
-    if ($null -eq $Toolchain) {
-        throw 'Skill invocation test requires the valid Bootstrap toolchain.'
-    }
-    $Plan = Get-SwawHarnessToolchainEnvironment `
-        -Context $SharedContext `
-        -Contract $PlatformContract `
-        -Toolchain $Toolchain
     $TestEnvironment = [ordered]@{}
     foreach ($Entry in $Plan.EnvironmentVariables.GetEnumerator()) {
         $TestEnvironment[$Entry.Key] = $Entry.Value

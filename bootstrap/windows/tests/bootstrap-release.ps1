@@ -34,6 +34,9 @@ $TestRoot = New-SwawHarnessWindowsTestRunRoot -DataRepo $DataRepo
 $ModuleFixtureRoot = Join-Path `
     (Join-Path $DataRepo 'windows.test') `
     ("mh" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+$ModuleCaseFixtureRoot = Join-Path `
+    (Join-Path $DataRepo 'windows.test') `
+    ("mc" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 try {
     $SharedContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
@@ -196,6 +199,29 @@ try {
         ) `
         -Message 'the bundled Dev executable did not persist Bun mode'
 
+    $ModuleCaseAdminRoot = Join-Path $ModuleCaseFixtureRoot 'data\admin'
+    [void][IO.Directory]::CreateDirectory(
+        (Join-Path $ModuleCaseAdminRoot 'modules\Swaw')
+    )
+    Copy-Item `
+        -LiteralPath (Join-Path $RepositoryRoot 'data\admin\map') `
+        -Destination (Join-Path $ModuleCaseAdminRoot 'map') `
+        -Recurse
+    $ModuleCaseContext = New-SwawHarnessWindowsBootstrapContext `
+        -DataRepo (Join-Path $ModuleCaseFixtureRoot 'data.repo')
+    $NoncanonicalModuleParentRejected = $false
+    try {
+        [void](Publish-SwawHarnessWindowsCoreModules `
+            -Context $ModuleCaseContext `
+            -BootstrapRelease $First)
+    } catch {
+        $NoncanonicalModuleParentRejected =
+            $_.Exception.Message.Contains('non-canonical name')
+    }
+    Assert-BootstrapReleaseTest `
+        -Condition $NoncanonicalModuleParentRejected `
+        -Message 'Module publication accepted a non-canonical ModuleId directory'
+
     $ModuleAdminRoot = Join-Path $ModuleFixtureRoot 'data\admin'
     [void][IO.Directory]::CreateDirectory($ModuleAdminRoot)
     Copy-Item `
@@ -338,6 +364,9 @@ try {
         -Condition ($RemainingCandidateRoots.Count -eq 0) `
         -Message 'a later Candidate cleanup did not remove stale members'
 } finally {
+    if ([IO.Directory]::Exists($ModuleCaseFixtureRoot)) {
+        [IO.Directory]::Delete($ModuleCaseFixtureRoot, $true)
+    }
     if ([IO.Directory]::Exists($ModuleFixtureRoot)) {
         [IO.Directory]::Delete($ModuleFixtureRoot, $true)
     }

@@ -35,6 +35,52 @@ function Get-SwawHarnessModuleIdSegments {
     return $Segments
 }
 
+function Initialize-SwawHarnessCanonicalModuleDirectory {
+    param(
+        [Parameter(Mandatory = $true)][string]$Parent,
+        [Parameter(Mandatory = $true)][string]$Segment,
+        [Parameter(Mandatory = $true)][string]$Description
+    )
+
+    [void](Assert-SwawHarnessModuleDirectory `
+        -Path $Parent `
+        -Description "$Description parent")
+    $MatchingItems = @(Get-ChildItem -LiteralPath $Parent -Force | Where-Object {
+        [string]::Equals(
+            [string]$_.Name,
+            $Segment,
+            [StringComparison]::OrdinalIgnoreCase
+        )
+    })
+    if ($MatchingItems.Count -gt 1) {
+        throw "$Description has ambiguous case variants below: $Parent"
+    }
+    if ($MatchingItems.Count -eq 1) {
+        if ([string]$MatchingItems[0].Name -cne $Segment) {
+            throw (
+                "$Description has non-canonical name '$($MatchingItems[0].Name)'; " +
+                "expected '$Segment': $($MatchingItems[0].FullName)"
+            )
+        }
+        return Assert-SwawHarnessModuleDirectory `
+            -Path ([string]$MatchingItems[0].FullName) `
+            -Description $Description
+    }
+
+    $Path = Join-Path $Parent $Segment
+    [void][IO.Directory]::CreateDirectory($Path)
+    $Item = Get-Item -LiteralPath $Path -Force
+    if ([string]$Item.Name -cne $Segment) {
+        throw (
+            "$Description has non-canonical name '$($Item.Name)'; " +
+            "expected '$Segment': $($Item.FullName)"
+        )
+    }
+    return Assert-SwawHarnessModuleDirectory `
+        -Path ([string]$Item.FullName) `
+        -Description $Description
+}
+
 function Assert-SwawHarnessModuleVersion {
     param([Parameter(Mandatory = $true)][string]$Version)
 
@@ -200,11 +246,10 @@ function Publish-SwawHarnessWindowsCoreModules {
                 $Segments[0], $Segments[1], $Segments[2],
                 [string]$Contract.PlatformTargetId
             )) {
-                $ModuleParent = Join-Path $ModuleParent $Segment
-                [void][IO.Directory]::CreateDirectory($ModuleParent)
-                [void](Assert-SwawHarnessModuleDirectory `
-                    -Path $ModuleParent `
-                    -Description 'Module identity directory')
+                $ModuleParent = Initialize-SwawHarnessCanonicalModuleDirectory `
+                    -Parent $ModuleParent `
+                    -Segment $Segment `
+                    -Description 'Module identity directory'
             }
             $ReleaseRoot = Join-Path $ModuleParent $Version
             if (Test-SwawHarnessPathExists -Path $ReleaseRoot) {

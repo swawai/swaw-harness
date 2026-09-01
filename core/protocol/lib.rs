@@ -1,3 +1,4 @@
+mod filesystem;
 mod invocation;
 mod module_release;
 mod resource_space;

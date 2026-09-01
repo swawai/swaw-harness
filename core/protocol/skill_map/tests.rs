@@ -174,6 +174,36 @@ fn reparse_directories_cannot_enter_resolution() {
     fs::remove_dir_all(skill_target).unwrap();
 }
 
+#[cfg(windows)]
+#[test]
+fn direct_resolution_rejects_noncanonical_disk_spelling() {
+    let directory_root = temporary_map("directory-case");
+    write_skill(
+        &directory_root.join("Dev/setup"),
+        "swaw/core/dev",
+        "1.*",
+        "dev.exe",
+        &[],
+    );
+    let skill_map = SkillMap::open(&directory_root).unwrap();
+    let error = skill_map.find("dev/setup").unwrap_err();
+    assert!(error.contains("non-canonical Skill directory name 'Dev'"));
+    fs::remove_dir_all(directory_root).unwrap();
+
+    let document_root = temporary_map("document-case");
+    let skill_directory = document_root.join("dev/setup");
+    fs::create_dir_all(&skill_directory).unwrap();
+    fs::write(
+        skill_directory.join("Skill.json"),
+        "{\"schema\":\"swaw.harness.skill/v1\",\"module\":\"swaw/core/dev\",\"version\":\"1.*\",\"executable\":\"dev.exe\",\"arguments\":[]}\n",
+    )
+    .unwrap();
+    let skill_map = SkillMap::open(&document_root).unwrap();
+    let error = skill_map.find("dev/setup").unwrap_err();
+    assert!(error.contains("non-canonical Skill declaration name 'Skill.json'"));
+    fs::remove_dir_all(document_root).unwrap();
+}
+
 fn temporary_map(label: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)

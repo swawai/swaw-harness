@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 mod document;
 
+use crate::filesystem::find_exact_child;
 use document::parse_skill_declaration;
 pub use document::{ModuleId, SKILL_DOCUMENT_NAME, SkillDeclaration, Version, VersionSelector};
 
@@ -55,8 +56,10 @@ impl SkillMap {
     pub fn find(&self, skill_path: &str) -> Result<SkillNode, String> {
         let skill_segments = parse_relative_path(skill_path, "Skill path")?;
         let skill_directory =
-            join_regular_directories(&self.root, &skill_segments, "Skill directory")?;
-        let declaration = parse_skill_declaration(&skill_directory.join(SKILL_DOCUMENT_NAME))?;
+            join_exact_regular_directories(&self.root, &skill_segments, "Skill directory")?;
+        let declaration_path =
+            find_exact_regular_file(&skill_directory, SKILL_DOCUMENT_NAME, "Skill declaration")?;
+        let declaration = parse_skill_declaration(&declaration_path)?;
 
         Ok(SkillNode {
             path: skill_path.to_owned(),
@@ -210,15 +213,32 @@ fn assert_safe_segment(value: &str, description: &str) -> Result<(), String> {
     }
 }
 
-fn join_regular_directories(
+fn join_exact_regular_directories(
     root: &Path,
     segments: &[&str],
     description: &str,
 ) -> Result<PathBuf, String> {
     let mut path = root.to_path_buf();
     for segment in segments {
-        path.push(segment);
+        path = find_exact_child(&path, segment, description)?;
         assert_regular_directory(&path, description)?;
+    }
+    Ok(path)
+}
+
+fn find_exact_regular_file(
+    directory: &Path,
+    name: &str,
+    description: &str,
+) -> Result<PathBuf, String> {
+    let path = find_exact_child(directory, name, description)?;
+    let metadata = fs::symlink_metadata(&path)
+        .map_err(|error| format!("cannot inspect {description} '{}': {error}", path.display()))?;
+    if metadata_is_reparse(&metadata) || !metadata.is_file() {
+        return Err(format!(
+            "{description} is not a regular non-reparse file: {}",
+            path.display()
+        ));
     }
     Ok(path)
 }

@@ -219,6 +219,33 @@ fn invalid_platform_directory_members_are_rejected() {
     fs::remove_dir_all(data_home).unwrap();
 }
 
+#[cfg(windows)]
+#[test]
+fn module_selection_rejects_noncanonical_identity_directory_spelling() {
+    let data_home = temporary_data_home("module-case");
+    let release_root = write_release(&data_home, "Swaw/core/dev", "1.0.0", "dev.exe", b"dev");
+    let manifest_path = release_root.join(MODULE_MANIFEST_NAME);
+    let manifest = fs::read_to_string(&manifest_path)
+        .unwrap()
+        .replace("Swaw/core/dev", "swaw/core/dev");
+    fs::write(manifest_path, manifest).unwrap();
+
+    let installed = InstalledModules::open(&data_home).unwrap();
+    let error = installed
+        .select(
+            &ModuleId::parse("swaw/core/dev").unwrap(),
+            VersionSelector::parse("1.*").unwrap(),
+            PLATFORM_TARGET_ID,
+            "dev.exe",
+        )
+        .unwrap_err();
+    assert!(
+        error.contains("non-canonical module identity directory name 'Swaw'"),
+        "{error}"
+    );
+    fs::remove_dir_all(data_home).unwrap();
+}
+
 #[test]
 fn extra_module_release_members_are_rejected() {
     let data_home = temporary_data_home("extra-release-member");

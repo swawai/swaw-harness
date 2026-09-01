@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-use crate::{ModuleId, Version, VersionSelector};
+use crate::{ModuleId, Version, VersionSelector, filesystem::find_exact_child};
 
 pub const MODULE_MANIFEST_NAME: &str = "swaw-harness.module.json";
 
@@ -22,9 +22,9 @@ impl InstalledModules {
     pub fn open(data_home: impl AsRef<Path>) -> Result<Self, String> {
         let data_home = data_home.as_ref();
         assert_regular_directory(data_home, "DataHome")?;
-        let admin_root = data_home.join("admin");
+        let admin_root = find_exact_child(data_home, "admin", "Admin EntryRoot")?;
         assert_regular_directory(&admin_root, "Admin EntryRoot")?;
-        let modules_root = admin_root.join("modules");
+        let modules_root = find_exact_child(&admin_root, "modules", "installed modules root")?;
         assert_regular_directory(&modules_root, "installed modules root")?;
         let root = fs::canonicalize(&modules_root).map_err(|error| {
             format!(
@@ -51,10 +51,14 @@ impl InstalledModules {
 
         let mut platform_root = self.root.clone();
         for segment in module.segments() {
-            platform_root.push(segment);
+            platform_root = find_exact_child(&platform_root, segment, "module identity directory")?;
             assert_regular_directory(&platform_root, "module identity directory")?;
         }
-        platform_root.push(platform_target_id);
+        platform_root = find_exact_child(
+            &platform_root,
+            platform_target_id,
+            "module platform directory",
+        )?;
         assert_regular_directory(&platform_root, "module platform directory")?;
 
         let (version, release_root) = select_version(&platform_root, version_selector)?;
