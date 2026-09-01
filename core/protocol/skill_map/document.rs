@@ -6,22 +6,22 @@ use serde::Deserialize;
 
 use super::{assert_safe_segment, metadata_is_reparse};
 
-pub const FACET_DOCUMENT_NAME: &str = "swaw-harness.facet.json";
+pub const SKILL_DOCUMENT_NAME: &str = "skill.json";
 
-const FACET_SCHEMA: &str = "swaw.harness.facet/v1";
+const SKILL_SCHEMA: &str = "swaw.harness.skill/v1";
 const MAXIMUM_ARGUMENTS: usize = 64;
 const MAXIMUM_ARGUMENT_BYTES: usize = 4096;
 const MAXIMUM_DOCUMENT_BYTES: u64 = 16 * 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct FacetDefinition {
+pub struct SkillDeclaration {
     module: ModuleId,
     version: VersionSelector,
     executable: String,
     arguments: Vec<String>,
 }
 
-impl FacetDefinition {
+impl SkillDeclaration {
     pub fn module(&self) -> &ModuleId {
         &self.module
     }
@@ -172,7 +172,7 @@ impl fmt::Display for VersionSelector {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct FacetDocument {
+struct SkillDocument {
     schema: String,
     module: String,
     version: String,
@@ -180,11 +180,11 @@ struct FacetDocument {
     arguments: Vec<String>,
 }
 
-pub(super) fn parse_facet(path: &Path) -> Result<FacetDefinition, String> {
-    let document: FacetDocument = parse_document(path, "Facet declaration")?;
-    if document.schema != FACET_SCHEMA {
+pub(super) fn parse_skill_declaration(path: &Path) -> Result<SkillDeclaration, String> {
+    let document: SkillDocument = parse_document(path, "Skill declaration")?;
+    if document.schema != SKILL_SCHEMA {
         return Err(format!(
-            "unsupported Facet schema '{}' in '{}'; expected '{FACET_SCHEMA}'",
+            "unsupported Skill schema '{}' in '{}'; expected '{SKILL_SCHEMA}'",
             document.schema,
             path.display()
         ));
@@ -194,19 +194,19 @@ pub(super) fn parse_facet(path: &Path) -> Result<FacetDefinition, String> {
     assert_safe_segment(&document.executable, "executable name")?;
     if document.arguments.len() > MAXIMUM_ARGUMENTS {
         return Err(format!(
-            "Facet arguments exceed {MAXIMUM_ARGUMENTS} items: {}",
+            "Skill arguments exceed {MAXIMUM_ARGUMENTS} items: {}",
             path.display()
         ));
     }
     for argument in &document.arguments {
         if argument.as_bytes().len() > MAXIMUM_ARGUMENT_BYTES || argument.contains('\0') {
             return Err(format!(
-                "Facet argument is too large or contains NUL: {}",
+                "Skill argument is too large or contains NUL: {}",
                 path.display()
             ));
         }
     }
-    Ok(FacetDefinition {
+    Ok(SkillDeclaration {
         module,
         version,
         executable: document.executable,

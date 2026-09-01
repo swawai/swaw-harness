@@ -84,7 +84,7 @@ Assert-RootBuildTest `
             (Join-Path $RepositoryRoot 'swaw-harness-cli.exe')
         ) -and
         [IO.Directory]::Exists(
-            (Join-Path $RepositoryRoot 'data\admin\config\core')
+            (Join-Path $RepositoryRoot 'data\admin\map\core')
         ) -and
         @($ModuleManifestPaths | Where-Object {
             [IO.File]::Exists($_)

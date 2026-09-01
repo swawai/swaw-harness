@@ -38,7 +38,7 @@ function Read-SwawHarnessWindowsCoreContracts {
         [pscustomobject][ordered]@{
             Package = 'swaw-harness-dev'
             ModuleId = 'swaw/core/dev'
-            Version = '1.0.0'
+            Version = '1.0.1'
             BuildArtifact = 'swaw-harness-dev.exe'
             Artifact = 'swaw-harness-dev.exe'
         }

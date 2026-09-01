@@ -71,6 +71,7 @@ jobs:
           $dataRepo = Join-Path $PWD 'data.repo'
           & .\bootstrap\windows\tests\core-rust.ps1 `
             -DataRepo $dataRepo
+          & .\bootstrap\windows\tests\skill-invocation.ps1
 
       - name: Verify Bootstrap release and product builds
         shell: powershell

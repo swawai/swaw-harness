@@ -107,6 +107,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\filesystem.ps1')
 . (Join-Path $WindowsRoot 'builder\path-budget.ps1')
 . (Join-Path $WindowsRoot 'builder\process.ps1')
+. (Join-Path $WindowsRoot 'core\contract.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
@@ -116,6 +117,16 @@ $DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
 $SourceContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
+$CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
+    -Path (Join-Path $WindowsRoot 'core\contract.json') `
+    -PlatformTargetId $Contract.PlatformTargetId)
+$DevContracts = @($CoreContracts | Where-Object {
+    $_.ModuleId -ceq 'swaw/core/dev'
+})
+if ($DevContracts.Count -ne 1) {
+    throw 'Deep-path test requires exactly one Dev Module contract.'
+}
+$DevContract = $DevContracts[0]
 $SourceToolchainRoot = Get-SwawHarnessToolchainTargetPath `
     -Context $SourceContext `
     -Contract $Contract
@@ -177,7 +188,8 @@ try {
             [IO.File]::Exists((Join-Path `
                 $DeepRoot `
                 ('data\admin\modules\swaw\core\dev\' +
-                    'x86_64-pc-windows-msvc\1.0.0\' +
+                    $DevContract.PlatformTargetId + '\' +
+                    $DevContract.ModuleVersion + '\' +
                     'swaw-harness.module.json')))
         ) `
         -Message 'deep build exceeded its declared repository or native budget'
@@ -209,7 +221,8 @@ try {
     $InstalledDev = Join-Path `
         $DeepRoot `
         ('data\admin\modules\swaw\core\dev\' +
-            'x86_64-pc-windows-msvc\1.0.0\swaw-harness-dev.exe')
+            $DevContract.PlatformTargetId + '\' +
+            $DevContract.ModuleVersion + '\swaw-harness-dev.exe')
     $Dev = Invoke-SwawHarnessCapturedProcess `
         -Executable $InstalledDev `
         -Arguments @('dev/bun/mode', 'managed') `

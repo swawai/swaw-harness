@@ -4,45 +4,40 @@ use std::path::{Path, PathBuf};
 
 mod document;
 
-use document::parse_facet;
-pub use document::{FACET_DOCUMENT_NAME, FacetDefinition, ModuleId, Version, VersionSelector};
+use document::parse_skill_declaration;
+pub use document::{ModuleId, SKILL_DOCUMENT_NAME, SkillDeclaration, Version, VersionSelector};
 
 const AGENT_DOCUMENT_NAME: &str = "AGENTS.md";
 const MAXIMUM_TREE_DEPTH: usize = 64;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ResolvedFacet {
-    resource: String,
-    facet: String,
-    definition: FacetDefinition,
+pub struct SkillNode {
+    path: String,
+    declaration: SkillDeclaration,
 }
 
-impl ResolvedFacet {
-    pub fn resource(&self) -> &str {
-        &self.resource
+impl SkillNode {
+    pub fn path(&self) -> &str {
+        &self.path
     }
 
-    pub fn facet(&self) -> &str {
-        &self.facet
-    }
-
-    pub fn definition(&self) -> &FacetDefinition {
-        &self.definition
+    pub fn declaration(&self) -> &SkillDeclaration {
+        &self.declaration
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CoreConfigurationTree {
+pub struct SkillMap {
     root: PathBuf,
 }
 
-impl CoreConfigurationTree {
+impl SkillMap {
     pub fn open(root: impl AsRef<Path>) -> Result<Self, String> {
         let root = root.as_ref();
-        assert_regular_directory(root, "Core Configuration Tree root")?;
+        assert_regular_directory(root, "Skill Map root")?;
         let root = fs::canonicalize(root).map_err(|error| {
             format!(
-                "cannot resolve Core Configuration Tree root '{}': {error}",
+                "cannot resolve Skill Map root '{}': {error}",
                 root.display()
             )
         })?;
@@ -57,20 +52,15 @@ impl CoreConfigurationTree {
         validate_directory(&self.root, &self.root, 0)
     }
 
-    pub fn resolve(&self, resource: &str, facet: &str) -> Result<ResolvedFacet, String> {
-        let resource_segments = parse_relative_path(resource, "Resource path")?;
-        assert_safe_segment(facet, "Facet name")?;
+    pub fn find(&self, skill_path: &str) -> Result<SkillNode, String> {
+        let skill_segments = parse_relative_path(skill_path, "Skill path")?;
+        let skill_directory =
+            join_regular_directories(&self.root, &skill_segments, "Skill directory")?;
+        let declaration = parse_skill_declaration(&skill_directory.join(SKILL_DOCUMENT_NAME))?;
 
-        let resource_directory =
-            join_regular_directories(&self.root, &resource_segments, "Resource directory")?;
-        let facet_directory = resource_directory.join(facet);
-        assert_regular_directory(&facet_directory, "Facet directory")?;
-        let definition = parse_facet(&facet_directory.join(FACET_DOCUMENT_NAME))?;
-
-        Ok(ResolvedFacet {
-            resource: resource.to_owned(),
-            facet: facet.to_owned(),
-            definition,
+        Ok(SkillNode {
+            path: skill_path.to_owned(),
+            declaration,
         })
     }
 }
@@ -78,77 +68,62 @@ impl CoreConfigurationTree {
 fn validate_directory(root: &Path, directory: &Path, depth: usize) -> Result<(), String> {
     if depth > MAXIMUM_TREE_DEPTH {
         return Err(format!(
-            "Core Configuration Tree exceeds {MAXIMUM_TREE_DEPTH} directory levels: {}",
+            "Skill Map exceeds {MAXIMUM_TREE_DEPTH} directory levels: {}",
             directory.display()
         ));
     }
-    assert_regular_directory(directory, "Core Configuration Tree directory")?;
+    assert_regular_directory(directory, "Skill Map directory")?;
 
-    let facet_document = directory.join(FACET_DOCUMENT_NAME);
-    let has_facet = regular_file_exists(&facet_document)?;
-    if has_facet {
+    let skill_document = directory.join(SKILL_DOCUMENT_NAME);
+    let has_skill = regular_file_exists(&skill_document)?;
+    if has_skill {
         if directory == root {
-            return Err("Core Configuration Tree root cannot be a Facet".to_owned());
+            return Err("Skill Map root cannot declare a Skill".to_owned());
         }
-        let resource_directory = directory
-            .parent()
-            .ok_or_else(|| format!("Facet has no Resource parent: {}", directory.display()))?;
-        if resource_directory == root {
-            return Err(format!(
-                "Facet must have a non-empty Resource path: {}",
-                directory.display()
-            ));
-        }
-        parse_facet(&facet_document)?;
+        parse_skill_declaration(&skill_document)?;
     }
 
     for entry in fs::read_dir(directory).map_err(|error| {
         format!(
-            "cannot enumerate Core Configuration Tree directory '{}': {error}",
+            "cannot enumerate Skill Map directory '{}': {error}",
             directory.display()
         )
     })? {
-        let entry =
-            entry.map_err(|error| format!("cannot enumerate Core Configuration Tree: {error}"))?;
+        let entry = entry.map_err(|error| format!("cannot enumerate Skill Map: {error}"))?;
         let entry_path = entry.path();
         let metadata = fs::symlink_metadata(&entry_path)
             .map_err(|error| format!("cannot inspect '{}': {error}", entry_path.display()))?;
         if metadata_is_reparse(&metadata) {
             return Err(format!(
-                "Core Configuration Tree cannot contain a symbolic link or reparse point: {}",
+                "Skill Map cannot contain a symbolic link or reparse point: {}",
                 entry_path.display()
             ));
         }
         if metadata.is_dir() {
-            if has_facet {
-                return Err(format!(
-                    "Facet directory must be a leaf: {}",
-                    directory.display()
-                ));
-            }
             assert_safe_segment(
-                entry.file_name().to_str().ok_or_else(|| {
-                    "Core Configuration Tree directory name is not Unicode".to_owned()
-                })?,
-                "Core Configuration Tree directory name",
+                entry
+                    .file_name()
+                    .to_str()
+                    .ok_or_else(|| "Skill Map directory name is not Unicode".to_owned())?,
+                "Skill Map directory name",
             )?;
             validate_directory(root, &entry_path, depth + 1)?;
         } else if metadata.is_file() {
             let name = entry.file_name();
             let name = name
                 .to_str()
-                .ok_or_else(|| "Core Configuration Tree file name is not Unicode".to_owned())?;
+                .ok_or_else(|| "Skill Map file name is not Unicode".to_owned())?;
             let allowed =
-                name == FACET_DOCUMENT_NAME || (directory == root && name == AGENT_DOCUMENT_NAME);
+                name == SKILL_DOCUMENT_NAME || (directory == root && name == AGENT_DOCUMENT_NAME);
             if !allowed {
                 return Err(format!(
-                    "unexpected Core Configuration Tree file: {}",
+                    "unexpected Skill Map file: {}",
                     entry_path.display()
                 ));
             }
         } else {
             return Err(format!(
-                "Core Configuration Tree entry is not a regular file or directory: {}",
+                "Skill Map entry is not a regular file or directory: {}",
                 entry_path.display()
             ));
         }
@@ -159,7 +134,7 @@ fn validate_directory(root: &Path, directory: &Path, depth: usize) -> Result<(),
 fn regular_file_exists(path: &Path) -> Result<bool, String> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata_is_reparse(&metadata) || !metadata.is_file() => Err(format!(
-            "expected a regular non-reparse file when Facet declaration exists: {}",
+            "expected a regular non-reparse file when Skill declaration exists: {}",
             path.display()
         )),
         Ok(_) => Ok(true),

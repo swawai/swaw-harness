@@ -59,7 +59,7 @@ Assert-MainTest `
         $First.Artifacts.Count -eq 6 -and
         [IO.Directory]::Exists((Join-Path `
             $HarnessRoot `
-            'data\admin\config\core')) -and
+            'data\admin\map\core')) -and
         @($ModuleManifestPaths | Where-Object {
             [IO.File]::Exists($_)
         }).Count -eq $CoreContracts.Count -and

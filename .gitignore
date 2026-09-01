@@ -2,8 +2,8 @@
 !/data/admin/
 /data/admin/*
 !/data/admin/AGENTS.md
-!/data/admin/config/
-!/data/admin/config/**
+!/data/admin/map/
+!/data/admin/map/**
 !/data/admin/modules/
 /data/admin/modules/*
 !/data/admin/modules/AGENTS.md
