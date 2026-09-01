@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -237,6 +238,7 @@ fn validate_release(
             manifest_path.display()
         ));
     }
+    validate_release_members(&release_root, &manifest.executable.name)?;
     if !is_lowercase_sha256(&manifest.executable.sha256) {
         return Err(format!(
             "Module Release manifest contains an invalid executable SHA-256: {}",
@@ -270,6 +272,31 @@ fn validate_release(
         executable_length: executable_metadata.len(),
         executable_sha256,
     })
+}
+
+fn validate_release_members(release_root: &Path, executable_name: &str) -> Result<(), String> {
+    let mut member_count = 0_usize;
+    let mut has_manifest = false;
+    let mut has_executable = false;
+    for entry in fs::read_dir(release_root).map_err(|error| {
+        format!(
+            "cannot enumerate Module Release '{}': {error}",
+            release_root.display()
+        )
+    })? {
+        let entry = entry.map_err(|error| format!("cannot enumerate Module Release: {error}"))?;
+        member_count += 1;
+        let name = entry.file_name();
+        has_manifest |= name == OsStr::new(MODULE_MANIFEST_NAME);
+        has_executable |= name == OsStr::new(executable_name);
+    }
+    if member_count != 2 || !has_manifest || !has_executable {
+        return Err(format!(
+            "Module Release membership is invalid: {}",
+            release_root.display()
+        ));
+    }
+    Ok(())
 }
 
 fn parse_manifest(path: &Path) -> Result<ModuleManifest, String> {

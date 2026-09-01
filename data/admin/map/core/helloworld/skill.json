@@ -1,0 +1,9 @@
+{
+  "schema": "swaw.harness.skill/v1",
+  "module": "swaw/templates/helloworld",
+  "version": "1.*",
+  "executable": "helloworld.exe",
+  "arguments": [
+    "Skill Map"
+  ]
+}

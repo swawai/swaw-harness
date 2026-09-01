@@ -4,7 +4,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const PLATFORM_TARGET_ID: &str = "x86_64-pc-windows-msvc";
 const TEST_DATA_HOME_VARIABLE: &str = "SWAW_HARNESS_TEST_DATA_HOME";
-const TEST_MODULE_VERSION_VARIABLE: &str = "SWAW_HARNESS_TEST_MODULE_VERSION";
+const TEST_DEV_VERSION_VARIABLE: &str = "SWAW_HARNESS_TEST_DEV_VERSION";
+const TEST_HELLOWORLD_VERSION_VARIABLE: &str = "SWAW_HARNESS_TEST_HELLOWORLD_VERSION";
 const TEST_PLATFORM_TARGET_VARIABLE: &str = "SWAW_HARNESS_TEST_PLATFORM_TARGET_ID";
 
 #[test]
@@ -195,7 +196,7 @@ fn manifest_identity_and_executable_selection_must_match() {
 }
 
 #[test]
-fn invalid_release_directory_members_are_rejected() {
+fn invalid_platform_directory_members_are_rejected() {
     let data_home = temporary_data_home("invalid-member");
     write_release(&data_home, "swaw/core/dev", "1.0.0", "dev.exe", b"dev");
     let platform_root = module_platform_root(&data_home, "swaw/core/dev");
@@ -214,6 +215,26 @@ fn invalid_release_directory_members_are_rejected() {
         error.contains("invalid Module Release version directory"),
         "{error}"
     );
+
+    fs::remove_dir_all(data_home).unwrap();
+}
+
+#[test]
+fn extra_module_release_members_are_rejected() {
+    let data_home = temporary_data_home("extra-release-member");
+    let release_root = write_release(&data_home, "swaw/core/dev", "1.0.0", "dev.exe", b"dev");
+    fs::write(release_root.join("untracked.dll"), b"not in manifest").unwrap();
+
+    let installed = InstalledModules::open(&data_home).unwrap();
+    let error = installed
+        .select(
+            &ModuleId::parse("swaw/core/dev").unwrap(),
+            VersionSelector::parse("1.0.0").unwrap(),
+            PLATFORM_TARGET_ID,
+            "dev.exe",
+        )
+        .unwrap_err();
+    assert!(error.contains("membership is invalid"), "{error}");
 
     fs::remove_dir_all(data_home).unwrap();
 }
@@ -253,15 +274,59 @@ fn reparse_release_directories_cannot_enter_selection() {
 #[cfg(windows)]
 #[test]
 #[ignore = "requires Windows Bootstrap to materialize repository Module Releases"]
-fn repository_installed_skill_runs_and_writes_export() {
+fn isolated_installed_helloworld_skill_runs() {
     let data_home = PathBuf::from(
         std::env::var_os(TEST_DATA_HOME_VARIABLE)
             .unwrap_or_else(|| panic!("{TEST_DATA_HOME_VARIABLE} is required")),
     );
     let platform_target_id = std::env::var(TEST_PLATFORM_TARGET_VARIABLE)
         .unwrap_or_else(|_| panic!("{TEST_PLATFORM_TARGET_VARIABLE} is required"));
-    let expected_version = std::env::var(TEST_MODULE_VERSION_VARIABLE)
-        .unwrap_or_else(|_| panic!("{TEST_MODULE_VERSION_VARIABLE} is required"));
+    let expected_version = std::env::var(TEST_HELLOWORLD_VERSION_VARIABLE)
+        .unwrap_or_else(|_| panic!("{TEST_HELLOWORLD_VERSION_VARIABLE} is required"));
+    let skill = SkillMap::open(data_home.join("admin").join("map").join("core"))
+        .unwrap()
+        .find("helloworld")
+        .unwrap();
+    let declaration = skill.declaration();
+    let selected = InstalledModules::open(&data_home)
+        .unwrap()
+        .select(
+            declaration.module(),
+            declaration.version(),
+            &platform_target_id,
+            declaration.executable(),
+        )
+        .unwrap();
+    assert_eq!(selected.version().to_string(), expected_version);
+
+    let output = std::process::Command::new(selected.executable_path())
+        .args(declaration.arguments())
+        .current_dir(selected.root())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        "Hello, Skill Map!\n"
+    );
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "requires Windows Bootstrap to materialize repository Module Releases"]
+fn isolated_installed_dev_skill_runs_and_writes_export() {
+    let data_home = PathBuf::from(
+        std::env::var_os(TEST_DATA_HOME_VARIABLE)
+            .unwrap_or_else(|| panic!("{TEST_DATA_HOME_VARIABLE} is required")),
+    );
+    let platform_target_id = std::env::var(TEST_PLATFORM_TARGET_VARIABLE)
+        .unwrap_or_else(|_| panic!("{TEST_PLATFORM_TARGET_VARIABLE} is required"));
+    let expected_version = std::env::var(TEST_DEV_VERSION_VARIABLE)
+        .unwrap_or_else(|_| panic!("{TEST_DEV_VERSION_VARIABLE} is required"));
     let skill = SkillMap::open(data_home.join("admin").join("map").join("core"))
         .unwrap()
         .find("dev/bun/mode")

@@ -9,6 +9,12 @@ fn repository_skill_map_is_valid_and_skills_select_modules_directly() {
 
     for (skill_path, module, executable, arguments) in [
         (
+            "helloworld",
+            "swaw/templates/helloworld",
+            "helloworld.exe",
+            &["Skill Map"][..],
+        ),
+        (
             "dev/setup",
             "swaw/core/dev",
             "swaw-harness-dev.exe",
