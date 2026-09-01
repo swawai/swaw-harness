@@ -34,6 +34,15 @@ $Release = Read-SwawHarnessSelectedRelease `
     -Contracts $Contracts
 $ExpectedNames = @($Contracts | ForEach-Object { $_.ProductBinary })
 $ActualNames = @($Release.Artifacts | ForEach-Object { $_.Name })
+$CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
+    -Path (Join-Path $WindowsRoot 'core\contract.json') `
+    -PlatformTargetId $PlatformContract.PlatformTargetId)
+$ModuleManifestPaths = @($CoreContracts | ForEach-Object {
+    Join-Path `
+        (Join-Path $RepositoryRoot 'data\admin\modules') `
+        ($_.ModuleId.Replace('/', '\') + "\" + $_.PlatformTargetId +
+            "\" + $_.ModuleVersion + '\swaw-harness.module.json')
+})
 $CandidateMembers = @(
     foreach ($Product in @('core', 'entry', 'manager')) {
         $CandidatesRoot = Join-Path `
@@ -74,8 +83,17 @@ Assert-RootBuildTest `
         -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'swaw-harness-cli.exe')
         ) -and
-        [IO.File]::Exists(
-            (Join-Path $RepositoryRoot 'data\swaw-harness\entry.json')
+        [IO.Directory]::Exists(
+            (Join-Path $RepositoryRoot 'data\admin\map\core')
+        ) -and
+        @($ModuleManifestPaths | Where-Object {
+            [IO.File]::Exists($_)
+        }).Count -eq $CoreContracts.Count -and
+        -not [IO.File]::Exists(
+            (Join-Path $RepositoryRoot 'data\admin\entry.json')
+        ) -and
+        -not [IO.Directory]::Exists(
+            (Join-Path $RepositoryRoot 'data\admin\runtime')
         ) -and
         $CandidateMembers.Count -eq 0
     ) `

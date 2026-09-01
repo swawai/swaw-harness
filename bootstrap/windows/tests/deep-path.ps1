@@ -107,6 +107,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\filesystem.ps1')
 . (Join-Path $WindowsRoot 'builder\path-budget.ps1')
 . (Join-Path $WindowsRoot 'builder\process.ps1')
+. (Join-Path $WindowsRoot 'core\contract.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
@@ -116,6 +117,16 @@ $DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
 $SourceContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $DataRepo
 $Contract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $WindowsRoot 'contract.json')
+$CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
+    -Path (Join-Path $WindowsRoot 'core\contract.json') `
+    -PlatformTargetId $Contract.PlatformTargetId)
+$DevContracts = @($CoreContracts | Where-Object {
+    $_.ModuleId -ceq 'swaw/core/dev'
+})
+if ($DevContracts.Count -ne 1) {
+    throw 'Deep-path test requires exactly one Dev Module contract.'
+}
+$DevContract = $DevContracts[0]
 $SourceToolchainRoot = Get-SwawHarnessToolchainTargetPath `
     -Context $SourceContext `
     -Contract $Contract
@@ -176,7 +187,10 @@ try {
             $Release.Artifacts.Count -eq 6 -and
             [IO.File]::Exists((Join-Path `
                 $DeepRoot `
-                'data\swaw-harness\entry.json'))
+                ('data\admin\modules\swaw\core\dev\' +
+                    $DevContract.PlatformTargetId + '\' +
+                    $DevContract.ModuleVersion + '\' +
+                    'swaw-harness.module.json')))
         ) `
         -Message 'deep build exceeded its declared repository or native budget'
 
@@ -204,8 +218,13 @@ try {
         -WorkingDirectory $Release.Root
     $DevEntryRoot = Join-Path $DeepRoot 'data\deep'
     [void][IO.Directory]::CreateDirectory($DevEntryRoot)
+    $InstalledDev = Join-Path `
+        $DeepRoot `
+        ('data\admin\modules\swaw\core\dev\' +
+            $DevContract.PlatformTargetId + '\' +
+            $DevContract.ModuleVersion + '\swaw-harness-dev.exe')
     $Dev = Invoke-SwawHarnessCapturedProcess `
-        -Executable $Artifacts['swaw-harness-dev.exe'] `
+        -Executable $InstalledDev `
         -Arguments @('dev/bun/mode', 'managed') `
         -WorkingDirectory $Release.Root `
         -EnvironmentVariables @{
@@ -219,11 +238,6 @@ try {
         -Executable $Artifacts['swaw-harness-cli.exe'] `
         -Arguments @() `
         -WorkingDirectory $Release.Root
-    $AdminRuntimeRoot = Join-Path $DeepRoot 'data\swaw-harness\runtime'
-    $AdminSelector = @(Get-ChildItem `
-        -LiteralPath $AdminRuntimeRoot `
-        -File `
-        -Filter 'current.*')
     Assert-DeepPathTest `
         -Condition (
             $Core.ExitCode -eq 0 -and
@@ -237,7 +251,12 @@ try {
             $Entry.Error -cmatch '^\[ERROR\] ' -and
             $EntryManager.ExitCode -eq 1 -and
             $EntryManager.Error -cmatch '^\[ERROR\] ' -and
-            $AdminSelector.Count -eq 1
+            -not [IO.Directory]::Exists((Join-Path `
+                $DeepRoot `
+                'data\admin\runtime')) -and
+            -not [IO.File]::Exists((Join-Path `
+                $DeepRoot `
+                'data\admin\entry.json'))
         ) `
         -Message 'published executables depended on unavailable native data'
 

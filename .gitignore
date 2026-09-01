@@ -1,4 +1,12 @@
-/data/
+/data/*
+!/data/admin/
+/data/admin/*
+!/data/admin/AGENTS.md
+!/data/admin/map/
+!/data/admin/map/**
+!/data/admin/modules/
+/data/admin/modules/*
+!/data/admin/modules/AGENTS.md
 /data.entry/
 /data.repo/
 /core/target/
