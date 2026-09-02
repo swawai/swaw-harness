@@ -8,9 +8,9 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot '..\builder\filesystem.ps1')
 . (Join-Path $PSScriptRoot 'contract.ps1')
 
-$script:SwawHarnessWindowsEntryRoot = $PSScriptRoot
+$script:SwawHarnessWindowsUserCliRoot = $PSScriptRoot
 
-function Invoke-SwawHarnessWindowsEntryCandidateBuild {
+function Invoke-SwawHarnessWindowsUserCliCandidateBuild {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]$Context,
@@ -21,19 +21,19 @@ function Invoke-SwawHarnessWindowsEntryCandidateBuild {
         [IO.FileStream]$CandidateLifecycleLock = $null
     )
 
-    $EntryRoot = $script:SwawHarnessWindowsEntryRoot
+    $UserCliRoot = $script:SwawHarnessWindowsUserCliRoot
     [void](Assert-SwawHarnessRepositoryRootPathBudget `
-        -RepositoryRoot (Join-Path $EntryRoot '..\..\..'))
+        -RepositoryRoot (Join-Path $UserCliRoot '..\..\..'))
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
-        -Path (Join-Path $EntryRoot '..\contract.json')
-    $Contract = Read-SwawHarnessWindowsEntryContract `
-        -Path (Join-Path $EntryRoot 'contract.json') `
+        -Path (Join-Path $UserCliRoot '..\contract.json')
+    $Contract = Read-SwawHarnessWindowsUserCliContract `
+        -Path (Join-Path $UserCliRoot 'contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId
-    $BuildRoot = Join-Path $Context.BuildRoot 'entry'
+    $BuildRoot = Join-Path $Context.BuildRoot 'user'
     $BuildRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $BuildRoot `
         -Root $Context.BuildRoot `
-        -Activity 'building the Windows Entry executable candidate'
+        -Activity 'building the Windows User CLI executable candidate'
     [void][IO.Directory]::CreateDirectory($BuildRoot)
 
     $CompilerPath = Get-SwawHarnessFullPath -Path $CompilerPath
@@ -53,37 +53,37 @@ function Invoke-SwawHarnessWindowsEntryCandidateBuild {
     try {
         $Lock = Enter-SwawHarnessFileLock `
             -Path (Join-Path $Context.LockRoot (
-                "build-entry-$($Contract.PlatformTargetId).lock"
+                "build-user-$($Contract.PlatformTargetId).lock"
             )) `
             -ControlledRoot $Context.DataRepo `
             -TimeoutSeconds 1800
         $OutputRoot = $BuildRoot
         [void][IO.Directory]::CreateDirectory($OutputRoot)
-        $ObjectPath = Join-Path $OutputRoot 'entry.obj'
+        $ObjectPath = Join-Path $OutputRoot 'user.obj'
         $ArtifactPath = Join-Path $OutputRoot $Contract.BuildBinary
         foreach ($OutputPath in @($ObjectPath, $ArtifactPath)) {
             if (Test-SwawHarnessPathExists -Path $OutputPath) {
                 Remove-SwawHarnessControlledPathWithRetry `
                     -Path $OutputPath `
                     -ControlledRoot $Context.BuildRoot `
-                    -Activity 'replacing an Entry executable build output'
+                    -Activity 'replacing a User CLI executable build output'
             }
         }
 
         $SourcePath = Resolve-SwawHarnessChildPath `
-            -Root $EntryRoot `
+            -Root $UserCliRoot `
             -RelativePath $Contract.Source `
-            -Description 'Windows Entry executable source'
+            -Description 'Windows User CLI executable source'
         [void](Assert-SwawHarnessRegularFile `
             -Path $SourcePath `
-            -Description 'Windows Entry executable source' `
+            -Description 'Windows User CLI executable source' `
             -MaximumBytes 1MB)
         [void](Assert-SwawHarnessNativePathBudget `
             -Paths @(
                 $CompilerPath, $LinkerPath, $SourcePath,
                 $ObjectPath, $ArtifactPath, $OutputRoot
             ) `
-            -Description 'Planned Entry native build path')
+            -Description 'planned User CLI native build path')
         $CompileResult = Invoke-SwawHarnessCapturedProcess `
             -Executable $CompilerPath `
             -Arguments @(
@@ -91,20 +91,20 @@ function Invoke-SwawHarnessWindowsEntryCandidateBuild {
                 "/Fo$ObjectPath"
                 $SourcePath
             ) `
-            -WorkingDirectory $EntryRoot `
+            -WorkingDirectory $UserCliRoot `
             -EnvironmentVariables $EnvironmentVariables `
             -UnsetEnvironmentVariables $UnsetEnvironmentVariables `
             -TimeoutSeconds 300
         if ($CompileResult.ExitCode -ne 0) {
             throw (
-                'Entry executable compilation failed with exit code ' +
+                'User CLI executable compilation failed with exit code ' +
                 "$($CompileResult.ExitCode). $($CompileResult.Error) " +
                 "$($CompileResult.Output)"
             ).Trim()
         }
         [void](Assert-SwawHarnessRegularFile `
             -Path $ObjectPath `
-            -Description 'Windows Entry executable object')
+            -Description 'Windows User CLI executable object')
 
         $LinkResult = Invoke-SwawHarnessCapturedProcess `
             -Executable $LinkerPath `
@@ -120,20 +120,20 @@ function Invoke-SwawHarnessWindowsEntryCandidateBuild {
             -TimeoutSeconds 300
         if ($LinkResult.ExitCode -ne 0) {
             throw (
-                "Entry executable link failed with exit code " +
+                "User CLI executable link failed with exit code " +
                 "$($LinkResult.ExitCode). $($LinkResult.Error) " +
                 "$($LinkResult.Output)"
             ).Trim()
         }
         [void](Assert-SwawHarnessNativeTreePathBudget `
             -Root $OutputRoot `
-            -Description 'Entry native output path')
+            -Description 'User CLI native output path')
         $Artifact = Assert-SwawHarnessRegularFile `
             -Path $ArtifactPath `
-            -Description 'Built Windows Entry executable' `
+            -Description 'Built Windows User CLI executable' `
             -MaximumBytes $Contract.MaximumBytes
         if ([long]$Artifact.Length -le 0) {
-            throw 'Built Windows Entry executable is empty.'
+            throw 'Built Windows User CLI executable is empty.'
         }
         $CandidateRoot = Publish-SwawHarnessBootstrapCandidate `
             -ArtifactPath $ArtifactPath `

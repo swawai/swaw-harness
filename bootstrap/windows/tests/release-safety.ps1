@@ -59,10 +59,10 @@ try {
             -Name 'core.exe' -Content 'core-a' `
             -Root $FixtureRoot -PlatformTargetId $PlatformTargetId
         New-ReleaseSafetyFixture `
-            -Name 'entry.exe' -Content 'entry-a' `
+            -Name 'user.exe' -Content 'user-a' `
             -Root $FixtureRoot -PlatformTargetId $PlatformTargetId
         New-ReleaseSafetyFixture `
-            -Name 'entry-manager.exe' -Content 'manager-a' `
+            -Name 'frontend-cli.exe' -Content 'frontend-a' `
             -Root $FixtureRoot -PlatformTargetId $PlatformTargetId
     )
     $Contracts = @($Fixtures | ForEach-Object { $_.Contract })
@@ -90,7 +90,7 @@ try {
     $InvalidCandidates = @($Candidates)
     $InvalidCandidates[2] = [pscustomobject][ordered]@{
         PlatformTargetId = $PlatformTargetId
-        Name = 'entry-manager.exe'
+        Name = 'frontend-cli.exe'
         ArtifactPath = Join-Path $FixtureRoot 'missing.exe'
         Length = 1
         Sha256 = '0' * 64
@@ -127,7 +127,7 @@ try {
     [IO.File]::Delete($UnexpectedPath)
 
     $CorruptArtifact = @($First.Artifacts | Where-Object {
-        $_.Name -ceq 'entry.exe'
+        $_.Name -ceq 'user.exe'
     })[0]
     [IO.File]::WriteAllText($CorruptArtifact.Path, 'corrupt')
     $Repaired = Publish-SwawHarnessBootstrapRelease `
@@ -187,11 +187,11 @@ try {
             -Root $OtherFixtureRoot `
             -PlatformTargetId $OtherPlatformTargetId
         New-ReleaseSafetyFixture `
-            -Name 'entry.exe' -Content 'entry-b' `
+            -Name 'user.exe' -Content 'user-b' `
             -Root $OtherFixtureRoot `
             -PlatformTargetId $OtherPlatformTargetId
         New-ReleaseSafetyFixture `
-            -Name 'entry-manager.exe' -Content 'manager-b' `
+            -Name 'frontend-cli.exe' -Content 'frontend-b' `
             -Root $OtherFixtureRoot `
             -PlatformTargetId $OtherPlatformTargetId
     )

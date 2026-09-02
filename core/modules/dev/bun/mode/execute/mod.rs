@@ -3,8 +3,8 @@ use std::path::Path;
 
 use super::{ModeStore, RESOURCE_PATH, parse_mode};
 
-pub(crate) fn run(entry_root: &Path, arguments: &[OsString]) -> Result<(), String> {
-    let store = ModeStore::new(entry_root);
+pub(crate) fn run(user_home: &Path, arguments: &[OsString]) -> Result<(), String> {
+    let store = ModeStore::new(user_home);
     let mode = match arguments {
         [] => store.read()?,
         [value] => {

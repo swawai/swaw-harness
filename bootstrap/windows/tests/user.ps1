@@ -4,11 +4,11 @@ param([string]$DataRepo = '')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 
-function Assert-EntryTest {
+function Assert-UserCliTest {
     param([bool]$Condition, [string]$Message)
 
     if (-not $Condition) {
-        throw "Entry executable test failed: $Message"
+        throw "User CLI executable test failed: $Message"
     }
 }
 
@@ -20,8 +20,8 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\build\candidate.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
-. (Join-Path $WindowsRoot 'entry\contract.ps1')
-. (Join-Path $WindowsRoot 'entry\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'user\contract.ps1')
+. (Join-Path $WindowsRoot 'user\candidate-build.ps1')
 . (Join-Path $PSScriptRoot 'pe-imports.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
@@ -42,36 +42,36 @@ try {
         -Contract $PlatformContract `
         -InstallRoot $InstallRoot
     if ($null -eq $Toolchain) {
-        throw 'Entry executable test requires the Contract toolchain to be installed.'
+        throw 'User CLI executable test requires the Contract toolchain to be installed.'
     }
     $Plan = Get-SwawHarnessToolchainEnvironment `
         -Context $SharedContext `
         -Contract $PlatformContract `
         -Toolchain $Toolchain
     $TestContext = New-SwawHarnessWindowsBootstrapContext -DataRepo $TestRoot
-    $CandidateRoot = Invoke-SwawHarnessWindowsEntryCandidateBuild `
+    $CandidateRoot = Invoke-SwawHarnessWindowsUserCliCandidateBuild `
         -Context $TestContext `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $EntryContract = Read-SwawHarnessWindowsEntryContract `
-        -Path (Join-Path $WindowsRoot 'entry\contract.json') `
+    $UserCliContract = Read-SwawHarnessWindowsUserCliContract `
+        -Path (Join-Path $WindowsRoot 'user\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId
-    $BuildRoot = Join-Path $TestContext.BuildRoot 'entry'
+    $BuildRoot = Join-Path $TestContext.BuildRoot 'user'
     $Candidate = Read-SwawHarnessBootstrapCandidate `
         -CandidateRoot ([string]$CandidateRoot) `
-        -Contract $EntryContract `
+        -Contract $UserCliContract `
         -BuildRoot $BuildRoot
     $Artifact = Get-Item -LiteralPath $Candidate.ArtifactPath
-    Assert-EntryTest `
+    Assert-UserCliTest `
         -Condition (
-            $Artifact.Name -ceq 'entry.exe' -and
+            $Artifact.Name -ceq 'user.exe' -and
             $Artifact.Length -gt 0 -and
-            $Artifact.Length -le $EntryContract.MaximumBytes
+            $Artifact.Length -le $UserCliContract.MaximumBytes
         ) `
-        -Message 'Entry executable build did not produce a valid Candidate'
+        -Message 'User CLI executable build did not produce a valid Candidate'
     [void](Assert-SwawHarnessNoExternalCrtImports `
         -ArtifactPath $Candidate.ArtifactPath `
         -LinkerPath $Plan.LinkerPath `
@@ -82,25 +82,25 @@ try {
         -Executable $Candidate.ArtifactPath `
         -Arguments @() `
         -WorkingDirectory (Split-Path $Candidate.ArtifactPath -Parent)
-    Assert-EntryTest `
+    Assert-UserCliTest `
         -Condition (
             $Result.ExitCode -eq 1 -and
             $Result.Error -ceq (
-                '[ERROR] Swaw Harness Entry executable runtime is not ' +
+                '[ERROR] Swaw Harness User CLI executable runtime is not ' +
                 'implemented yet; this artifact is for build and ' +
                 'publication validation only.'
             )
         ) `
-        -Message 'development Entry executable did not fail explicitly'
+        -Message 'development User CLI executable did not fail explicitly'
 
     $Implementation = [IO.File]::ReadAllText(
-        (Join-Path $WindowsRoot 'entry\entry.c')
+        (Join-Path $WindowsRoot 'user\user.c')
     )
-    Assert-EntryTest `
+    Assert-UserCliTest `
         -Condition (
             $Implementation -notmatch (
                 'SWAWKIT|PowerShell|core\.release|' +
-                'data\.entry|bootstrap\\windows'
+                'bootstrap\\windows'
             )
         ) `
         -Message 'deferred runtime or legacy Bootstrap behavior leaked in'
@@ -110,5 +110,5 @@ try {
     }
 }
 
-Write-Host '[PASS] Windows Entry executable build' `
+Write-Host '[PASS] Windows User CLI executable build' `
     -ForegroundColor Green

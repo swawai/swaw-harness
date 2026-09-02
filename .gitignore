@@ -7,7 +7,6 @@
 !/data/admin/modules/
 /data/admin/modules/*
 !/data/admin/modules/AGENTS.md
-/data.entry/
 /data.repo/
 /core/target/
-/bootstrap/windows/entry.manager/target/
+/bootstrap/windows/frontend/target/

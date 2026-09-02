@@ -1,11 +1,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-static const char swaw_entry_message[] =
-    "[ERROR] Swaw Harness Entry executable runtime is not implemented yet; "
+static const char swaw_user_cli_message[] =
+    "[ERROR] Swaw Harness User CLI executable runtime is not implemented yet; "
     "this artifact is for build and publication validation only.\r\n";
 
-__declspec(noreturn) void swaw_entry_main(void)
+__declspec(noreturn) void swaw_user_cli_main(void)
 {
     DWORD written = 0;
     HANDLE error_handle = GetStdHandle(STD_ERROR_HANDLE);
@@ -13,8 +13,8 @@ __declspec(noreturn) void swaw_entry_main(void)
     if (error_handle != NULL && error_handle != INVALID_HANDLE_VALUE) {
         WriteFile(
             error_handle,
-            swaw_entry_message,
-            (DWORD)(sizeof(swaw_entry_message) - 1),
+            swaw_user_cli_message,
+            (DWORD)(sizeof(swaw_user_cli_message) - 1),
             &written,
             NULL
         );

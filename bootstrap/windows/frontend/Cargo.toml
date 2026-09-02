@@ -1,12 +1,12 @@
 [package]
-name = "swaw-har-manager"
+name = "swaw-har-frontend"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
 publish = false
 
 [lib]
-name = "swaw_har_manager"
+name = "swaw_har_frontend"
 path = "src/lib.rs"
 
 [[bin]]

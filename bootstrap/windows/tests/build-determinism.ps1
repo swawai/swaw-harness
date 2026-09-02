@@ -25,15 +25,15 @@ function Invoke-BuildDeterminismPass {
             -EnvironmentVariables $Plan.EnvironmentVariables `
             -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
     )
-    $EntryCandidateRoot = Invoke-SwawHarnessWindowsEntryCandidateBuild `
+    $UserCliCandidateRoot = Invoke-SwawHarnessWindowsUserCliCandidateBuild `
         -Context $Context `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $ManagerCandidateRoots = @(
-        Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
+    $FrontendCandidateRoots = @(
+        Invoke-SwawHarnessWindowsFrontendCandidateBuild `
         -Context $Context `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
@@ -43,8 +43,8 @@ function Invoke-BuildDeterminismPass {
     return Publish-SwawHarnessWindowsProducts `
         -Context $Context `
         -CoreCandidateRoots ([string[]]$CoreCandidateRoots) `
-        -EntryCandidateRoot ([string]$EntryCandidateRoot) `
-        -EntryManagerCandidateRoots $ManagerCandidateRoots
+        -UserCliCandidateRoot ([string]$UserCliCandidateRoot) `
+        -FrontendCandidateRoots $FrontendCandidateRoots
 }
 
 function Get-BuildDeterminismSnapshot {
@@ -68,8 +68,8 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\filesystem.ps1')
 . (Join-Path $WindowsRoot 'publication.ps1')
 . (Join-Path $WindowsRoot 'core\candidate-build.ps1')
-. (Join-Path $WindowsRoot 'entry\candidate-build.ps1')
-. (Join-Path $WindowsRoot 'entry.manager\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'user\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'frontend\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')

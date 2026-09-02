@@ -2,7 +2,7 @@ Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot '..\builder\foundation.ps1')
 
-function Read-SwawHarnessWindowsEntryManagerContracts {
+function Read-SwawHarnessWindowsFrontendContracts {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
         [Parameter(Mandatory = $true)][string]$PlatformTargetId
@@ -10,31 +10,31 @@ function Read-SwawHarnessWindowsEntryManagerContracts {
 
     $Contract = Read-SwawHarnessJsonFile `
         -Path $Path `
-        -Description 'Windows Entry Manager build contract'
+        -Description 'Windows frontend build contract'
     Assert-SwawHarnessObjectFields `
         -Value $Contract `
         -Expected @(
             'schema', 'package', 'staticCrt', 'binaries'
         ) `
-        -Description 'Windows Entry Manager build contract'
+        -Description 'Windows frontend build contract'
     if ([string]$Contract.schema -cne
-        'swaw.harness.entry-manager-build/v3') {
-        throw 'Unsupported Windows Entry Manager build contract schema.'
+        'swaw.harness.frontend-build/v1') {
+        throw 'Unsupported Windows frontend build contract schema.'
     }
     if ($PlatformTargetId -cne 'x86_64-pc-windows-msvc') {
-        throw 'Windows Entry Manager v3 supports x86_64-pc-windows-msvc only.'
+        throw 'Windows frontend v1 supports x86_64-pc-windows-msvc only.'
     }
     $Package = ([string]$Contract.package).Trim()
-    if ($Package -cne 'swaw-har-manager') {
-        throw 'Windows Entry Manager package name is invalid.'
+    if ($Package -cne 'swaw-har-frontend') {
+        throw 'Windows frontend package name is invalid.'
     }
     if ($Contract.staticCrt -isnot [bool] -or
         -not [bool]$Contract.staticCrt) {
-        throw 'Windows Entry Manager v3 requires staticCrt to be true.'
+        throw 'Windows frontend v1 requires staticCrt to be true.'
     }
     $Binaries = @($Contract.binaries)
     if ($Binaries.Count -ne 2) {
-        throw 'Windows Entry Manager v3 requires exactly two binaries.'
+        throw 'Windows frontend v1 requires exactly two binaries.'
     }
     $Expected = @(
         @('cli', 'swaw-harness-cli.exe', 'console'),
@@ -49,7 +49,7 @@ function Read-SwawHarnessWindowsEntryManagerContracts {
                 'role', 'buildArtifact', 'artifact',
                 'subsystem', 'maximumBytes'
             ) `
-            -Description 'Windows Entry Manager binary contract'
+            -Description 'Windows frontend binary contract'
         $Role = ([string]$Binary.role).Trim()
         $BuildArtifact = ([string]$Binary.buildArtifact).Trim()
         $Artifact = ([string]$Binary.artifact).Trim()
@@ -59,10 +59,10 @@ function Read-SwawHarnessWindowsEntryManagerContracts {
             $BuildArtifact -cne $Expected[$Index][1] -or
             $Artifact -cne $Expected[$Index][1] -or
             $Subsystem -cne $Expected[$Index][2]) {
-            throw 'Windows Entry Manager binary identity is invalid.'
+            throw 'Windows frontend binary identity is invalid.'
         }
         if ($MaximumBytes -le 0 -or $MaximumBytes -gt 64MB) {
-            throw 'Windows Entry Manager maximumBytes is invalid.'
+            throw 'Windows frontend maximumBytes is invalid.'
         }
         Write-Output ([pscustomobject][ordered]@{
             Schema = [string]$Contract.schema

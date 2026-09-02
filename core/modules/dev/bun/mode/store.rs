@@ -44,13 +44,13 @@ impl ModeDocument {
 }
 
 pub(crate) struct ModeStore {
-    entry_root: PathBuf,
+    user_home: PathBuf,
 }
 
 impl ModeStore {
-    pub(crate) fn new(entry_root: impl Into<PathBuf>) -> Self {
+    pub(crate) fn new(user_home: impl Into<PathBuf>) -> Self {
         Self {
-            entry_root: entry_root.into(),
+            user_home: user_home.into(),
         }
     }
 
@@ -127,14 +127,14 @@ impl ModeStore {
     }
 
     fn resource_directory(&self, create: bool) -> Result<Option<PathBuf>, String> {
-        if !self.entry_root.is_absolute() {
+        if !self.user_home.is_absolute() {
             return Err(format!(
-                "EntryRoot must be absolute: {}",
-                self.entry_root.display()
+                "UserHome must be absolute: {}",
+                self.user_home.display()
             ));
         }
-        require_regular_directory(&self.entry_root, "EntryRoot")?;
-        let mut path = self.entry_root.clone();
+        require_regular_directory(&self.user_home, "UserHome")?;
+        let mut path = self.user_home.clone();
         let components =
             std::iter::once(BaseResourceSpace::Export.name()).chain(RESOURCE_PATH.split('/'));
         for component in components {

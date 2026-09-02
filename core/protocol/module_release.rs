@@ -22,8 +22,8 @@ impl InstalledModules {
     pub fn open(data_home: impl AsRef<Path>) -> Result<Self, String> {
         let data_home = data_home.as_ref();
         assert_regular_directory(data_home, "DataHome")?;
-        let admin_root = find_exact_child(data_home, "admin", "Admin EntryRoot")?;
-        assert_regular_directory(&admin_root, "Admin EntryRoot")?;
+        let admin_root = find_exact_child(data_home, "admin", "Admin UserHome")?;
+        assert_regular_directory(&admin_root, "Admin UserHome")?;
         let modules_root = find_exact_child(&admin_root, "modules", "installed modules root")?;
         assert_regular_directory(&modules_root, "installed modules root")?;
         let root = fs::canonicalize(&modules_root).map_err(|error| {

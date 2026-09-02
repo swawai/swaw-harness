@@ -13,7 +13,7 @@ mod tests {
 
     #[test]
     fn rejects_direct_invocation_until_runtime_facets_exist() {
-        let error = run(vec!["admin/entry".into(), "create".into()]).unwrap_err();
+        let error = run(vec!["admin/user".into(), "create".into()]).unwrap_err();
 
         assert!(error.contains("not implemented"));
         assert!(error.contains("Bootstrap publishes Module Releases directly"));

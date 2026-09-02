@@ -11,7 +11,7 @@ pub(crate) fn run(arguments: Vec<OsString>) -> Result<(), String> {
         .ok_or_else(|| "Resource path must be valid Unicode".to_owned())?;
     if resource == crate::bun::mode::RESOURCE_PATH {
         let context = InvocationContext::from_environment()?;
-        crate::bun::mode::execute::run(context.entry_root(), dynamic)
+        crate::bun::mode::execute::run(context.user_home(), dynamic)
     } else {
         Err(format!("unsupported Dev Resource path '{resource}'"))
     }

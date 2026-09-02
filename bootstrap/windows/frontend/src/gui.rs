@@ -19,7 +19,7 @@ fn wide_null(value: &str) -> Vec<u16> {
 
 fn main() {
     let caption = wide_null("Swaw Harness");
-    let message = wide_null(swaw_har_manager::GUI_PENDING);
+    let message = wide_null(swaw_har_frontend::GUI_PENDING);
     unsafe {
         // SAFETY: Both UTF-16 buffers are null-terminated and remain alive
         // for the duration of this synchronous call; no owner window is used.

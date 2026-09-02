@@ -3,18 +3,18 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use swaw_harness_core_protocol::ENTRY_ROOT_ENVIRONMENT_VARIABLE;
+use swaw_harness_core_protocol::USER_HOME_ENVIRONMENT_VARIABLE;
 
 static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
 
-fn command(entry_root: Option<&Path>, arguments: &[&str]) -> Output {
+fn command(user_home: Option<&Path>, arguments: &[&str]) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_swaw-harness-dev"));
     command
-        .env_remove(ENTRY_ROOT_ENVIRONMENT_VARIABLE)
+        .env_remove(USER_HOME_ENVIRONMENT_VARIABLE)
         .arg("dev/bun/mode")
         .args(arguments);
-    if let Some(entry_root) = entry_root {
-        command.env(ENTRY_ROOT_ENVIRONMENT_VARIABLE, entry_root);
+    if let Some(user_home) = user_home {
+        command.env(USER_HOME_ENVIRONMENT_VARIABLE, user_home);
     }
     command.output().unwrap()
 }
@@ -86,19 +86,19 @@ fn invalid_mode_does_not_replace_the_valid_document() {
 }
 
 #[test]
-fn missing_entry_root_environment_is_rejected() {
+fn missing_user_home_environment_is_rejected() {
     let output = command(None, &["managed"]);
 
     assert!(!output.status.success());
-    assert!(stderr(&output).contains(ENTRY_ROOT_ENVIRONMENT_VARIABLE));
+    assert!(stderr(&output).contains(USER_HOME_ENVIRONMENT_VARIABLE));
 }
 
 #[test]
-fn relative_entry_root_environment_is_rejected() {
-    let output = command(Some(Path::new("relative-entry")), &["managed"]);
+fn relative_user_home_environment_is_rejected() {
+    let output = command(Some(Path::new("relative-user-home")), &["managed"]);
 
     assert!(!output.status.success());
-    assert!(stderr(&output).contains("absolute EntryRoot"));
+    assert!(stderr(&output).contains("absolute UserHome"));
 }
 
 struct Fixture {
