@@ -91,6 +91,28 @@ function Assert-SwawHarnessModuleVersion {
     return $Version
 }
 
+function Assert-SwawHarnessModuleExecutableLength {
+    param(
+        [Parameter(Mandatory = $true)]$Value,
+        [Parameter(Mandatory = $true)][string]$ManifestPath
+    )
+
+    if (($Value -isnot [int]) -and ($Value -isnot [long])) {
+        throw (
+            'Module Release manifest executable length must be a JSON integer: ' +
+            $ManifestPath
+        )
+    }
+    $Length = [long]$Value
+    if ($Length -le 0) {
+        throw (
+            'Module Release manifest executable length must be positive: ' +
+            $ManifestPath
+        )
+    }
+    return $Length
+}
+
 function Read-SwawHarnessModuleRelease {
     param(
         [Parameter(Mandatory = $true)][string]$ReleaseRoot,
@@ -137,6 +159,9 @@ function Read-SwawHarnessModuleRelease {
         -Value $Manifest.executable `
         -Expected @('name', 'length', 'sha256') `
         -Description 'Module Release executable record'
+    $ManifestExecutableLength = Assert-SwawHarnessModuleExecutableLength `
+        -Value $Manifest.executable.length `
+        -ManifestPath $ManifestPath
     $ExecutablePath = Resolve-SwawHarnessChildPath `
         -Root $ReleaseRoot `
         -RelativePath ([string]$Contract.ProductBinary) `
@@ -153,7 +178,7 @@ function Read-SwawHarnessModuleRelease {
             [string]$Contract.PlatformTargetId -or
         [string]$Manifest.executable.name -cne
             [string]$Contract.ProductBinary -or
-        [long]$Manifest.executable.length -ne [long]$Executable.Length -or
+        $ManifestExecutableLength -ne [long]$Executable.Length -or
         [string]$Manifest.executable.sha256 -cne $Sha256 -or
         [long]$SourceArtifact.Length -ne [long]$Executable.Length -or
         [string]$SourceArtifact.Sha256 -cne $Sha256) {

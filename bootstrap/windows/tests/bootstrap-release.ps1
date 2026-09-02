@@ -251,6 +251,42 @@ try {
         ) `
         -Message 'Bootstrap modules were not published directly and idempotently'
 
+    $InvalidLengthModule = $SecondModules[0]
+    $InvalidLengthManifestPath = [string]$InvalidLengthModule.ManifestPath
+    [byte[]]$OriginalManifestBytes =
+        [IO.File]::ReadAllBytes($InvalidLengthManifestPath)
+    foreach ($InvalidLength in @('123', [double]123.5)) {
+        try {
+            $InvalidLengthManifest = Read-SwawHarnessJsonFile `
+                -Path $InvalidLengthManifestPath `
+                -Description 'Module Release manifest test fixture'
+            $InvalidLengthManifest.executable.length = $InvalidLength
+            [IO.File]::WriteAllText(
+                $InvalidLengthManifestPath,
+                (ConvertTo-SwawHarnessJsonText -Value $InvalidLengthManifest),
+                [Text.UTF8Encoding]::new($false)
+            )
+            $InvalidLengthRejected = $false
+            try {
+                [void](Publish-SwawHarnessWindowsBootstrapModules `
+                    -Context $ModuleContext `
+                    -BootstrapRelease $First)
+            } catch {
+                $InvalidLengthRejected = $_.Exception.Message.Contains(
+                    'length must be a JSON integer'
+                )
+            }
+            Assert-BootstrapReleaseTest `
+                -Condition $InvalidLengthRejected `
+                -Message 'Module publication accepted a non-integer manifest length'
+        } finally {
+            [IO.File]::WriteAllBytes(
+                $InvalidLengthManifestPath,
+                $OriginalManifestBytes
+            )
+        }
+    }
+
     $InstalledDev = @($SecondModules | Where-Object {
         $_.ModuleId -ceq 'swaw/core/dev'
     })[0]

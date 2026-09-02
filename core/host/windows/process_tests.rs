@@ -18,6 +18,18 @@ const SYNCHRONIZE_PROCESS: u32 = 0x0010_0000;
 const PROBE_MARKER: &str = "SWAW-HARNESS-MODULE-PROBE ";
 
 #[test]
+fn module_output_queue_applies_bounded_backpressure() {
+    let (sender, _receiver) = stream_channel();
+    for _ in 0..STREAM_QUEUE_CAPACITY {
+        assert!(sender.try_send(StreamEvent::Closed).is_ok());
+    }
+    assert!(matches!(
+        sender.try_send(StreamEvent::Closed),
+        Err(std::sync::mpsc::TrySendError::Full(StreamEvent::Closed))
+    ));
+}
+
+#[test]
 fn windows_arguments_are_quoted_without_changing_content() {
     assert_eq!(
         quote_argument(OsStr::new("plain")).unwrap(),

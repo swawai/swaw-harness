@@ -33,11 +33,12 @@ use crate::dispatch::PreparedCall;
 use crate::wire::{self, KIND_STDERR, KIND_STDOUT};
 
 const STREAM_BUFFER_BYTES: usize = 16 * 1024;
+const STREAM_QUEUE_CAPACITY: usize = 8;
 const CLIENT_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 pub(super) fn execute(call: &PreparedCall, client: &mut File) -> Result<u32, String> {
     let mut child = ChildProcess::spawn(call)?;
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = stream_channel();
     let stdout = child
         .stdout
         .take()
@@ -97,10 +98,14 @@ enum StreamEvent {
     Failed(String),
 }
 
+fn stream_channel() -> (mpsc::SyncSender<StreamEvent>, mpsc::Receiver<StreamEvent>) {
+    mpsc::sync_channel(STREAM_QUEUE_CAPACITY)
+}
+
 fn spawn_reader(
     mut stream: File,
     kind: u16,
-    sender: mpsc::Sender<StreamEvent>,
+    sender: mpsc::SyncSender<StreamEvent>,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut buffer = [0_u8; STREAM_BUFFER_BYTES];
