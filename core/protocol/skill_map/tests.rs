@@ -12,7 +12,7 @@ fn repository_skill_map_is_valid_and_skills_select_modules_directly() {
             "helloworld",
             "swaw/templates/helloworld",
             "helloworld.exe",
-            &["Skill Map"][..],
+            &[][..],
         ),
         (
             "dev/setup",

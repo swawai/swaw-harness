@@ -35,7 +35,7 @@ function Read-SwawHarnessWindowsUserCliContract {
     Assert-SwawHarnessObjectFields `
         -Value $Contract `
         -Expected @(
-            'schema', 'buildArtifact', 'artifact', 'source', 'compilerArguments',
+            'schema', 'buildArtifact', 'artifact', 'sources', 'compilerArguments',
             'linkerArguments', 'libraries', 'maximumBytes'
         ) `
         -Description 'Windows User CLI executable build contract'
@@ -53,9 +53,16 @@ function Read-SwawHarnessWindowsUserCliContract {
     if ($Artifact -cne 'user.exe') {
         throw 'Windows User CLI executable artifact must be user.exe.'
     }
-    $Source = ([string]$Contract.source).Trim()
-    if ($Source -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.c$') {
-        throw 'Windows User CLI executable source is invalid.'
+    [string[]]$Sources = Get-SwawHarnessUserCliContractStrings `
+        -Values @($Contract.sources) `
+        -Description 'Windows User CLI executable sources' `
+        -Pattern '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.c$'
+    if ($Sources.Count -ne 4 -or
+        $Sources[0] -cne 'host.c' -or
+        $Sources[1] -cne 'identity.c' -or
+        $Sources[2] -cne 'protocol.c' -or
+        $Sources[3] -cne 'user.c') {
+        throw 'Windows User CLI executable sources are invalid.'
     }
     [string[]]$CompilerArguments = Get-SwawHarnessUserCliContractStrings `
         -Values @($Contract.compilerArguments) `
@@ -80,7 +87,7 @@ function Read-SwawHarnessWindowsUserCliContract {
         PlatformTargetId = $PlatformTargetId
         BuildBinary = $BuildArtifact
         ProductBinary = $Artifact
-        Source = $Source
+        Sources = $Sources
         CompilerArguments = $CompilerArguments
         LinkerArguments = $LinkerArguments
         Libraries = $Libraries

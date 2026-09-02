@@ -10,16 +10,17 @@
 - **DataHome**：Harness 面向用户且可独立复制运行的数据目录，固定位置为 `<HarnessRoot>/data`；保存用户 CLI executable、UserHome 及其发布运行资源，不保存仓库本地 Bootstrap 状态，也不得依赖 data.repo。
 - **data.repo**：位于 `<repository>/data.repo`、仅属于源码仓库的 Bootstrap 数据目录；不随 DataHome 复制发布。
 - **Admin Core module executable**：名为 `swaw-harness-admin.exe`、目标中拥有模块安装、Harness 用户创建与生命周期实现的独立 Core module executable；Windows Bootstrap 从完整且已验证的 Bootstrap Release 初始物化该 executable 的 Module Release，不再调用旧 `seed` 操作。运行时管理操作必须通过 Admin 用户上下文调用，当前尚未实现。
-- **Harness 管理 CLI executable**：名为 `swaw-harness-cli.exe`、把人类发起的 Harness 用户管理操作委托给固定 Admin 用户的独立 console frontend；它不拥有 UserHome 布局或 Harness 用户生命周期实现，也不得直接写入 DataHome。
-- **Harness GUI executable**：名为 `swaw-harness.exe`、供人类操作的 Windows GUI executable；它通过同级 Harness 管理 CLI executable 执行 Harness 用户管理操作。
 - **Harness 用户（Harness User）**：由 Admin Core module executable 创建和管理的 Harness 内部逻辑运行身份；它不是 Windows/Linux 用户账户或操作系统安全主体，同一操作系统用户可以拥有多个 Harness 用户。固定 Admin 用户是管理根，其他 Harness 用户均由它创建。
 - **UserId**：Admin Core module executable 为一个普通 Harness 用户验证的文件系统名称，最多 16 个字符；目标中同时用作 `<DataHome>/<UserId>.exe` 的文件名和 `<DataHome>/<UserId>/` UserHome 的目录名。`admin` 固定属于 Admin 用户，不得作为普通 UserId。
 - **UserHome**：与一个 Harness 用户唯一绑定、由 Admin Core module executable 在创建 Harness 用户时一并建立的目录根，固定为 `<DataHome>/<UserId>/`。
-- **用户 CLI executable**：Bootstrap Release 中通用文件名为 `user.exe`、安装后位于 `<DataHome>/<UserId>.exe` 的 console executable；它从自身文件名确定 UserId，并只负责进入对应 Harness 用户的调用链。当前只完成构建与发布占位，运行调用尚未实现。
-- **Admin 用户（Admin User）**：DataHome 中固定且最先存在的管理 Harness 用户；其 UserId 固定为 `admin`，UserHome 固定为 `<DataHome>/admin/`，当前直接包含 `map/` 技能图根、`modules/` 共享模块发布根，并在管理其他 Harness 用户时使用 `user.lock`。Admin UserHome 持续存在，不得整体替换或删除。
+- **用户 CLI executable**：Bootstrap Release 中通用文件名为 `user.exe`、安装后位于 `<DataHome>/<UserId>.exe` 的小型 console executable；它从自身文件名确定 UserId，读取该用户的 Core Host 版本指针，冷启动 Admin 用户共享的 Core Host Module Release，并以本机命名管道转发一次批处理技能调用。它不解析技能图或模块清单；除固定身份 `swaw/core/host` 外不得选择或启动其他模块。当前 Windows Bootstrap 只把它安装为 `<DataHome>/admin.exe`。
+- **Core Host executable**：名为 `swaw-harness-core.exe`、ModuleId 固定为 `swaw/core/host` 的独立 Module Release executable；同一不可变 executable 可由多个 Harness 用户共享，但每个运行中的 Core Host 进程只服务一个 Harness 用户。它从该用户的 Core 技能图解析 SkillPath、验证 Admin 用户共享的 Module Release、以批处理方式监督模块进程并返回 stdout、stderr 与退出码。Windows v1 不监听 TCP/回环地址，只接受同一 Windows 登录会话通过本机命名管道发起的调用。
+- **Core Host 版本指针**：位于 `<UserHome>/host/current.<PlatformTargetId>` 的普通 UTF-8 文本文件，只保存一个无预发布或构建后缀的精确 `MAJOR.MINOR.PATCH` 版本号并以换行结尾；它只选择同一 DataHome 中固定 ModuleId `swaw/core/host`、固定 PlatformTargetId 与固定 executable 名称的已验证 Module Release，不保存路径、不解析技能图、不允许模糊版本。原子替换该文件只影响后续冷启动，已经运行的 Core Host 进程继续使用启动时的版本。
+- **批处理技能调用**：用户 CLI 向对应 Core Host 提交一个 SkillPath 与动态参数的一次性调用；一个命名管道连接只承载一个命令，模块 stdin 固定关闭，stdout、stderr 和退出码分别返回，不建立交互会话。
+- **Admin 用户（Admin User）**：DataHome 中固定且最先存在的管理 Harness 用户；其 UserId 固定为 `admin`，UserHome 固定为 `<DataHome>/admin/`，当前直接包含 `map/` 技能图根、`modules/` 共享模块发布根、`host/` Core Host 版本指针根，并在管理其他 Harness 用户时使用 `user.lock`。Admin UserHome 持续存在，不得整体替换或删除。
 - **Bootstrap**：无需已编译 Harness 即可运行，自动准备宿主平台声明的便携构建环境，并在无需用户预装、配置或交互干预的情况下编译出 Harness 核心的启动构建流程。
 - **PlatformTargetId**：Bootstrap 平台目标的文件系统安全标识；当前 Windows Bootstrap 使用 Rust 平台目标三元组 `x86_64-pc-windows-msvc` 作为 PlatformTargetId。
-- **Bootstrap Release**：Bootstrap 一次构建产生的配套 executable 发布单元；Windows 仓库内发布根为 `<repository>/data.repo/windows.release`，每个 `<ReleaseId>/` 不可变目录同时包含 Core、纳入该次构建的独立 Core 模块 executable、用户 CLI executable、Harness 管理 CLI executable、Harness GUI executable 与 `manifest.json`，由一个 selector 选择当前版本。
+- **Bootstrap Release**：Bootstrap 一次构建产生的配套 executable 发布单元；Windows 仓库内发布根为 `<repository>/data.repo/windows.release`，每个 `<ReleaseId>/` 不可变目录同时包含 Core Host executable、纳入该次启动构建的独立 Core module executable、用户 CLI executable 与 `manifest.json`，由一个 selector 选择当前版本。当前启动构建包含 Admin、Dev 与用于贯通验收的 Helloworld module executable；Helloworld 不构成未来生产启动集合必须永久携带的协议要求。
 - **Runtime Release**：旧 seed 流程曾安装在 `<UserHome>/runtime/<ReleaseId>/` 的完整 executable 集合；改由 Core 技能图选择独立 Module Release 后不再用于初始化 Admin 用户。普通 Harness 用户是否仍需保留 Runtime Release 及其内容边界属于 `REPO-010`。
 - **技能图根（Skill Map Root）**：一个 Harness 用户中固定在 `<UserHome>/map/`、容纳多棵具名技能图的目录；Admin 用户的技能图根固定为 `data/admin/map/`。技能图根本身不是一棵技能图，不保存 Module Release 或 Resource 的事实数据，也不属于资源空间。
 - **SkillMapId**：技能图根下一个技能图的目录名；必须是规范小写 ASCII 文件系统安全名称。`core` 固定保留给 Core 技能图，其他 SkillMapId 留给用户或领域技能图。
@@ -29,7 +30,7 @@
 - **技能节点（Skill Node）**：技能图中的一个真实目录；目录包含 `skill.json` 时该 SkillPath 可调用，不包含时只是分类节点。可调用节点可以继续包含子节点，不要求位于叶目录；技能图根本身当前不得包含 `skill.json`。
 - **技能声明（Skill declaration）**：技能节点目录中名为 `skill.json` 的版本化 JSON 文件；它使用 `module`、`version`、`executable` 和 `arguments` 直接声明该节点的模块选择与固定命令参数，不使用 Resource 声明文件、Facet 层或可继承 executable binding。
 - **ModuleId**：由规范小写文件系统名称 `<Publisher>/<Group>/<Module>` 组成的三段模块身份，例如 `swaw/core/admin`；它独立于源码仓库地址、Resource 路径和 executable 文件名。
-- **Module Release**：安装在 `<DataHome>/admin/modules/<Publisher>/<Group>/<Module>/<PlatformTargetId>/<Version>/`、包含一个模块在一个平台上的不可变 executable、私有运行文件及 `swaw-harness.module.json` 清单的发布目录；`Version` 是不含预发布或构建后缀的 `MAJOR.MINOR.PATCH` 语义化版本。Windows Bootstrap 负责从完整且已验证的 Bootstrap Release 初始物化本次构建的 Module Release；运行时安装目标由 Admin Core module executable 拥有。
+- **Module Release**：安装在 `<DataHome>/admin/modules/<Publisher>/<Group>/<Module>/<PlatformTargetId>/<Version>/`、包含一个模块在一个平台上的不可变 executable、私有运行文件及 `swaw-harness.module.json` 清单的发布目录；`Version` 是不含预发布或构建后缀的 `MAJOR.MINOR.PATCH` 语义化版本。Core Host 也以固定 ModuleId `swaw/core/host` 使用这一发布布局，不另建 Core Host 专用发布格式。Windows Bootstrap 负责从完整且已验证的 Bootstrap Release 初始物化本次构建的 Module Release；运行时安装目标由 Admin Core module executable 拥有。
 - **Resource**：在一个资源空间内通过目录树寻址找到、由技能读取或写入的对象。
 - **资源空间**：一个 Harness 用户中具有独立文件系统根、事实来源、生命周期与写入权限边界的一组 Resource；不得简称为含义过宽的 `Space`。资源空间保存被模块读取或写入的数据，不保存 executable 绑定；技能图根、技能图与 Module Release 根均不属于资源空间。
 - **基础资源空间**：Core 协议保留规范名称 `author` 的作者（源代码）、`runtime` 的运行（发布）、`runs` 的 logs、`export` 和 `context` 模块专用上下文记录空间；对应根分别为 `<UserHome>/author/`、`<UserHome>/runtime/`、`<UserHome>/runs/`、`<UserHome>/export/` 和 `<UserHome>/context/`，需要时才建立。`map` 不是基础资源空间。
@@ -44,20 +45,21 @@
 - **REPO-002 — 小核心与领域自治。** 核心只保留跨领域稳定且必要的最小机制与薄协议；领域代码、规则、文档及其他资源由各自目录自治，领域间通过显式边界协作，不得把领域逻辑集中到核心或总调度器。新增或扩展领域不得修改核心协议，除非出现新的、稳定的跨领域共同约束。
 - **REPO-003 — 规则就近归属。** 全仓规则写入根 `AGENTS.md`，领域规则写入最近领域目录的 `AGENTS.md`；修改路径时从根向下依次读取并叠加，不得在多个文件重复维护同一规则。
 - **REPO-004 — 代码就近归属。** 代码应归入最近的稳定领域目录；允许父领域承载多个相关模块，但必须保持领域边界，不得长期堆积在总入口或总 dispatcher。
-- **REPO-005 — DataHome 可独立复制运行。** DataHome 必须位于 `<HarnessRoot>/data`，其 Admin 用户、普通 Harness 用户、Module Release 及其他发布运行资源不得依赖 data.repo 的绝对路径；仓库本地 Bootstrap 工具链、构建、暂存、缓存与日志不得写入 DataHome。`<DataHome>/admin/` 是持续存在的 Admin UserHome，不得整体替换；模块原子发布只作用于其 `modules/` 下具体的 `<Version>/`。
+- **REPO-005 — DataHome 可独立复制运行。** DataHome 必须位于 `<HarnessRoot>/data`，其用户 CLI executable、Core Host 版本指针、Admin 用户、普通 Harness 用户、Module Release 及其他发布运行资源不得依赖 data.repo 的绝对路径；仓库本地 Bootstrap 工具链、构建、缓存与日志不得写入 DataHome，只有面向 DataHome 最终发布的同目录暂存可以在完成或失败后立即清理。`<DataHome>/admin/` 是持续存在的 Admin UserHome，不得整体替换；模块原子发布只作用于其 `modules/` 下具体 `<Version>/`，Core Host 版本切换只原子替换目标用户 `host/` 下的 Core Host 版本指针。
+- **REPO-006 — Harness 用户由 Admin 创建。** 目标中只有通过 Admin 用户技能调用启动的 Admin Core module executable 可以实现普通 Harness 用户创建与生命周期变更；创建一个 UserId 时必须在 `data/admin/user.lock` 协调下建立相互绑定的 `<DataHome>/<UserId>.exe` 与 `<DataHome>/<UserId>/`，失败不得把任一不完整实体留作已创建用户。用户 CLI executable 与 Core Host executable 均不得自行实现该生命周期。
 
 - **REPO-007 — 核心术语统一。** 本文件的“核心术语”是全仓 `AGENTS.md` 的统一用语源；新增或改变核心高频术语必须先更新该段落，下级 `AGENTS.md` 不得自行创造同义词或改变既有含义。
-- **REPO-008 — 不可变发布只前进。** Bootstrap Release 与 Runtime Release 继续以 ReleaseId 内容身份发布；Module Release 使用 ModuleId、PlatformTargetId 与精确语义化版本定位。所有发布物必须先在暂存区完整生成并验证，再原子发布到尚不存在的不可变目标，不得覆盖或合并写入已发布目标。技能声明只允许选择已经验证的 Module Release；本规则不规定用户如何批量修改或切换 `<UserHome>/map/core/` Core 技能图实例。
+- **REPO-008 — 不可变发布只前进。** Bootstrap Release 与 Runtime Release 使用 ReleaseId 内容身份发布；包括 Core Host 在内的 Module Release 使用 ModuleId、PlatformTargetId 与精确语义化版本定位。所有发布物必须先在暂存区完整生成并验证，再原子发布到尚不存在的不可变目标，不得覆盖或合并写入已发布目标。技能声明只允许选择已经验证的 Module Release；Core Host 版本指针只允许选择已经验证的 `swaw/core/host` Module Release。本规则不规定用户如何批量修改或切换 `<UserHome>/map/core/` Core 技能图实例。
 - **REPO-009 — data.repo 仅属仓库。** data.repo 固定为 `<repository>/data.repo`，只保存不随 DataHome 复制发布的仓库本地数据；各宿主平台在其中使用明确的平台领域根，不得让 data.repo 成为运行时依赖。
 
 ## Open
 
-- **REPO-010 — Runtime Release、Module Release 与前端 executable 的边界。** Admin 用户初始化不再建立 Runtime Release；Windows Bootstrap 仍以 data.repo Bootstrap Release 验证和运输同次构建产物，再把 Core module executable 物化为独立 Module Release。普通 Harness 用户是否仍需 Runtime Release、用户 CLI executable 与两个管理前端最终如何进入 DataHome，以及 Bootstrap Release 是否继续运输 Core module executable，留待重新对齐 Issue #47 时确定。
+- **REPO-010 — 普通 Harness 用户发布边界。** Admin 用户初始化不建立 Runtime Release；Windows Bootstrap 以 data.repo Bootstrap Release 验证和运输同次构建产物，再初始化 `data/admin.exe`、Admin 用户的 Core Host 版本指针及包括 `swaw/core/host` 在内的独立 Module Release。普通 Harness 用户不在 `<UserHome>/host/<ReleaseId>/` 复制 Core Host executable，而是通过自己的 Core Host 版本指针选择 Admin 用户共享的 Core Host Module Release；其用户 CLI、版本指针、Core 技能图与可选 Runtime Release 如何由 Admin 原子建立和升级，留待普通用户创建首次实现确定。Harness 用户管理通过 Admin 用户技能调用，不保留独立管理 CLI 或 GUI 占位产品；未来 Web 或 GUI 出现真实需求时另行定义适配器及发布边界。
 
 ## Maintainer Notes
 
 - 待办：验证并实现 `swaw-harness` 脱离 `swaw-kit` 父目录和源码树后仍可独立构建、测试、打包与发布；完成前不得将其表述为当前能力。
-- `data/admin/map/core/` 当前技能声明使用模糊模块版本；Windows Bootstrap 已实现本次构建 Module Release 的物化与清单验证，但 Core dispatcher、技能调用、资源空间 Resource 验证与其他 Harness 用户的技能图复制流程尚未实现，完成前不得将该图表述为可运行系统。
+- `data/admin.exe helloworld [recipient]` 已形成 Admin 用户的命名管道批处理闭环；这只证明 Core Host 可以验证技能声明与 Module Release 并回传输出和退出码。资源空间 Resource 验证、Admin 管理技能、技能组合及其他 Harness 用户流程尚未实现，不得由该样例外推为完整系统。
 - swaw-kit 中对应本项目的旧代码在： D:/2026.7/swaw-kit/_lib\proj，迁移注意参考
 
 ## Agent 工作约束

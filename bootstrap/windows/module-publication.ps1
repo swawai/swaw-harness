@@ -1,8 +1,9 @@
 Set-StrictMode -Version 2.0
 
-. (Join-Path $PSScriptRoot '..\builder\foundation.ps1')
-. (Join-Path $PSScriptRoot '..\builder\filesystem.ps1')
-. (Join-Path $PSScriptRoot 'contract.ps1')
+. (Join-Path $PSScriptRoot 'builder\foundation.ps1')
+. (Join-Path $PSScriptRoot 'builder\filesystem.ps1')
+. (Join-Path $PSScriptRoot 'core\contract.ps1')
+. (Join-Path $PSScriptRoot 'host\contract.ps1')
 
 $script:SwawHarnessModuleSchema = 'swaw.harness.module/v1'
 
@@ -171,17 +172,22 @@ function Read-SwawHarnessModuleRelease {
     }
 }
 
-function Publish-SwawHarnessWindowsCoreModules {
+function Publish-SwawHarnessWindowsBootstrapModules {
     param(
         [Parameter(Mandatory = $true)][object]$Context,
         [Parameter(Mandatory = $true)][object]$BootstrapRelease
     )
 
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
-        -Path (Join-Path $PSScriptRoot '..\contract.json')
-    $Contracts = @(Read-SwawHarnessWindowsCoreContracts `
-        -Path (Join-Path $PSScriptRoot 'contract.json') `
-        -PlatformTargetId $PlatformContract.PlatformTargetId)
+        -Path (Join-Path $PSScriptRoot 'contract.json')
+    $Contracts = @(
+        Read-SwawHarnessWindowsCoreContracts `
+            -Path (Join-Path $PSScriptRoot 'core\contract.json') `
+            -PlatformTargetId $PlatformContract.PlatformTargetId
+        Read-SwawHarnessWindowsCoreHostContract `
+            -Path (Join-Path $PSScriptRoot 'host\contract.json') `
+            -PlatformTargetId $PlatformContract.PlatformTargetId
+    )
     if ([string]$BootstrapRelease.PlatformTargetId -cne
         [string]$PlatformContract.PlatformTargetId) {
         throw 'Bootstrap Release target does not match Module publication target.'
@@ -196,12 +202,6 @@ function Publish-SwawHarnessWindowsCoreModules {
     $AdminRoot = Assert-SwawHarnessModuleDirectory `
         -Path (Join-Path $DataHome 'admin') `
         -Description 'Admin UserHome'
-    $SkillMapRoot = Assert-SwawHarnessModuleDirectory `
-        -Path (Join-Path $AdminRoot 'map') `
-        -Description 'Admin Skill Map root'
-    [void](Assert-SwawHarnessModuleDirectory `
-        -Path (Join-Path $SkillMapRoot 'core') `
-        -Description 'Admin Core Skill Map')
     $ModulesRoot = Join-Path $AdminRoot 'modules'
     [void][IO.Directory]::CreateDirectory($ModulesRoot)
     $ModulesRoot = Assert-SwawHarnessModuleDirectory `

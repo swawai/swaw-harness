@@ -62,7 +62,7 @@ try {
             -Name 'user.exe' -Content 'user-a' `
             -Root $FixtureRoot -PlatformTargetId $PlatformTargetId
         New-ReleaseSafetyFixture `
-            -Name 'frontend-cli.exe' -Content 'frontend-a' `
+            -Name 'host.exe' -Content 'host-a' `
             -Root $FixtureRoot -PlatformTargetId $PlatformTargetId
     )
     $Contracts = @($Fixtures | ForEach-Object { $_.Contract })
@@ -90,7 +90,7 @@ try {
     $InvalidCandidates = @($Candidates)
     $InvalidCandidates[2] = [pscustomobject][ordered]@{
         PlatformTargetId = $PlatformTargetId
-        Name = 'frontend-cli.exe'
+        Name = 'host.exe'
         ArtifactPath = Join-Path $FixtureRoot 'missing.exe'
         Length = 1
         Sha256 = '0' * 64
@@ -191,7 +191,7 @@ try {
             -Root $OtherFixtureRoot `
             -PlatformTargetId $OtherPlatformTargetId
         New-ReleaseSafetyFixture `
-            -Name 'frontend-cli.exe' -Content 'frontend-b' `
+            -Name 'host.exe' -Content 'host-b' `
             -Root $OtherFixtureRoot `
             -PlatformTargetId $OtherPlatformTargetId
     )
