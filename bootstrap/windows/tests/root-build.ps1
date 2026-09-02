@@ -37,14 +37,21 @@ $ActualNames = @($Release.Artifacts | ForEach-Object { $_.Name })
 $CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
     -Path (Join-Path $WindowsRoot 'core\contract.json') `
     -PlatformTargetId $PlatformContract.PlatformTargetId)
-$ModuleManifestPaths = @($CoreContracts | ForEach-Object {
+$HostContract = Read-SwawHarnessWindowsCoreHostContract `
+    -Path (Join-Path $WindowsRoot 'host\contract.json') `
+    -PlatformTargetId $PlatformContract.PlatformTargetId
+$ModuleContracts = @($CoreContracts; $HostContract)
+$ModuleManifestPaths = @($ModuleContracts | ForEach-Object {
     Join-Path `
         (Join-Path $RepositoryRoot 'data\admin\modules') `
         ($_.ModuleId.Replace('/', '\') + "\" + $_.PlatformTargetId +
             "\" + $_.ModuleVersion + '\swaw-harness.module.json')
 })
+$HostVersionPointer = Join-Path $RepositoryRoot (
+    'data\admin\host\current.' + $PlatformContract.PlatformTargetId
+)
 $CandidateMembers = @(
-    foreach ($Product in @('core', 'user', 'frontend')) {
+    foreach ($Product in @('core', 'host', 'user')) {
         $CandidatesRoot = Join-Path `
             $RepositoryRoot `
             "data.repo\windows.build\$Product\candidates"
@@ -75,20 +82,25 @@ Assert-RootBuildTest `
             (Join-Path $RepositoryRoot 'swaw-harness-admin.exe')
         ) -and
         -not [IO.File]::Exists(
+            (Join-Path $RepositoryRoot 'swaw-harness-core.exe')
+        ) -and
+        -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'user.exe')
-        ) -and
-        -not [IO.File]::Exists(
-            (Join-Path $RepositoryRoot 'swaw-harness.exe')
-        ) -and
-        -not [IO.File]::Exists(
-            (Join-Path $RepositoryRoot 'swaw-harness-cli.exe')
         ) -and
         [IO.Directory]::Exists(
             (Join-Path $RepositoryRoot 'data\admin\map\core')
         ) -and
+        [IO.File]::Exists(
+            (Join-Path $RepositoryRoot 'data\admin.exe')
+        ) -and
+        [IO.File]::Exists($HostVersionPointer) -and
+        [IO.File]::ReadAllText(
+            $HostVersionPointer,
+            [Text.Encoding]::UTF8
+        ).TrimEnd("`r", "`n") -ceq $HostContract.ModuleVersion -and
         @($ModuleManifestPaths | Where-Object {
             [IO.File]::Exists($_)
-        }).Count -eq $CoreContracts.Count -and
+        }).Count -eq $ModuleContracts.Count -and
         -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'data\admin\user.json')
         ) -and

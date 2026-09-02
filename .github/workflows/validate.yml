@@ -85,5 +85,3 @@ jobs:
             -DataRepo $dataRepo
           & .\bootstrap\windows\tests\user.ps1 `
             -DataRepo $dataRepo
-          & .\bootstrap\windows\tests\frontend.ps1 `
-            -DataRepo $dataRepo

@@ -19,9 +19,9 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\release\selector.ps1')
 . (Join-Path $WindowsRoot 'publication.ps1')
 . (Join-Path $WindowsRoot 'core\candidate-build.ps1')
-. (Join-Path $WindowsRoot 'core\module-publication.ps1')
+. (Join-Path $WindowsRoot 'module-publication.ps1')
+. (Join-Path $WindowsRoot 'host\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'user\candidate-build.ps1')
-. (Join-Path $WindowsRoot 'frontend\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'pe-imports.ps1')
@@ -67,6 +67,12 @@ try {
             -EnvironmentVariables $Plan.EnvironmentVariables `
             -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
     )
+    $CoreHostCandidateRoot = Invoke-SwawHarnessWindowsCoreHostCandidateBuild `
+        -Context $Context `
+        -CargoPath $Plan.CargoPath `
+        -EnvironmentVariables $Plan.EnvironmentVariables `
+        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
+        Select-Object -Last 1
     $UserCliCandidateRoot = Invoke-SwawHarnessWindowsUserCliCandidateBuild `
         -Context $Context `
         -CompilerPath $Plan.CompilerPath `
@@ -74,18 +80,10 @@ try {
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $FrontendCandidateRoots = @(
-        Invoke-SwawHarnessWindowsFrontendCandidateBuild `
-        -Context $Context `
-        -CargoPath $Plan.CargoPath `
-        -EnvironmentVariables $Plan.EnvironmentVariables `
-            -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
-    )
     $CandidateRoots = @(
         [string[]]$CoreCandidateRoots
+        [string]$CoreHostCandidateRoot
         [string]$UserCliCandidateRoot
-        [string]$FrontendCandidateRoots[0]
-        [string]$FrontendCandidateRoots[1]
     )
     for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
         $Members = @(Get-ChildItem `
@@ -104,8 +102,8 @@ try {
     $Arguments = @{
         Context = $Context
         CoreCandidateRoots = [string[]]$CoreCandidateRoots
+        CoreHostCandidateRoot = [string]$CoreHostCandidateRoot
         UserCliCandidateRoot = [string]$UserCliCandidateRoot
-        FrontendCandidateRoots = $FrontendCandidateRoots
     }
     $First = Publish-SwawHarnessWindowsProducts @Arguments
     $FirstCreated = (Get-Item -LiteralPath $First.Root).CreationTimeUtc
@@ -139,22 +137,6 @@ try {
     Assert-BootstrapReleaseTest `
         -Condition ($Selector -ceq [string]$First.ReleaseId) `
         -Message 'the target selector does not select the bundle Release'
-
-    $IncompleteFrontendRejected = $false
-    try {
-        [void](Publish-SwawHarnessWindowsProducts `
-            -Context $Context `
-            -CoreCandidateRoots ([string[]]$CoreCandidateRoots) `
-            -UserCliCandidateRoot ([string]$UserCliCandidateRoot) `
-            -FrontendCandidateRoots @(
-                [string]$FrontendCandidateRoots[0]
-            ))
-    } catch {
-        $IncompleteFrontendRejected = $true
-    }
-    Assert-BootstrapReleaseTest `
-        -Condition $IncompleteFrontendRejected `
-        -Message 'bundle publication accepted only one frontend Candidate'
 
     foreach ($Artifact in $Selected.Artifacts) {
         [void](Assert-SwawHarnessNoExternalCrtImports `
@@ -203,15 +185,11 @@ try {
     [void][IO.Directory]::CreateDirectory(
         (Join-Path $ModuleCaseAdminRoot 'modules\Swaw')
     )
-    Copy-Item `
-        -LiteralPath (Join-Path $RepositoryRoot 'data\admin\map') `
-        -Destination (Join-Path $ModuleCaseAdminRoot 'map') `
-        -Recurse
     $ModuleCaseContext = New-SwawHarnessWindowsBootstrapContext `
         -DataRepo (Join-Path $ModuleCaseFixtureRoot 'data.repo')
     $NoncanonicalModuleParentRejected = $false
     try {
-        [void](Publish-SwawHarnessWindowsCoreModules `
+        [void](Publish-SwawHarnessWindowsBootstrapModules `
             -Context $ModuleCaseContext `
             -BootstrapRelease $First)
     } catch {
@@ -224,25 +202,27 @@ try {
 
     $ModuleAdminRoot = Join-Path $ModuleFixtureRoot 'data\admin'
     [void][IO.Directory]::CreateDirectory($ModuleAdminRoot)
-    Copy-Item `
-        -LiteralPath (Join-Path $RepositoryRoot 'data\admin\map') `
-        -Destination (Join-Path $ModuleAdminRoot 'map') `
-        -Recurse
     $ModuleContext = New-SwawHarnessWindowsBootstrapContext `
         -DataRepo (Join-Path $ModuleFixtureRoot 'data.repo')
-    $FirstModules = @(Publish-SwawHarnessWindowsCoreModules `
+    $FirstModules = @(Publish-SwawHarnessWindowsBootstrapModules `
         -Context $ModuleContext `
         -BootstrapRelease $First)
     $FirstModuleCreated = @($FirstModules | ForEach-Object {
         (Get-Item -LiteralPath $_.Root).CreationTimeUtc
     })
-    $SecondModules = @(Publish-SwawHarnessWindowsCoreModules `
+    $SecondModules = @(Publish-SwawHarnessWindowsBootstrapModules `
         -Context $ModuleContext `
         -BootstrapRelease $First)
     $CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
         -Path (Join-Path $WindowsRoot 'core\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId)
-    $ExpectedModuleRoots = @($CoreContracts | ForEach-Object {
+    $ModuleContracts = @(
+        $CoreContracts
+        Read-SwawHarnessWindowsCoreHostContract `
+            -Path (Join-Path $WindowsRoot 'host\contract.json') `
+            -PlatformTargetId $PlatformContract.PlatformTargetId
+    )
+    $ExpectedModuleRoots = @($ModuleContracts | ForEach-Object {
         Join-Path `
             $ModuleAdminRoot `
             ("modules\" + $_.ModuleId.Replace('/', '\') + "\" +
@@ -250,13 +230,13 @@ try {
     })
     Assert-BootstrapReleaseTest `
         -Condition (
-            $FirstModules.Count -eq $CoreContracts.Count -and
-            $SecondModules.Count -eq $CoreContracts.Count -and
+            $FirstModules.Count -eq $ModuleContracts.Count -and
+            $SecondModules.Count -eq $ModuleContracts.Count -and
             @($ExpectedModuleRoots | Where-Object {
                 [IO.File]::Exists((Join-Path `
                     $_ `
                     'swaw-harness.module.json'))
-            }).Count -eq $CoreContracts.Count -and
+            }).Count -eq $ModuleContracts.Count -and
             @($SecondModules | ForEach-Object {
                 (Get-Item -LiteralPath $_.Root).CreationTimeUtc
             } | Where-Object {
@@ -269,7 +249,43 @@ try {
                 $ModuleAdminRoot `
                 'runtime'))
         ) `
-        -Message 'Core modules were not published directly and idempotently'
+        -Message 'Bootstrap modules were not published directly and idempotently'
+
+    $InvalidLengthModule = $SecondModules[0]
+    $InvalidLengthManifestPath = [string]$InvalidLengthModule.ManifestPath
+    [byte[]]$OriginalManifestBytes =
+        [IO.File]::ReadAllBytes($InvalidLengthManifestPath)
+    foreach ($InvalidLength in @('123', [double]123.5)) {
+        try {
+            $InvalidLengthManifest = Read-SwawHarnessJsonFile `
+                -Path $InvalidLengthManifestPath `
+                -Description 'Module Release manifest test fixture'
+            $InvalidLengthManifest.executable.length = $InvalidLength
+            [IO.File]::WriteAllText(
+                $InvalidLengthManifestPath,
+                (ConvertTo-SwawHarnessJsonText -Value $InvalidLengthManifest),
+                [Text.UTF8Encoding]::new($false)
+            )
+            $InvalidLengthRejected = $false
+            try {
+                [void](Publish-SwawHarnessWindowsBootstrapModules `
+                    -Context $ModuleContext `
+                    -BootstrapRelease $First)
+            } catch {
+                $InvalidLengthRejected = $_.Exception.Message.Contains(
+                    'length must be a JSON integer'
+                )
+            }
+            Assert-BootstrapReleaseTest `
+                -Condition $InvalidLengthRejected `
+                -Message 'Module publication accepted a non-integer manifest length'
+        } finally {
+            [IO.File]::WriteAllBytes(
+                $InvalidLengthManifestPath,
+                $OriginalManifestBytes
+            )
+        }
+    }
 
     $InstalledDev = @($SecondModules | Where-Object {
         $_.ModuleId -ceq 'swaw/core/dev'
@@ -296,7 +312,7 @@ try {
     [IO.File]::WriteAllBytes($TamperedModule.ExecutablePath, $TamperedBytes)
     $TamperedModuleRejected = $false
     try {
-        [void](Publish-SwawHarnessWindowsCoreModules `
+        [void](Publish-SwawHarnessWindowsBootstrapModules `
             -Context $ModuleContext `
             -BootstrapRelease $First)
     } catch {
@@ -329,7 +345,7 @@ try {
         -Condition ($SelectorAfterFailure -ceq [string]$First.ReleaseId) `
         -Message 'failed bundle publication changed the selector'
 
-    $UserCliContractIndex = $CoreCandidateRoots.Count
+    $UserCliContractIndex = $CoreCandidateRoots.Count + 1
     $LockedCandidateArtifact = Join-Path `
         $UserCliCandidateRoot `
         $Contracts[$UserCliContractIndex].ProductBinary

@@ -15,7 +15,7 @@ $RepositoryRoot = Assert-SwawHarnessRepositoryRootPathBudget `
     -RepositoryRoot (Join-Path $PSScriptRoot '..\..\..')
 $Context = New-SwawHarnessWindowsBootstrapContext `
     -DataRepo (Join-Path $RepositoryRoot 'data.repo')
-Invoke-SwawHarnessWindowsFrontendCandidateBuild `
+Invoke-SwawHarnessWindowsCoreHostCandidateBuild `
     -Context $Context `
     -CargoPath $CargoPath `
     -EnvironmentVariables $EnvironmentVariables `

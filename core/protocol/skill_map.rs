@@ -33,6 +33,16 @@ pub struct SkillMap {
 }
 
 impl SkillMap {
+    pub fn open_core(user_home: impl AsRef<Path>) -> Result<Self, String> {
+        let user_home = user_home.as_ref();
+        assert_regular_directory(user_home, "UserHome")?;
+        let map_root = find_exact_child(user_home, "map", "Skill Map root")?;
+        assert_regular_directory(&map_root, "Skill Map root")?;
+        let core_root = find_exact_child(&map_root, "core", "Core Skill Map")?;
+        assert_regular_directory(&core_root, "Core Skill Map")?;
+        Self::open(core_root)
+    }
+
     pub fn open(root: impl AsRef<Path>) -> Result<Self, String> {
         let root = root.as_ref();
         assert_regular_directory(root, "Skill Map root")?;

@@ -5,8 +5,8 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot 'builder\build\candidate.ps1')
 . (Join-Path $PSScriptRoot 'builder\release\publication.ps1')
 . (Join-Path $PSScriptRoot 'core\contract.ps1')
+. (Join-Path $PSScriptRoot 'host\contract.ps1')
 . (Join-Path $PSScriptRoot 'user\contract.ps1')
-. (Join-Path $PSScriptRoot 'frontend\contract.ps1')
 
 $script:SwawHarnessWindowsPublicationRoot = $PSScriptRoot
 
@@ -20,11 +20,11 @@ function Get-SwawHarnessWindowsProductContracts {
         Read-SwawHarnessWindowsCoreContracts `
             -Path (Join-Path $WindowsRoot 'core\contract.json') `
             -PlatformTargetId $PlatformTargetId
+        Read-SwawHarnessWindowsCoreHostContract `
+            -Path (Join-Path $WindowsRoot 'host\contract.json') `
+            -PlatformTargetId $PlatformTargetId
         Read-SwawHarnessWindowsUserCliContract `
             -Path (Join-Path $WindowsRoot 'user\contract.json') `
-            -PlatformTargetId $PlatformTargetId
-        Read-SwawHarnessWindowsFrontendContracts `
-            -Path (Join-Path $WindowsRoot 'frontend\contract.json') `
             -PlatformTargetId $PlatformTargetId
     )
 }
@@ -34,8 +34,8 @@ function Publish-SwawHarnessWindowsProducts {
     param(
         [Parameter(Mandatory = $true)]$Context,
         [Parameter(Mandatory = $true)][string[]]$CoreCandidateRoots,
+        [Parameter(Mandatory = $true)][string]$CoreHostCandidateRoot,
         [Parameter(Mandatory = $true)][string]$UserCliCandidateRoot,
-        [Parameter(Mandatory = $true)][string[]]$FrontendCandidateRoots,
         [IO.FileStream]$CandidateLifecycleLock = $null
     )
 
@@ -51,20 +51,15 @@ function Publish-SwawHarnessWindowsProducts {
     if ($CoreCandidateRoots.Count -ne $CoreContracts.Count) {
         throw 'Windows publication requires every Core artifact Candidate.'
     }
-    if ($FrontendCandidateRoots.Count -ne 2) {
-        throw 'Windows publication requires both frontend candidates.'
-    }
     $CandidateRoots = @(
         $CoreCandidateRoots
+        $CoreHostCandidateRoot
         $UserCliCandidateRoot
-        $FrontendCandidateRoots[0]
-        $FrontendCandidateRoots[1]
     )
     $ProductNames = @(
         @($CoreContracts | ForEach-Object { 'core' })
+        'host'
         'user'
-        'frontend'
-        'frontend'
     )
     $ConsumerLock = Enter-SwawHarnessCandidateConsumerLock `
         -Context $Context `
@@ -119,7 +114,7 @@ function Clear-SwawHarnessWindowsProductCandidates {
             )
             return
         }
-        $CandidateRoots = @('core', 'user', 'frontend') | ForEach-Object {
+        $CandidateRoots = @('core', 'host', 'user') | ForEach-Object {
             $BuildRoot = Assert-SwawHarnessPathInsideRoot `
                 -Path (Join-Path $Context.BuildRoot $_) `
                 -Root $Context.BuildRoot `

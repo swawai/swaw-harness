@@ -154,6 +154,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "swaw-harness-core"
+version = "1.0.0"
+dependencies = [
+ "swaw-harness-core-protocol",
+ "windows-sys",
+]
+
+[[package]]
 name = "swaw-harness-core-protocol"
 version = "1.0.0"
 dependencies = [

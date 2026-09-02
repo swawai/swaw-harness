@@ -59,9 +59,11 @@ function Invoke-SwawHarnessWindowsUserCliCandidateBuild {
             -TimeoutSeconds 1800
         $OutputRoot = $BuildRoot
         [void][IO.Directory]::CreateDirectory($OutputRoot)
-        $ObjectPath = Join-Path $OutputRoot 'user.obj'
+        $ObjectPaths = @($Contract.Sources | ForEach-Object {
+            Join-Path $OutputRoot ([IO.Path]::ChangeExtension($_, '.obj'))
+        })
         $ArtifactPath = Join-Path $OutputRoot $Contract.BuildBinary
-        foreach ($OutputPath in @($ObjectPath, $ArtifactPath)) {
+        foreach ($OutputPath in @($ObjectPaths + $ArtifactPath)) {
             if (Test-SwawHarnessPathExists -Path $OutputPath) {
                 Remove-SwawHarnessControlledPathWithRetry `
                     -Path $OutputPath `
@@ -70,48 +72,56 @@ function Invoke-SwawHarnessWindowsUserCliCandidateBuild {
             }
         }
 
-        $SourcePath = Resolve-SwawHarnessChildPath `
-            -Root $UserCliRoot `
-            -RelativePath $Contract.Source `
-            -Description 'Windows User CLI executable source'
+        $SourcePaths = @($Contract.Sources | ForEach-Object {
+            $SourcePath = Resolve-SwawHarnessChildPath `
+                -Root $UserCliRoot `
+                -RelativePath $_ `
+                -Description 'Windows User CLI executable source'
+            [void](Assert-SwawHarnessRegularFile `
+                -Path $SourcePath `
+                -Description 'Windows User CLI executable source' `
+                -MaximumBytes 1MB)
+            $SourcePath
+        })
         [void](Assert-SwawHarnessRegularFile `
-            -Path $SourcePath `
-            -Description 'Windows User CLI executable source' `
+            -Path (Join-Path $UserCliRoot 'user.h') `
+            -Description 'Windows User CLI executable header' `
             -MaximumBytes 1MB)
+        [string[]]$NativePaths = @($CompilerPath, $LinkerPath) +
+            $SourcePaths + $ObjectPaths + @($ArtifactPath, $OutputRoot)
         [void](Assert-SwawHarnessNativePathBudget `
-            -Paths @(
-                $CompilerPath, $LinkerPath, $SourcePath,
-                $ObjectPath, $ArtifactPath, $OutputRoot
-            ) `
+            -Paths $NativePaths `
             -Description 'planned User CLI native build path')
-        $CompileResult = Invoke-SwawHarnessCapturedProcess `
-            -Executable $CompilerPath `
-            -Arguments @(
-                $Contract.CompilerArguments
-                "/Fo$ObjectPath"
-                $SourcePath
-            ) `
-            -WorkingDirectory $UserCliRoot `
-            -EnvironmentVariables $EnvironmentVariables `
-            -UnsetEnvironmentVariables $UnsetEnvironmentVariables `
-            -TimeoutSeconds 300
-        if ($CompileResult.ExitCode -ne 0) {
-            throw (
-                'User CLI executable compilation failed with exit code ' +
-                "$($CompileResult.ExitCode). $($CompileResult.Error) " +
-                "$($CompileResult.Output)"
-            ).Trim()
+        for ($Index = 0; $Index -lt $SourcePaths.Count; $Index++) {
+            $CompileResult = Invoke-SwawHarnessCapturedProcess `
+                -Executable $CompilerPath `
+                -Arguments @(
+                    $Contract.CompilerArguments
+                    "/Fo$($ObjectPaths[$Index])"
+                    $SourcePaths[$Index]
+                ) `
+                -WorkingDirectory $UserCliRoot `
+                -EnvironmentVariables $EnvironmentVariables `
+                -UnsetEnvironmentVariables $UnsetEnvironmentVariables `
+                -TimeoutSeconds 300
+            if ($CompileResult.ExitCode -ne 0) {
+                throw (
+                    'User CLI executable compilation failed with exit code ' +
+                    "$($CompileResult.ExitCode). $($CompileResult.Error) " +
+                    "$($CompileResult.Output)"
+                ).Trim()
+            }
+            [void](Assert-SwawHarnessRegularFile `
+                -Path $ObjectPaths[$Index] `
+                -Description 'Windows User CLI executable object')
         }
-        [void](Assert-SwawHarnessRegularFile `
-            -Path $ObjectPath `
-            -Description 'Windows User CLI executable object')
 
         $LinkResult = Invoke-SwawHarnessCapturedProcess `
             -Executable $LinkerPath `
             -Arguments @(
                 $Contract.LinkerArguments
                 "/out:$ArtifactPath"
-                $ObjectPath
+                $ObjectPaths
                 $Contract.Libraries
             ) `
             -WorkingDirectory $OutputRoot `

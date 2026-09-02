@@ -184,7 +184,7 @@ try {
         -Condition (
             $DeepRoot.Length -eq 60 -and
             ([string]$LongestNativePath).Length -le 240 -and
-            $Release.Artifacts.Count -eq 6 -and
+            $Release.Artifacts.Count -eq 5 -and
             [IO.File]::Exists((Join-Path `
                 $DeepRoot `
                 ('data\admin\modules\swaw\core\dev\' +
@@ -234,10 +234,6 @@ try {
         -Executable $Artifacts['user.exe'] `
         -Arguments @() `
         -WorkingDirectory $Release.Root
-    $Frontend = Invoke-SwawHarnessCapturedProcess `
-        -Executable $Artifacts['swaw-harness-cli.exe'] `
-        -Arguments @() `
-        -WorkingDirectory $Release.Root
     Assert-DeepPathTest `
         -Condition (
             $Core.ExitCode -eq 0 -and
@@ -249,8 +245,6 @@ try {
                 'export\dev\bun\mode\mode.json')) -and
             $UserCli.ExitCode -eq 1 -and
             $UserCli.Error -cmatch '^\[ERROR\] ' -and
-            $Frontend.ExitCode -eq 1 -and
-            $Frontend.Error -cmatch '^\[ERROR\] ' -and
             -not [IO.Directory]::Exists((Join-Path `
                 $DeepRoot `
                 'data\admin\runtime')) -and

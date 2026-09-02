@@ -90,26 +90,17 @@ try {
             ProductBinary = 'swaw-harness-admin.exe'
         }
     )
-    $FrontendContracts = @(
-        [pscustomobject][ordered]@{
-            PlatformTargetId = [string]$Contract.PlatformTargetId
-            ProductPackage = 'swaw-har-frontend'
-            BuildBinary = 'swaw-harness-cli.exe'
-            ProductBinary = 'swaw-harness-cli.exe'
-        },
-        [pscustomobject][ordered]@{
-            PlatformTargetId = [string]$Contract.PlatformTargetId
-            ProductPackage = 'swaw-har-frontend'
-            BuildBinary = 'swaw-harness.exe'
-            ProductBinary = 'swaw-harness.exe'
-        }
-    )
+    $HostContract = [pscustomobject][ordered]@{
+        PlatformTargetId = [string]$Contract.PlatformTargetId
+        ProductPackage = 'swaw-harness-core'
+        BuildBinary = 'swaw-harness-core.exe'
+        ProductBinary = 'swaw-harness-core.exe'
+    }
     foreach ($Build in @(
         [pscustomobject]@{ Contract = $CoreContracts[0]; Product = 'core' }
         [pscustomobject]@{ Contract = $CoreContracts[1]; Product = 'core' }
         [pscustomobject]@{ Contract = $CoreContracts[2]; Product = 'core' }
-        [pscustomobject]@{ Contract = $FrontendContracts[0]; Product = 'frontend' }
-        [pscustomobject]@{ Contract = $FrontendContracts[1]; Product = 'frontend' }
+        [pscustomobject]@{ Contract = $HostContract; Product = 'host' }
     )) {
         $TargetRoot = Join-Path $DataRepo (
             "windows.build\$($Build.Product)"
@@ -168,8 +159,8 @@ try {
         'toolchain-setup.ps1',
         'toolchain.ps1',
         'core\build.ps1',
-        'user\build.ps1',
-        'frontend\build.ps1'
+        'host\build.ps1',
+        'user\build.ps1'
     )) {
         $Command = Get-Command (Join-Path $WindowsRoot $EntryPoint)
         Assert-PathBudgetTest `

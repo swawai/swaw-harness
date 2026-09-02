@@ -2,7 +2,12 @@
   "schema": "swaw.harness.user-cli-build/v1",
   "buildArtifact": "swaw-har-user.exe",
   "artifact": "user.exe",
-  "source": "user.c",
+  "sources": [
+    "host.c",
+    "identity.c",
+    "protocol.c",
+    "user.c"
+  ],
   "compilerArguments": [
     "/nologo",
     "/c",
@@ -34,7 +39,8 @@
     "/manifest:no"
   ],
   "libraries": [
-    "kernel32.lib"
+    "kernel32.lib",
+    "shell32.lib"
   ],
   "maximumBytes": 65536
 }

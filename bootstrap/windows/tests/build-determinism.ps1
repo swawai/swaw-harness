@@ -25,6 +25,12 @@ function Invoke-BuildDeterminismPass {
             -EnvironmentVariables $Plan.EnvironmentVariables `
             -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
     )
+    $CoreHostCandidateRoot = Invoke-SwawHarnessWindowsCoreHostCandidateBuild `
+        -Context $Context `
+        -CargoPath $Plan.CargoPath `
+        -EnvironmentVariables $Plan.EnvironmentVariables `
+        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
+        Select-Object -Last 1
     $UserCliCandidateRoot = Invoke-SwawHarnessWindowsUserCliCandidateBuild `
         -Context $Context `
         -CompilerPath $Plan.CompilerPath `
@@ -32,19 +38,11 @@ function Invoke-BuildDeterminismPass {
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $FrontendCandidateRoots = @(
-        Invoke-SwawHarnessWindowsFrontendCandidateBuild `
-        -Context $Context `
-        -CargoPath $Plan.CargoPath `
-        -EnvironmentVariables $Plan.EnvironmentVariables `
-        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
-    )
-
     return Publish-SwawHarnessWindowsProducts `
         -Context $Context `
         -CoreCandidateRoots ([string[]]$CoreCandidateRoots) `
-        -UserCliCandidateRoot ([string]$UserCliCandidateRoot) `
-        -FrontendCandidateRoots $FrontendCandidateRoots
+        -CoreHostCandidateRoot ([string]$CoreHostCandidateRoot) `
+        -UserCliCandidateRoot ([string]$UserCliCandidateRoot)
 }
 
 function Get-BuildDeterminismSnapshot {
@@ -68,8 +66,8 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'builder\filesystem.ps1')
 . (Join-Path $WindowsRoot 'publication.ps1')
 . (Join-Path $WindowsRoot 'core\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'host\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'user\candidate-build.ps1')
-. (Join-Path $WindowsRoot 'frontend\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')

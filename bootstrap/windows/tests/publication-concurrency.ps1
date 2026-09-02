@@ -59,8 +59,8 @@ $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
 . (Join-Path $WindowsRoot 'builder\process.ps1')
 . (Join-Path $WindowsRoot 'builder\release\selector.ps1')
 . (Join-Path $WindowsRoot 'core\contract.ps1')
+. (Join-Path $WindowsRoot 'host\contract.ps1')
 . (Join-Path $WindowsRoot 'user\contract.ps1')
-. (Join-Path $WindowsRoot 'frontend\contract.ps1')
 . (Join-Path $WindowsRoot 'publication.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
@@ -80,9 +80,8 @@ param(
     [Parameter(Mandatory = $true)][string]$CoreHelloworldCandidateRoot,
     [Parameter(Mandatory = $true)][string]$CoreDevCandidateRoot,
     [Parameter(Mandatory = $true)][string]$CoreAdminCandidateRoot,
+    [Parameter(Mandatory = $true)][string]$CoreHostCandidateRoot,
     [Parameter(Mandatory = $true)][string]$UserCliCandidateRoot,
-    [Parameter(Mandatory = $true)][string]$FrontendCliCandidateRoot,
-    [Parameter(Mandatory = $true)][string]$HarnessGuiCandidateRoot,
     [Parameter(Mandatory = $true)][string]$ReadyPath,
     [Parameter(Mandatory = $true)][string]$ResultPath
 )
@@ -104,11 +103,8 @@ $Results = @(Publish-SwawHarnessWindowsProducts `
         $CoreDevCandidateRoot,
         $CoreAdminCandidateRoot
     ) `
-    -UserCliCandidateRoot $UserCliCandidateRoot `
-    -FrontendCandidateRoots @(
-        $FrontendCliCandidateRoot,
-        $HarnessGuiCandidateRoot
-    ))
+    -CoreHostCandidateRoot $CoreHostCandidateRoot `
+    -UserCliCandidateRoot $UserCliCandidateRoot)
 if ($Results.Count -ne 1) {
     throw 'Concurrent publication must return exactly one result.'
 }
@@ -131,12 +127,12 @@ try {
     $CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
         -Path (Join-Path $WindowsRoot 'core\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId)
+    $CoreHostContract = Read-SwawHarnessWindowsCoreHostContract `
+        -Path (Join-Path $WindowsRoot 'host\contract.json') `
+        -PlatformTargetId $PlatformContract.PlatformTargetId
     $UserCliContract = Read-SwawHarnessWindowsUserCliContract `
         -Path (Join-Path $WindowsRoot 'user\contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId
-    $FrontendContracts = @(Read-SwawHarnessWindowsFrontendContracts `
-        -Path (Join-Path $WindowsRoot 'frontend\contract.json') `
-        -PlatformTargetId $PlatformContract.PlatformTargetId)
     $Definitions = @(
         [pscustomobject]@{
             Name = 'core-helloworld'
@@ -154,19 +150,14 @@ try {
             BuildRoot = Join-Path $Context.BuildRoot 'core'
         },
         [pscustomobject]@{
+            Name = 'host'
+            Contract = $CoreHostContract
+            BuildRoot = Join-Path $Context.BuildRoot 'host'
+        },
+        [pscustomobject]@{
             Name = 'user'
             Contract = $UserCliContract
             BuildRoot = Join-Path $Context.BuildRoot 'user'
-        },
-        [pscustomobject]@{
-            Name = 'frontend-cli'
-            Contract = $FrontendContracts[0]
-            BuildRoot = Join-Path $Context.BuildRoot 'frontend'
-        },
-        [pscustomobject]@{
-            Name = 'frontend-gui'
-            Contract = $FrontendContracts[1]
-            BuildRoot = Join-Path $Context.BuildRoot 'frontend'
         }
     )
     $CandidateSets = @{}
@@ -202,11 +193,8 @@ try {
             '-CoreDevCandidateRoot', $CandidateSets[$SetName]['core-dev'],
             '-CoreAdminCandidateRoot',
                 $CandidateSets[$SetName]['core-admin'],
+            '-CoreHostCandidateRoot', $CandidateSets[$SetName]['host'],
             '-UserCliCandidateRoot', $CandidateSets[$SetName]['user'],
-            '-FrontendCliCandidateRoot',
-                $CandidateSets[$SetName]['frontend-cli'],
-            '-HarnessGuiCandidateRoot',
-                $CandidateSets[$SetName]['frontend-gui'],
             '-ReadyPath', $ReadyPath,
             '-ResultPath', $ResultPath
         )
@@ -295,7 +283,7 @@ try {
         Assert-PublicationConcurrencyTest `
             -Condition (
                 [string]$Result.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
-                $Result.Artifacts.Count -eq 6
+                $Result.Artifacts.Count -eq 5
             ) `
             -Message 'a concurrent publication returned an incomplete set'
         $Results.Add($Result)
@@ -310,9 +298,8 @@ try {
         -ReleasesRoot $Context.BootstrapReleaseRoot `
         -Contracts @(
             $CoreContracts
+            $CoreHostContract
             $UserCliContract
-            $FrontendContracts[0]
-            $FrontendContracts[1]
         )
     Assert-PublicationConcurrencyTest `
         -Condition (
@@ -330,11 +317,8 @@ try {
                 $CandidateSets['A']['core-dev'],
                 $CandidateSets['A']['core-admin']
             ) `
-            -UserCliCandidateRoot $CandidateSets['A']['user'] `
-            -FrontendCandidateRoots @(
-                $CandidateSets['A']['frontend-cli'],
-                $CandidateSets['A']['frontend-gui']
-            ) |
+            -CoreHostCandidateRoot $CandidateSets['A']['host'] `
+            -UserCliCandidateRoot $CandidateSets['A']['user'] |
             Out-Null
     } catch {
         $Rejected = $true
@@ -356,11 +340,8 @@ try {
             $CandidateSets['B']['core-dev'],
             $CandidateSets['B']['core-admin']
         ) `
-        -UserCliCandidateRoot $CandidateSets['B']['user'] `
-        -FrontendCandidateRoots @(
-            $CandidateSets['B']['frontend-cli'],
-            $CandidateSets['B']['frontend-gui']
-        ))
+        -CoreHostCandidateRoot $CandidateSets['B']['host'] `
+        -UserCliCandidateRoot $CandidateSets['B']['user'])
     Assert-PublicationConcurrencyTest `
         -Condition ($AfterFailure.Count -eq 1 -and
             (Test-PublicationReleaseEquals `
@@ -369,7 +350,7 @@ try {
         -Message 'failed publication did not release its orchestration lock'
     Clear-SwawHarnessWindowsProductCandidates -Context $Context
     Assert-PublicationConcurrencyTest `
-        -Condition (@(@('core', 'user', 'frontend') | Where-Object {
+        -Condition (@(@('core', 'host', 'user') | Where-Object {
             Test-SwawHarnessPathExists `
                 -Path (Join-Path $Context.BuildRoot "$_\candidates")
         }).Count -eq 0) `

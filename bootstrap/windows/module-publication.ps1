@@ -1,8 +1,9 @@
 Set-StrictMode -Version 2.0
 
-. (Join-Path $PSScriptRoot '..\builder\foundation.ps1')
-. (Join-Path $PSScriptRoot '..\builder\filesystem.ps1')
-. (Join-Path $PSScriptRoot 'contract.ps1')
+. (Join-Path $PSScriptRoot 'builder\foundation.ps1')
+. (Join-Path $PSScriptRoot 'builder\filesystem.ps1')
+. (Join-Path $PSScriptRoot 'core\contract.ps1')
+. (Join-Path $PSScriptRoot 'host\contract.ps1')
 
 $script:SwawHarnessModuleSchema = 'swaw.harness.module/v1'
 
@@ -90,6 +91,28 @@ function Assert-SwawHarnessModuleVersion {
     return $Version
 }
 
+function Assert-SwawHarnessModuleExecutableLength {
+    param(
+        [Parameter(Mandatory = $true)]$Value,
+        [Parameter(Mandatory = $true)][string]$ManifestPath
+    )
+
+    if (($Value -isnot [int]) -and ($Value -isnot [long])) {
+        throw (
+            'Module Release manifest executable length must be a JSON integer: ' +
+            $ManifestPath
+        )
+    }
+    $Length = [long]$Value
+    if ($Length -le 0) {
+        throw (
+            'Module Release manifest executable length must be positive: ' +
+            $ManifestPath
+        )
+    }
+    return $Length
+}
+
 function Read-SwawHarnessModuleRelease {
     param(
         [Parameter(Mandatory = $true)][string]$ReleaseRoot,
@@ -136,6 +159,9 @@ function Read-SwawHarnessModuleRelease {
         -Value $Manifest.executable `
         -Expected @('name', 'length', 'sha256') `
         -Description 'Module Release executable record'
+    $ManifestExecutableLength = Assert-SwawHarnessModuleExecutableLength `
+        -Value $Manifest.executable.length `
+        -ManifestPath $ManifestPath
     $ExecutablePath = Resolve-SwawHarnessChildPath `
         -Root $ReleaseRoot `
         -RelativePath ([string]$Contract.ProductBinary) `
@@ -152,7 +178,7 @@ function Read-SwawHarnessModuleRelease {
             [string]$Contract.PlatformTargetId -or
         [string]$Manifest.executable.name -cne
             [string]$Contract.ProductBinary -or
-        [long]$Manifest.executable.length -ne [long]$Executable.Length -or
+        $ManifestExecutableLength -ne [long]$Executable.Length -or
         [string]$Manifest.executable.sha256 -cne $Sha256 -or
         [long]$SourceArtifact.Length -ne [long]$Executable.Length -or
         [string]$SourceArtifact.Sha256 -cne $Sha256) {
@@ -171,17 +197,22 @@ function Read-SwawHarnessModuleRelease {
     }
 }
 
-function Publish-SwawHarnessWindowsCoreModules {
+function Publish-SwawHarnessWindowsBootstrapModules {
     param(
         [Parameter(Mandatory = $true)][object]$Context,
         [Parameter(Mandatory = $true)][object]$BootstrapRelease
     )
 
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
-        -Path (Join-Path $PSScriptRoot '..\contract.json')
-    $Contracts = @(Read-SwawHarnessWindowsCoreContracts `
-        -Path (Join-Path $PSScriptRoot 'contract.json') `
-        -PlatformTargetId $PlatformContract.PlatformTargetId)
+        -Path (Join-Path $PSScriptRoot 'contract.json')
+    $Contracts = @(
+        Read-SwawHarnessWindowsCoreContracts `
+            -Path (Join-Path $PSScriptRoot 'core\contract.json') `
+            -PlatformTargetId $PlatformContract.PlatformTargetId
+        Read-SwawHarnessWindowsCoreHostContract `
+            -Path (Join-Path $PSScriptRoot 'host\contract.json') `
+            -PlatformTargetId $PlatformContract.PlatformTargetId
+    )
     if ([string]$BootstrapRelease.PlatformTargetId -cne
         [string]$PlatformContract.PlatformTargetId) {
         throw 'Bootstrap Release target does not match Module publication target.'
@@ -196,12 +227,6 @@ function Publish-SwawHarnessWindowsCoreModules {
     $AdminRoot = Assert-SwawHarnessModuleDirectory `
         -Path (Join-Path $DataHome 'admin') `
         -Description 'Admin UserHome'
-    $SkillMapRoot = Assert-SwawHarnessModuleDirectory `
-        -Path (Join-Path $AdminRoot 'map') `
-        -Description 'Admin Skill Map root'
-    [void](Assert-SwawHarnessModuleDirectory `
-        -Path (Join-Path $SkillMapRoot 'core') `
-        -Description 'Admin Core Skill Map')
     $ModulesRoot = Join-Path $AdminRoot 'modules'
     [void][IO.Directory]::CreateDirectory($ModulesRoot)
     $ModulesRoot = Assert-SwawHarnessModuleDirectory `

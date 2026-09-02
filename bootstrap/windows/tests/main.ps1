@@ -15,6 +15,7 @@ function Assert-MainTest {
 $WindowsRoot = Split-Path -Path $PSScriptRoot -Parent
 . (Join-Path $WindowsRoot 'builder\contract.ps1')
 . (Join-Path $WindowsRoot 'core\contract.ps1')
+. (Join-Path $WindowsRoot 'host\contract.ps1')
 if ([string]::IsNullOrWhiteSpace($DataRepo)) {
     $DataRepo = [IO.Path]::GetFullPath((
         Join-Path $WindowsRoot '..\..\data.repo'
@@ -30,15 +31,23 @@ $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
 $CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
     -Path (Join-Path $WindowsRoot 'core\contract.json') `
     -PlatformTargetId $PlatformContract.PlatformTargetId)
+$HostContract = Read-SwawHarnessWindowsCoreHostContract `
+    -Path (Join-Path $WindowsRoot 'host\contract.json') `
+    -PlatformTargetId $PlatformContract.PlatformTargetId
+$ModuleContracts = @($CoreContracts; $HostContract)
 $HarnessRoot = Split-Path -Path $DataRepo -Parent
-$ModuleManifestPaths = @($CoreContracts | ForEach-Object {
+$ModuleManifestPaths = @($ModuleContracts | ForEach-Object {
     Join-Path `
         (Join-Path $HarnessRoot 'data\admin\modules') `
         ($_.ModuleId.Replace('/', '\') + "\" + $_.PlatformTargetId +
             "\" + $_.ModuleVersion + '\swaw-harness.module.json')
 })
+$HostVersionPointer = Join-Path $HarnessRoot (
+    'data\admin\host\current.' + $PlatformContract.PlatformTargetId
+)
+$AdminUserCli = Join-Path $HarnessRoot 'data\admin.exe'
 $FirstCandidateMembers = @(
-    foreach ($Product in @('core', 'user', 'frontend')) {
+    foreach ($Product in @('core', 'host', 'user')) {
         $CandidatesRoot = Join-Path `
             $DataRepo `
             "windows.build\$Product\candidates"
@@ -56,13 +65,19 @@ Assert-MainTest `
             $ExpectedReleaseRoot,
             [StringComparison]::OrdinalIgnoreCase
         ) -and
-        $First.Artifacts.Count -eq 6 -and
+        $First.Artifacts.Count -eq 5 -and
+        [IO.File]::Exists($AdminUserCli) -and
+        [IO.File]::Exists($HostVersionPointer) -and
+        [IO.File]::ReadAllText(
+            $HostVersionPointer,
+            [Text.Encoding]::UTF8
+        ).TrimEnd("`r", "`n") -ceq $HostContract.ModuleVersion -and
         [IO.Directory]::Exists((Join-Path `
             $HarnessRoot `
             'data\admin\map\core')) -and
         @($ModuleManifestPaths | Where-Object {
             [IO.File]::Exists($_)
-        }).Count -eq $CoreContracts.Count -and
+        }).Count -eq $ModuleContracts.Count -and
         -not [IO.File]::Exists((Join-Path `
             $HarnessRoot `
             'data\admin\user.json')) -and
@@ -72,6 +87,10 @@ Assert-MainTest `
         $FirstCandidateMembers.Count -eq 0
     ) `
     -Message 'main did not publish one complete Bootstrap Release'
+$FirstAdminUserCliWriteTime = (Get-Item `
+    -LiteralPath $AdminUserCli).LastWriteTimeUtc
+$FirstHostVersionPointerWriteTime = (Get-Item `
+    -LiteralPath $HostVersionPointer).LastWriteTimeUtc
 
 $SecondInvocation = @(
     & (Join-Path $WindowsRoot 'main.ps1') 6>&1
@@ -87,7 +106,7 @@ Assert-MainTest `
     -Message 'second invocation did not return exactly one Bootstrap Release'
 $Second = $SecondResults[0]
 $SecondCandidateMembers = @(
-    foreach ($Product in @('core', 'user', 'frontend')) {
+    foreach ($Product in @('core', 'host', 'user')) {
         $CandidatesRoot = Join-Path `
             $DataRepo `
             "windows.build\$Product\candidates"
@@ -102,7 +121,7 @@ Assert-MainTest `
         [string]$Second.ReleaseId -cmatch '^[a-f0-9]{64}$' -and
         @($SecondMessages | Where-Object {
             $_ -cmatch '^\[BUILT\] '
-        }).Count -eq 6 -and
+        }).Count -eq 5 -and
         @($SecondMessages | Where-Object {
             $_ -cmatch '^\[PUBLISHED\] Bootstrap Release '
         }).Count -eq 1 -and
@@ -110,13 +129,17 @@ Assert-MainTest `
             $ExpectedReleaseRoot,
             [StringComparison]::OrdinalIgnoreCase
         ) -and
-        $Second.Artifacts.Count -eq 6 -and
+        $Second.Artifacts.Count -eq 5 -and
+        (Get-Item -LiteralPath $AdminUserCli).LastWriteTimeUtc -eq
+            $FirstAdminUserCliWriteTime -and
+        (Get-Item -LiteralPath $HostVersionPointer).LastWriteTimeUtc -eq
+            $FirstHostVersionPointerWriteTime -and
         @($First.Artifacts | Where-Object {
             (Get-Item -LiteralPath $_.Path).Length -gt 0
-        }).Count -eq 6 -and
+        }).Count -eq 5 -and
         @($Second.Artifacts | Where-Object {
             (Get-Item -LiteralPath $_.Path).Length -gt 0
-        }).Count -eq 6 -and
+        }).Count -eq 5 -and
         $SecondCandidateMembers.Count -eq 0
     ) `
     -Message 'explicit Bootstrap did not preserve a valid bundle Release'

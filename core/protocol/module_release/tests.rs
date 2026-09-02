@@ -336,10 +336,7 @@ fn isolated_installed_helloworld_skill_runs() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(
-        String::from_utf8(output.stdout).unwrap(),
-        "Hello, Skill Map!\n"
-    );
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "Hello, World!\n");
 }
 
 #[cfg(windows)]

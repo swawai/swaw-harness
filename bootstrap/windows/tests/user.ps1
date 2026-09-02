@@ -85,17 +85,14 @@ try {
     Assert-UserCliTest `
         -Condition (
             $Result.ExitCode -eq 1 -and
-            $Result.Error -ceq (
-                '[ERROR] Swaw Harness User CLI executable runtime is not ' +
-                'implemented yet; this artifact is for build and ' +
-                'publication validation only.'
-            )
+            $Result.Error -ceq
+                '[ERROR] User CLI executable is not installed in DataHome.'
         ) `
-        -Message 'development User CLI executable did not fail explicitly'
+        -Message 'uninstalled User CLI executable did not fail explicitly'
 
-    $Implementation = [IO.File]::ReadAllText(
-        (Join-Path $WindowsRoot 'user\user.c')
-    )
+    $Implementation = @($UserCliContract.Sources | ForEach-Object {
+        [IO.File]::ReadAllText((Join-Path $WindowsRoot "user\$_"))
+    }) -join "`n"
     Assert-UserCliTest `
         -Condition (
             $Implementation -notmatch (

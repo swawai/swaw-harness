@@ -11,7 +11,8 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'publication.ps1')
-. (Join-Path $PSScriptRoot 'core\module-publication.ps1')
+. (Join-Path $PSScriptRoot 'module-publication.ps1')
+. (Join-Path $PSScriptRoot 'admin-initialization.ps1')
 
 $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
     -Path (Join-Path $PSScriptRoot 'contract.json')
@@ -22,6 +23,10 @@ $Context = New-SwawHarnessWindowsBootstrapContext `
 $CoreContracts = @(Read-SwawHarnessWindowsCoreContracts `
     -Path (Join-Path $PSScriptRoot 'core\contract.json') `
     -PlatformTargetId $PlatformContract.PlatformTargetId)
+$HostContract = Read-SwawHarnessWindowsCoreHostContract `
+    -Path (Join-Path $PSScriptRoot 'host\contract.json') `
+    -PlatformTargetId $PlatformContract.PlatformTargetId
+$StartupModuleContracts = @($CoreContracts; $HostContract)
 
 $Toolchain = Get-SwawHarnessBootstrapToolchain `
     -Context $Context `
@@ -45,6 +50,15 @@ try {
         }).Count -ne 0) {
         throw 'Core build must return every immutable Candidate root.'
     }
+    $CoreHostBuildResults = @(& (Join-Path $PSScriptRoot 'host\build.ps1') `
+        -CargoPath $Plan.CargoPath `
+        -EnvironmentVariables $Plan.EnvironmentVariables `
+        -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables `
+        -CandidateLifecycleLock $LifecycleLock.Stream)
+    if ($CoreHostBuildResults.Count -ne 1 -or
+        [string]::IsNullOrWhiteSpace([string]$CoreHostBuildResults[0])) {
+        throw 'Core Host build must return one immutable Candidate root.'
+    }
     $UserCliBuildResults = @(& (Join-Path $PSScriptRoot 'user\build.ps1') `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
@@ -55,39 +69,32 @@ try {
         [string]::IsNullOrWhiteSpace([string]$UserCliBuildResults[0])) {
         throw 'User CLI executable build must return one immutable Candidate root.'
     }
-    $FrontendBuildResults = @(
-        & (Join-Path $PSScriptRoot 'frontend\build.ps1') `
-            -CargoPath $Plan.CargoPath `
-            -EnvironmentVariables $Plan.EnvironmentVariables `
-            -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables `
-            -CandidateLifecycleLock $LifecycleLock.Stream
-    )
-    if ($FrontendBuildResults.Count -ne 2 -or
-        @($FrontendBuildResults | Where-Object {
-            [string]::IsNullOrWhiteSpace([string]$_)
-        }).Count -ne 0) {
-        throw 'Windows frontend build must return two immutable Candidate roots.'
-    }
-
     $PublicationResults = @(Publish-SwawHarnessWindowsProducts `
         -Context $Context `
         -CoreCandidateRoots ([string[]]$CoreBuildResults) `
+        -CoreHostCandidateRoot ([string]$CoreHostBuildResults[0]) `
         -UserCliCandidateRoot ([string]$UserCliBuildResults[0]) `
-        -FrontendCandidateRoots @(
-            [string]$FrontendBuildResults[0],
-            [string]$FrontendBuildResults[1]
-        ) `
         -CandidateLifecycleLock $LifecycleLock.Stream)
     if ($PublicationResults.Count -ne 1) {
         throw 'Bootstrap publication must return exactly one Release.'
     }
     $Release = $PublicationResults[0]
-    $ModuleReleases = @(Publish-SwawHarnessWindowsCoreModules `
+    $ModuleReleases = @(Publish-SwawHarnessWindowsBootstrapModules `
         -Context $Context `
         -BootstrapRelease $Release)
-    if ($ModuleReleases.Count -ne $CoreContracts.Count) {
-        throw 'Bootstrap must publish every Core Module Release.'
+    if ($ModuleReleases.Count -ne $StartupModuleContracts.Count) {
+        throw 'Bootstrap must publish every startup Module Release.'
     }
+    $HostModuleReleases = @($ModuleReleases | Where-Object {
+        [string]$_.ModuleId -ceq $HostContract.ModuleId
+    })
+    if ($HostModuleReleases.Count -ne 1) {
+        throw 'Bootstrap must publish exactly one Core Host Module Release.'
+    }
+    [void](Initialize-SwawHarnessWindowsAdmin `
+        -Context $Context `
+        -BootstrapRelease $Release `
+        -HostModuleRelease $HostModuleReleases[0])
     Clear-SwawHarnessWindowsProductCandidates `
         -Context $Context `
         -CandidateLifecycleLock $LifecycleLock.Stream

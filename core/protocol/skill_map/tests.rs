@@ -3,8 +3,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
 fn repository_skill_map_is_valid_and_skills_select_modules_directly() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/admin/map/core");
-    let skill_map = SkillMap::open(root).unwrap();
+    let user_home = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/admin");
+    let skill_map = SkillMap::open_core(user_home).unwrap();
     skill_map.validate().unwrap();
 
     for (skill_path, module, executable, arguments) in [
@@ -12,13 +12,7 @@ fn repository_skill_map_is_valid_and_skills_select_modules_directly() {
             "helloworld",
             "swaw/templates/helloworld",
             "helloworld.exe",
-            &["Skill Map"][..],
-        ),
-        (
-            "dev/setup",
-            "swaw/core/dev",
-            "swaw-harness-dev.exe",
-            &["dev/setup"][..],
+            &[][..],
         ),
         (
             "dev/bun/mode",
@@ -33,6 +27,23 @@ fn repository_skill_map_is_valid_and_skills_select_modules_directly() {
         assert_eq!(node.declaration().version().to_string(), "1.*");
         assert_eq!(node.declaration().executable(), executable);
         assert_eq!(node.declaration().arguments(), arguments);
+    }
+    assert!(skill_map.find("dev/setup").is_err());
+}
+
+#[test]
+fn core_skill_map_requires_canonical_fixed_directory_names() {
+    for (relative_root, expected_error) in [
+        ("Map/core", "non-canonical Skill Map root name 'Map'"),
+        ("map/Core", "non-canonical Core Skill Map name 'Core'"),
+    ] {
+        let user_home = temporary_map("core-root-case");
+        fs::create_dir_all(user_home.join(relative_root)).unwrap();
+
+        let error = SkillMap::open_core(&user_home).unwrap_err();
+        assert!(error.contains(expected_error), "{error}");
+
+        fs::remove_dir_all(user_home).unwrap();
     }
 }
 
@@ -172,6 +183,16 @@ fn reparse_directories_cannot_enter_resolution() {
     fs::remove_dir(root.join("dev")).unwrap();
     fs::remove_dir_all(root).unwrap();
     fs::remove_dir_all(skill_target).unwrap();
+
+    let user_home = temporary_map("map-parent-reparse");
+    let map_target = temporary_map("map-parent-target");
+    fs::create_dir(map_target.join("core")).unwrap();
+    create_junction(&user_home.join("map"), &map_target);
+    assert!(SkillMap::open_core(&user_home).is_err());
+
+    fs::remove_dir(user_home.join("map")).unwrap();
+    fs::remove_dir_all(user_home).unwrap();
+    fs::remove_dir_all(map_target).unwrap();
 }
 
 #[cfg(windows)]
