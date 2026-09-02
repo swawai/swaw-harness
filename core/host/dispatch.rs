@@ -45,7 +45,7 @@ pub(crate) fn prepare_call(
     skill_path: &str,
     dynamic_arguments: impl IntoIterator<Item = OsString>,
 ) -> Result<PreparedCall, String> {
-    let skill_map = SkillMap::open(user_home.join("map").join("core"))?;
+    let skill_map = SkillMap::open_core(user_home)?;
     let node = skill_map.find(skill_path)?;
     let declaration = node.declaration();
     let modules = InstalledModules::open(data_home)?;

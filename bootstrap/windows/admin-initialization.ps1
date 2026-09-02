@@ -137,6 +137,7 @@ function Publish-SwawHarnessAdminUserCli {
     $Stage = Join-Path $DataHome (
         '.admin-' + [Guid]::NewGuid().ToString('N') + '.tmp'
     )
+    $Backup = "$Stage.backup"
     try {
         [IO.File]::Copy([string]$Source.Path, $Stage, $false)
         $Staged = Assert-SwawHarnessRegularFile `
@@ -148,11 +149,50 @@ function Publish-SwawHarnessAdminUserCli {
                 [string]$Source.Sha256) {
             throw 'Staged Admin User CLI executable is corrupt.'
         }
-        [IO.File]::Move($Stage, $Destination, $true)
+        $DestinationItem = Get-Item `
+            -LiteralPath $Destination `
+            -Force `
+            -ErrorAction SilentlyContinue
+        if ($null -eq $DestinationItem) {
+            try {
+                [IO.File]::Move($Stage, $Destination)
+            } catch {
+                $Concurrent = Get-Item `
+                    -LiteralPath $Destination `
+                    -Force `
+                    -ErrorAction SilentlyContinue
+                if ($null -eq $Concurrent -or $Concurrent.PSIsContainer -or
+                    ($Concurrent.Attributes -band
+                        [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+                    [long]$Concurrent.Length -ne [long]$Source.Length -or
+                    (Get-SwawHarnessFileSha256 -Path $Destination) -cne
+                        [string]$Source.Sha256) {
+                    throw
+                }
+            }
+        } elseif ($DestinationItem.PSIsContainer -or
+            ($DestinationItem.Attributes -band
+                [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Admin User CLI destination is not a regular file: $Destination"
+        } else {
+            [IO.File]::Replace($Stage, $Destination, $Backup, $true)
+        }
+        $Published = Assert-SwawHarnessRegularFile `
+            -Path $Destination `
+            -Description 'published Admin User CLI executable' `
+            -MaximumBytes $Contract.MaximumBytes
+        if ([long]$Published.Length -ne [long]$Source.Length -or
+            (Get-SwawHarnessFileSha256 -Path $Destination) -cne
+                [string]$Source.Sha256) {
+            throw 'Published Admin User CLI executable is corrupt.'
+        }
     } finally {
-        if (Test-SwawHarnessPathExists -Path $Stage) {
+        foreach ($WorkPath in @($Stage, $Backup)) {
+            if (-not (Test-SwawHarnessPathExists -Path $WorkPath)) {
+                continue
+            }
             Remove-SwawHarnessControlledPathWithRetry `
-                -Path $Stage `
+                -Path $WorkPath `
                 -ControlledRoot $DataHome `
                 -Activity 'cleaning Admin User CLI publication work'
         }

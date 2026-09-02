@@ -106,6 +106,33 @@ try {
         -Context $Context `
         -BootstrapRelease $Releases[0] `
         -HostModuleRelease $HostModuleReleases[0]
+    $UserCliArtifacts = @($Releases[0].Artifacts | Where-Object {
+        [string]$_.Name -ceq 'user.exe'
+    })
+    if ($UserCliArtifacts.Count -ne 1) {
+        throw 'Skill invocation fixture requires one User CLI executable.'
+    }
+    [IO.File]::WriteAllBytes(
+        [string]$AdminHost.UserCliPath,
+        [byte[]]@(0)
+    )
+    $AdminHost = Initialize-SwawHarnessWindowsAdmin `
+        -Context $Context `
+        -BootstrapRelease $Releases[0] `
+        -HostModuleRelease $HostModuleReleases[0]
+    $PublishedUserCli = Get-Item -LiteralPath $AdminHost.UserCliPath -Force
+    $AdminPublicationResidues = @(Get-ChildItem `
+        -LiteralPath (Join-Path $TestRoot 'data') `
+        -Force | Where-Object {
+            [string]$_.Name -cmatch '^\.admin-[a-f0-9]{32}\.tmp(?:\.backup)?$'
+        })
+    if ([long]$PublishedUserCli.Length -ne
+            [long]$UserCliArtifacts[0].Length -or
+        (Get-SwawHarnessFileSha256 -Path $AdminHost.UserCliPath) -cne
+            [string]$UserCliArtifacts[0].Sha256 -or
+        $AdminPublicationResidues.Count -ne 0) {
+        throw 'Admin User CLI executable replacement was not atomic and complete.'
+    }
     $HostVersion = [IO.File]::ReadAllText(
         [string]$AdminHost.HostVersionPointerPath,
         [Text.Encoding]::UTF8
@@ -171,8 +198,7 @@ try {
     $ConcurrentCalls = @('Swaw', 'One', 'Two', 'Three') | ForEach-Object {
         $Info = [Diagnostics.ProcessStartInfo]::new()
         $Info.FileName = [string]$AdminHost.UserCliPath
-        $Info.ArgumentList.Add('helloworld')
-        $Info.ArgumentList.Add($_)
+        $Info.Arguments = "helloworld $_"
         $Info.WorkingDirectory = Join-Path $TestRoot 'data'
         $Info.UseShellExecute = $false
         $Info.CreateNoWindow = $true
@@ -189,7 +215,7 @@ try {
     }
     foreach ($Process in $ConcurrentCalls) {
         if (-not $Process.WaitForExit(30000)) {
-            $Process.Kill($true)
+            $Process.Kill()
             throw 'Concurrent Admin User CLI invocation timed out.'
         }
         $Process.WaitForExit()
