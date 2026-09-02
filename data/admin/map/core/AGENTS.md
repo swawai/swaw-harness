@@ -19,4 +19,4 @@
 
 ## Maintainer Notes
 
-- `helloworld` 已形成用户 CLI → Core Host → Module Release 的批处理调用样例；`dev/setup` 等涉及资源空间或管理副作用的节点仍需逐项验证，不得由 Helloworld 样例推断为已完成。
+- `helloworld` 已形成用户 CLI → Core Host → Module Release 的批处理调用样例；计划中的 `dev/setup` 等涉及资源空间或管理副作用的节点必须逐项实现和验证后才能加入 Core 技能图，不得由 Helloworld 样例推断为已完成。

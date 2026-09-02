@@ -15,12 +15,6 @@ fn repository_skill_map_is_valid_and_skills_select_modules_directly() {
             &[][..],
         ),
         (
-            "dev/setup",
-            "swaw/core/dev",
-            "swaw-harness-dev.exe",
-            &["dev/setup"][..],
-        ),
-        (
             "dev/bun/mode",
             "swaw/core/dev",
             "swaw-harness-dev.exe",
@@ -34,6 +28,7 @@ fn repository_skill_map_is_valid_and_skills_select_modules_directly() {
         assert_eq!(node.declaration().executable(), executable);
         assert_eq!(node.declaration().arguments(), arguments);
     }
+    assert!(skill_map.find("dev/setup").is_err());
 }
 
 #[test]
