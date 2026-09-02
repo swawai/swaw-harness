@@ -85,7 +85,7 @@ function Copy-DeepPathToolchainFixture {
         $Destination = Resolve-SwawHarnessChildPath `
             -Root $DestinationRoot `
             -RelativePath $RelativePath `
-            -Description 'deep-path toolchain fixture entry'
+            -Description 'deep-path toolchain fixture member'
         if ($Item.PSIsContainer) {
             [void][IO.Directory]::CreateDirectory($Destination)
             continue
@@ -216,8 +216,8 @@ try {
         -Executable $Artifacts['helloworld.exe'] `
         -Arguments @('Deep') `
         -WorkingDirectory $Release.Root
-    $DevEntryRoot = Join-Path $DeepRoot 'data\deep'
-    [void][IO.Directory]::CreateDirectory($DevEntryRoot)
+    $DevUserHome = Join-Path $DeepRoot 'data\deep'
+    [void][IO.Directory]::CreateDirectory($DevUserHome)
     $InstalledDev = Join-Path `
         $DeepRoot `
         ('data\admin\modules\swaw\core\dev\' +
@@ -228,13 +228,13 @@ try {
         -Arguments @('dev/bun/mode', 'managed') `
         -WorkingDirectory $Release.Root `
         -EnvironmentVariables @{
-            SWAW_HARNESS_ENTRY_ROOT = $DevEntryRoot
+            SWAW_HARNESS_USER_HOME = $DevUserHome
         }
-    $Entry = Invoke-SwawHarnessCapturedProcess `
-        -Executable $Artifacts['entry.exe'] `
+    $UserCli = Invoke-SwawHarnessCapturedProcess `
+        -Executable $Artifacts['user.exe'] `
         -Arguments @() `
         -WorkingDirectory $Release.Root
-    $EntryManager = Invoke-SwawHarnessCapturedProcess `
+    $Frontend = Invoke-SwawHarnessCapturedProcess `
         -Executable $Artifacts['swaw-harness-cli.exe'] `
         -Arguments @() `
         -WorkingDirectory $Release.Root
@@ -245,18 +245,18 @@ try {
             $Dev.ExitCode -eq 0 -and
             $Dev.Output -ceq 'managed' -and
             [IO.File]::Exists((Join-Path `
-                $DevEntryRoot `
+                $DevUserHome `
                 'export\dev\bun\mode\mode.json')) -and
-            $Entry.ExitCode -eq 1 -and
-            $Entry.Error -cmatch '^\[ERROR\] ' -and
-            $EntryManager.ExitCode -eq 1 -and
-            $EntryManager.Error -cmatch '^\[ERROR\] ' -and
+            $UserCli.ExitCode -eq 1 -and
+            $UserCli.Error -cmatch '^\[ERROR\] ' -and
+            $Frontend.ExitCode -eq 1 -and
+            $Frontend.Error -cmatch '^\[ERROR\] ' -and
             -not [IO.Directory]::Exists((Join-Path `
                 $DeepRoot `
                 'data\admin\runtime')) -and
             -not [IO.File]::Exists((Join-Path `
                 $DeepRoot `
-                'data\admin\entry.json'))
+                'data\admin\user.json'))
         ) `
         -Message 'published executables depended on unavailable native data'
 

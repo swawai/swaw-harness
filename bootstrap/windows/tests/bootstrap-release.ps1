@@ -20,8 +20,8 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'publication.ps1')
 . (Join-Path $WindowsRoot 'core\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'core\module-publication.ps1')
-. (Join-Path $WindowsRoot 'entry\candidate-build.ps1')
-. (Join-Path $WindowsRoot 'entry.manager\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'user\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'frontend\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $PSScriptRoot 'pe-imports.ps1')
@@ -67,15 +67,15 @@ try {
             -EnvironmentVariables $Plan.EnvironmentVariables `
             -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
     )
-    $EntryCandidateRoot = Invoke-SwawHarnessWindowsEntryCandidateBuild `
+    $UserCliCandidateRoot = Invoke-SwawHarnessWindowsUserCliCandidateBuild `
         -Context $Context `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $EntryManagerCandidateRoots = @(
-        Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
+    $FrontendCandidateRoots = @(
+        Invoke-SwawHarnessWindowsFrontendCandidateBuild `
         -Context $Context `
         -CargoPath $Plan.CargoPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
@@ -83,9 +83,9 @@ try {
     )
     $CandidateRoots = @(
         [string[]]$CoreCandidateRoots
-        [string]$EntryCandidateRoot
-        [string]$EntryManagerCandidateRoots[0]
-        [string]$EntryManagerCandidateRoots[1]
+        [string]$UserCliCandidateRoot
+        [string]$FrontendCandidateRoots[0]
+        [string]$FrontendCandidateRoots[1]
     )
     for ($Index = 0; $Index -lt $Contracts.Count; $Index++) {
         $Members = @(Get-ChildItem `
@@ -104,8 +104,8 @@ try {
     $Arguments = @{
         Context = $Context
         CoreCandidateRoots = [string[]]$CoreCandidateRoots
-        EntryCandidateRoot = [string]$EntryCandidateRoot
-        EntryManagerCandidateRoots = $EntryManagerCandidateRoots
+        UserCliCandidateRoot = [string]$UserCliCandidateRoot
+        FrontendCandidateRoots = $FrontendCandidateRoots
     }
     $First = Publish-SwawHarnessWindowsProducts @Arguments
     $FirstCreated = (Get-Item -LiteralPath $First.Root).CreationTimeUtc
@@ -140,21 +140,21 @@ try {
         -Condition ($Selector -ceq [string]$First.ReleaseId) `
         -Message 'the target selector does not select the bundle Release'
 
-    $IncompleteManagerRejected = $false
+    $IncompleteFrontendRejected = $false
     try {
         [void](Publish-SwawHarnessWindowsProducts `
             -Context $Context `
             -CoreCandidateRoots ([string[]]$CoreCandidateRoots) `
-            -EntryCandidateRoot ([string]$EntryCandidateRoot) `
-            -EntryManagerCandidateRoots @(
-                [string]$EntryManagerCandidateRoots[0]
+            -UserCliCandidateRoot ([string]$UserCliCandidateRoot) `
+            -FrontendCandidateRoots @(
+                [string]$FrontendCandidateRoots[0]
             ))
     } catch {
-        $IncompleteManagerRejected = $true
+        $IncompleteFrontendRejected = $true
     }
     Assert-BootstrapReleaseTest `
-        -Condition $IncompleteManagerRejected `
-        -Message 'bundle publication accepted only one Entry Manager frontend'
+        -Condition $IncompleteFrontendRejected `
+        -Message 'bundle publication accepted only one frontend Candidate'
 
     foreach ($Artifact in $Selected.Artifacts) {
         [void](Assert-SwawHarnessNoExternalCrtImports `
@@ -176,17 +176,17 @@ try {
     $DevArtifact = @($Selected.Artifacts | Where-Object {
         $_.Name -ceq 'swaw-harness-dev.exe'
     })[0]
-    $DevEntryRoot = Join-Path $TestRoot 'dev-entry'
-    [void][IO.Directory]::CreateDirectory($DevEntryRoot)
+    $DevUserHome = Join-Path $TestRoot 'dev-user-home'
+    [void][IO.Directory]::CreateDirectory($DevUserHome)
     $DevResult = Invoke-SwawHarnessCapturedProcess `
         -Executable $DevArtifact.Path `
         -Arguments @('dev/bun/mode', 'managed') `
         -WorkingDirectory $Selected.Root `
         -EnvironmentVariables @{
-            SWAW_HARNESS_ENTRY_ROOT = $DevEntryRoot
+            SWAW_HARNESS_USER_HOME = $DevUserHome
         }
     $DevDocument = Join-Path `
-        $DevEntryRoot `
+        $DevUserHome `
         'export\dev\bun\mode\mode.json'
     Assert-BootstrapReleaseTest `
         -Condition (
@@ -264,7 +264,7 @@ try {
             }).Count -eq 0 -and
             -not [IO.File]::Exists((Join-Path `
                 $ModuleAdminRoot `
-                'entry.json')) -and
+                'user.json')) -and
             -not [IO.Directory]::Exists((Join-Path `
                 $ModuleAdminRoot `
                 'runtime'))
@@ -274,14 +274,14 @@ try {
     $InstalledDev = @($SecondModules | Where-Object {
         $_.ModuleId -ceq 'swaw/core/dev'
     })[0]
-    $InstalledDevEntryRoot = Join-Path $ModuleFixtureRoot 'data\dev'
-    [void][IO.Directory]::CreateDirectory($InstalledDevEntryRoot)
+    $InstalledDevUserHome = Join-Path $ModuleFixtureRoot 'data\dev'
+    [void][IO.Directory]::CreateDirectory($InstalledDevUserHome)
     $InstalledDevResult = Invoke-SwawHarnessCapturedProcess `
         -Executable $InstalledDev.ExecutablePath `
         -Arguments @('dev/bun/mode', 'disabled') `
         -WorkingDirectory $InstalledDev.Root `
         -EnvironmentVariables @{
-            SWAW_HARNESS_ENTRY_ROOT = $InstalledDevEntryRoot
+            SWAW_HARNESS_USER_HOME = $InstalledDevUserHome
         }
     Assert-BootstrapReleaseTest `
         -Condition (
@@ -329,10 +329,10 @@ try {
         -Condition ($SelectorAfterFailure -ceq [string]$First.ReleaseId) `
         -Message 'failed bundle publication changed the selector'
 
-    $EntryContractIndex = $CoreCandidateRoots.Count
+    $UserCliContractIndex = $CoreCandidateRoots.Count
     $LockedCandidateArtifact = Join-Path `
-        $EntryCandidateRoot `
-        $Contracts[$EntryContractIndex].ProductBinary
+        $UserCliCandidateRoot `
+        $Contracts[$UserCliContractIndex].ProductBinary
     $LockedCandidateStream = [IO.File]::Open(
         $LockedCandidateArtifact,
         [IO.FileMode]::Open,
@@ -352,7 +352,7 @@ try {
     Assert-BootstrapReleaseTest `
         -Condition (
             $CleanupWarnings.Count -ge 1 -and
-            [IO.Directory]::Exists([string]$EntryCandidateRoot)
+            [IO.Directory]::Exists([string]$UserCliCandidateRoot)
         ) `
         -Message 'Candidate cleanup failure was not reported as a warning'
 

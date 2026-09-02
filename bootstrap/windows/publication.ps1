@@ -5,8 +5,8 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot 'builder\build\candidate.ps1')
 . (Join-Path $PSScriptRoot 'builder\release\publication.ps1')
 . (Join-Path $PSScriptRoot 'core\contract.ps1')
-. (Join-Path $PSScriptRoot 'entry\contract.ps1')
-. (Join-Path $PSScriptRoot 'entry.manager\contract.ps1')
+. (Join-Path $PSScriptRoot 'user\contract.ps1')
+. (Join-Path $PSScriptRoot 'frontend\contract.ps1')
 
 $script:SwawHarnessWindowsPublicationRoot = $PSScriptRoot
 
@@ -20,11 +20,11 @@ function Get-SwawHarnessWindowsProductContracts {
         Read-SwawHarnessWindowsCoreContracts `
             -Path (Join-Path $WindowsRoot 'core\contract.json') `
             -PlatformTargetId $PlatformTargetId
-        Read-SwawHarnessWindowsEntryContract `
-            -Path (Join-Path $WindowsRoot 'entry\contract.json') `
+        Read-SwawHarnessWindowsUserCliContract `
+            -Path (Join-Path $WindowsRoot 'user\contract.json') `
             -PlatformTargetId $PlatformTargetId
-        Read-SwawHarnessWindowsEntryManagerContracts `
-            -Path (Join-Path $WindowsRoot 'entry.manager\contract.json') `
+        Read-SwawHarnessWindowsFrontendContracts `
+            -Path (Join-Path $WindowsRoot 'frontend\contract.json') `
             -PlatformTargetId $PlatformTargetId
     )
 }
@@ -34,8 +34,8 @@ function Publish-SwawHarnessWindowsProducts {
     param(
         [Parameter(Mandatory = $true)]$Context,
         [Parameter(Mandatory = $true)][string[]]$CoreCandidateRoots,
-        [Parameter(Mandatory = $true)][string]$EntryCandidateRoot,
-        [Parameter(Mandatory = $true)][string[]]$EntryManagerCandidateRoots,
+        [Parameter(Mandatory = $true)][string]$UserCliCandidateRoot,
+        [Parameter(Mandatory = $true)][string[]]$FrontendCandidateRoots,
         [IO.FileStream]$CandidateLifecycleLock = $null
     )
 
@@ -51,20 +51,20 @@ function Publish-SwawHarnessWindowsProducts {
     if ($CoreCandidateRoots.Count -ne $CoreContracts.Count) {
         throw 'Windows publication requires every Core artifact Candidate.'
     }
-    if ($EntryManagerCandidateRoots.Count -ne 2) {
-        throw 'Windows publication requires both Entry Manager candidates.'
+    if ($FrontendCandidateRoots.Count -ne 2) {
+        throw 'Windows publication requires both frontend candidates.'
     }
     $CandidateRoots = @(
         $CoreCandidateRoots
-        $EntryCandidateRoot
-        $EntryManagerCandidateRoots[0]
-        $EntryManagerCandidateRoots[1]
+        $UserCliCandidateRoot
+        $FrontendCandidateRoots[0]
+        $FrontendCandidateRoots[1]
     )
     $ProductNames = @(
         @($CoreContracts | ForEach-Object { 'core' })
-        'entry'
-        'manager'
-        'manager'
+        'user'
+        'frontend'
+        'frontend'
     )
     $ConsumerLock = Enter-SwawHarnessCandidateConsumerLock `
         -Context $Context `
@@ -119,7 +119,7 @@ function Clear-SwawHarnessWindowsProductCandidates {
             )
             return
         }
-        $CandidateRoots = @('core', 'entry', 'manager') | ForEach-Object {
+        $CandidateRoots = @('core', 'user', 'frontend') | ForEach-Object {
             $BuildRoot = Assert-SwawHarnessPathInsideRoot `
                 -Path (Join-Path $Context.BuildRoot $_) `
                 -Root $Context.BuildRoot `

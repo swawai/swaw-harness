@@ -1,6 +1,6 @@
 {
-  "schema": "swaw.harness.entry-manager-build/v3",
-  "package": "swaw-har-manager",
+  "schema": "swaw.harness.frontend-build/v1",
+  "package": "swaw-har-frontend",
   "staticCrt": true,
   "binaries": [
     {

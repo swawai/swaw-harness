@@ -83,7 +83,7 @@ jobs:
             -DataRepo $dataRepo
           & .\bootstrap\windows\tests\build-determinism.ps1 `
             -DataRepo $dataRepo
-          & .\bootstrap\windows\tests\entry.ps1 `
+          & .\bootstrap\windows\tests\user.ps1 `
             -DataRepo $dataRepo
-          & .\bootstrap\windows\tests\entry-manager.ps1 `
+          & .\bootstrap\windows\tests\frontend.ps1 `
             -DataRepo $dataRepo

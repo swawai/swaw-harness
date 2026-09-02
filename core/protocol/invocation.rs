@@ -2,59 +2,59 @@ use std::path::{Path, PathBuf};
 
 use crate::BaseResourceSpace;
 
-pub const ENTRY_ROOT_ENVIRONMENT_VARIABLE: &str = "SWAW_HARNESS_ENTRY_ROOT";
+pub const USER_HOME_ENVIRONMENT_VARIABLE: &str = "SWAW_HARNESS_USER_HOME";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvocationContext {
-    entry_root: PathBuf,
+    user_home: PathBuf,
 }
 
 impl InvocationContext {
     pub fn from_environment() -> Result<Self, String> {
-        let entry_root = std::env::var_os(ENTRY_ROOT_ENVIRONMENT_VARIABLE).ok_or_else(|| {
-            format!("required environment variable {ENTRY_ROOT_ENVIRONMENT_VARIABLE} is not set")
+        let user_home = std::env::var_os(USER_HOME_ENVIRONMENT_VARIABLE).ok_or_else(|| {
+            format!("required environment variable {USER_HOME_ENVIRONMENT_VARIABLE} is not set")
         })?;
-        Self::from_entry_root(entry_root)
+        Self::from_user_home(user_home)
     }
 
-    pub fn from_entry_root(entry_root: impl Into<PathBuf>) -> Result<Self, String> {
-        let entry_root = entry_root.into();
-        if !entry_root.is_absolute() {
+    pub fn from_user_home(user_home: impl Into<PathBuf>) -> Result<Self, String> {
+        let user_home = user_home.into();
+        if !user_home.is_absolute() {
             return Err(format!(
-                "{ENTRY_ROOT_ENVIRONMENT_VARIABLE} must contain an absolute EntryRoot: {}",
-                entry_root.display()
+                "{USER_HOME_ENVIRONMENT_VARIABLE} must contain an absolute UserHome: {}",
+                user_home.display()
             ));
         }
-        Ok(Self { entry_root })
+        Ok(Self { user_home })
     }
 
-    pub fn entry_root(&self) -> &Path {
-        &self.entry_root
+    pub fn user_home(&self) -> &Path {
+        &self.user_home
     }
 
     pub fn export_root(&self) -> PathBuf {
-        self.entry_root.join(BaseResourceSpace::Export.name())
+        self.user_home.join(BaseResourceSpace::Export.name())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ENTRY_ROOT_ENVIRONMENT_VARIABLE, InvocationContext};
+    use super::{USER_HOME_ENVIRONMENT_VARIABLE, InvocationContext};
 
     #[test]
-    fn relative_entry_root_is_rejected() {
-        let error = InvocationContext::from_entry_root("relative-entry").unwrap_err();
+    fn relative_user_home_is_rejected() {
+        let error = InvocationContext::from_user_home("relative-user-home").unwrap_err();
 
-        assert!(error.contains(ENTRY_ROOT_ENVIRONMENT_VARIABLE));
-        assert!(error.contains("absolute EntryRoot"));
+        assert!(error.contains(USER_HOME_ENVIRONMENT_VARIABLE));
+        assert!(error.contains("absolute UserHome"));
     }
 
     #[test]
-    fn export_root_is_below_the_entry_root() {
-        let entry_root = std::env::temp_dir().join("swaw-harness-protocol-entry");
-        let context = InvocationContext::from_entry_root(&entry_root).unwrap();
+    fn export_root_is_below_the_user_home() {
+        let user_home = std::env::temp_dir().join("swaw-harness-protocol-user-home");
+        let context = InvocationContext::from_user_home(&user_home).unwrap();
 
-        assert_eq!(context.entry_root(), entry_root);
-        assert_eq!(context.export_root(), entry_root.join("export"));
+        assert_eq!(context.user_home(), user_home);
+        assert_eq!(context.export_root(), user_home.join("export"));
     }
 }

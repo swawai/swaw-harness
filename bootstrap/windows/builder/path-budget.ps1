@@ -5,7 +5,7 @@ Set-StrictMode -Version 2.0
 
 $script:SwawHarnessMaximumRepositoryRootLength = 60
 $script:SwawHarnessMaximumNativePathLength = 240
-$script:SwawHarnessMaximumEntryIdLength = 16
+$script:SwawHarnessMaximumUserIdLength = 16
 $script:SwawHarnessPinnedRustLibraryFileLength = 51
 $script:SwawHarnessPinnedMsvcRelativePathLength = 121
 $script:SwawHarnessPinnedMsvcInstalledRelativePath = (
@@ -39,7 +39,7 @@ function Get-SwawHarnessWindowsPathBudget {
         MaximumRepositoryRootLength =
             $script:SwawHarnessMaximumRepositoryRootLength
         MaximumNativePathLength = $script:SwawHarnessMaximumNativePathLength
-        MaximumEntryIdLength = $script:SwawHarnessMaximumEntryIdLength
+        MaximumUserIdLength = $script:SwawHarnessMaximumUserIdLength
     }
 }
 
@@ -140,7 +140,7 @@ function Assert-SwawHarnessToolchainInstallPathBudget {
         (Join-Path $Context.StageRoot "$MaximumLocator\msi")
         (Join-Path (
             Join-Path $Context.HarnessRoot (
-                "data\$('e' * $script:SwawHarnessMaximumEntryIdLength)\" +
+                "data\$('u' * $script:SwawHarnessMaximumUserIdLength)\" +
                 "release\dev\setup\$MaximumLocator\m"
             )
         ) $script:SwawHarnessPinnedMsvcInstalledRelativePath)

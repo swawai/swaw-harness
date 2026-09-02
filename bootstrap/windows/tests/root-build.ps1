@@ -44,7 +44,7 @@ $ModuleManifestPaths = @($CoreContracts | ForEach-Object {
             "\" + $_.ModuleVersion + '\swaw-harness.module.json')
 })
 $CandidateMembers = @(
-    foreach ($Product in @('core', 'entry', 'manager')) {
+    foreach ($Product in @('core', 'user', 'frontend')) {
         $CandidatesRoot = Join-Path `
             $RepositoryRoot `
             "data.repo\windows.build\$Product\candidates"
@@ -75,7 +75,7 @@ Assert-RootBuildTest `
             (Join-Path $RepositoryRoot 'swaw-harness-admin.exe')
         ) -and
         -not [IO.File]::Exists(
-            (Join-Path $RepositoryRoot 'entry.exe')
+            (Join-Path $RepositoryRoot 'user.exe')
         ) -and
         -not [IO.File]::Exists(
             (Join-Path $RepositoryRoot 'swaw-harness.exe')
@@ -90,7 +90,7 @@ Assert-RootBuildTest `
             [IO.File]::Exists($_)
         }).Count -eq $CoreContracts.Count -and
         -not [IO.File]::Exists(
-            (Join-Path $RepositoryRoot 'data\admin\entry.json')
+            (Join-Path $RepositoryRoot 'data\admin\user.json')
         ) -and
         -not [IO.Directory]::Exists(
             (Join-Path $RepositoryRoot 'data\admin\runtime')

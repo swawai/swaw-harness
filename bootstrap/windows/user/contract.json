@@ -1,8 +1,8 @@
 {
-  "schema": "swaw.harness.entry-build/v3",
-  "buildArtifact": "swaw-har-entry.exe",
-  "artifact": "entry.exe",
-  "source": "entry.c",
+  "schema": "swaw.harness.user-cli-build/v1",
+  "buildArtifact": "swaw-har-user.exe",
+  "artifact": "user.exe",
+  "source": "user.c",
   "compilerArguments": [
     "/nologo",
     "/c",
@@ -23,7 +23,7 @@
     "/Brepro",
     "/machine:x64",
     "/subsystem:console",
-    "/entry:swaw_entry_main",
+    "/entry:swaw_user_cli_main",
     "/nodefaultlib",
     "/opt:ref",
     "/opt:icf",

@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "swaw-har-manager"
+name = "swaw-har-frontend"
 version = "0.1.0"

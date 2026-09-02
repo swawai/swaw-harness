@@ -1,7 +1,7 @@
-mod entry;
+mod user;
 mod invocation;
 
-pub use entry::{EntryId, EntryIdError, MAX_ENTRY_ID_BYTES};
+pub use user::{UserId, UserIdError, MAX_USER_ID_BYTES};
 
 pub fn run(arguments: Vec<std::ffi::OsString>) -> Result<(), String> {
     invocation::run(arguments)

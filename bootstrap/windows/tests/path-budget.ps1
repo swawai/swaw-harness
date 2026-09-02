@@ -90,16 +90,16 @@ try {
             ProductBinary = 'swaw-harness-admin.exe'
         }
     )
-    $EntryManagerContracts = @(
+    $FrontendContracts = @(
         [pscustomobject][ordered]@{
             PlatformTargetId = [string]$Contract.PlatformTargetId
-            ProductPackage = 'swaw-har-manager'
+            ProductPackage = 'swaw-har-frontend'
             BuildBinary = 'swaw-harness-cli.exe'
             ProductBinary = 'swaw-harness-cli.exe'
         },
         [pscustomobject][ordered]@{
             PlatformTargetId = [string]$Contract.PlatformTargetId
-            ProductPackage = 'swaw-har-manager'
+            ProductPackage = 'swaw-har-frontend'
             BuildBinary = 'swaw-harness.exe'
             ProductBinary = 'swaw-harness.exe'
         }
@@ -108,8 +108,8 @@ try {
         [pscustomobject]@{ Contract = $CoreContracts[0]; Product = 'core' }
         [pscustomobject]@{ Contract = $CoreContracts[1]; Product = 'core' }
         [pscustomobject]@{ Contract = $CoreContracts[2]; Product = 'core' }
-        [pscustomobject]@{ Contract = $EntryManagerContracts[0]; Product = 'manager' }
-        [pscustomobject]@{ Contract = $EntryManagerContracts[1]; Product = 'manager' }
+        [pscustomobject]@{ Contract = $FrontendContracts[0]; Product = 'frontend' }
+        [pscustomobject]@{ Contract = $FrontendContracts[1]; Product = 'frontend' }
     )) {
         $TargetRoot = Join-Path $DataRepo (
             "windows.build\$($Build.Product)"
@@ -124,12 +124,12 @@ try {
     }
 
     $RuntimeMsvcPath = Join-Path $BoundaryRoot (
-        "data\$('e' * 16)\release\dev\setup\$('a' * 12)\m\" +
+        "data\$('u' * 16)\release\dev\setup\$('a' * 12)\m\" +
         'Windows Kits\10\Include\10.0.28000.0\cppwinrt\winrt\impl\' +
         'windows.applicationmodel.appointments.appointmentsprovider.0.h'
     )
     $RuntimeAdminPath = Join-Path $BoundaryRoot (
-        "data\$('e' * 16)\runtime\$('a' * 64)\" +
+        "data\$('u' * 16)\runtime\$('a' * 64)\" +
         'swaw-harness-admin.exe'
     )
     Assert-PathBudgetTest `
@@ -137,7 +137,7 @@ try {
             $RuntimeMsvcPath.Length -eq 235 -and
             $RuntimeAdminPath.Length -eq 178
         ) `
-        -Message 'the reserved Entry runtime paths changed unexpectedly'
+        -Message 'the reserved Harness user runtime paths changed unexpectedly'
 
     $OverlongRepositoryRejected = $false
     try {
@@ -168,8 +168,8 @@ try {
         'toolchain-setup.ps1',
         'toolchain.ps1',
         'core\build.ps1',
-        'entry\build.ps1',
-        'entry.manager\build.ps1'
+        'user\build.ps1',
+        'frontend\build.ps1'
     )) {
         $Command = Get-Command (Join-Path $WindowsRoot $EntryPoint)
         Assert-PathBudgetTest `

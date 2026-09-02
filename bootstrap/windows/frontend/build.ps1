@@ -1,7 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$CompilerPath,
-    [Parameter(Mandatory = $true)][string]$LinkerPath,
+    [Parameter(Mandatory = $true)][string]$CargoPath,
     [Collections.IDictionary]$EnvironmentVariables = @{},
     [string[]]$UnsetEnvironmentVariables = @(),
     [IO.FileStream]$CandidateLifecycleLock = $null
@@ -16,10 +15,9 @@ $RepositoryRoot = Assert-SwawHarnessRepositoryRootPathBudget `
     -RepositoryRoot (Join-Path $PSScriptRoot '..\..\..')
 $Context = New-SwawHarnessWindowsBootstrapContext `
     -DataRepo (Join-Path $RepositoryRoot 'data.repo')
-Invoke-SwawHarnessWindowsEntryCandidateBuild `
+Invoke-SwawHarnessWindowsFrontendCandidateBuild `
     -Context $Context `
-    -CompilerPath $CompilerPath `
-    -LinkerPath $LinkerPath `
+    -CargoPath $CargoPath `
     -EnvironmentVariables $EnvironmentVariables `
     -UnsetEnvironmentVariables $UnsetEnvironmentVariables `
     -CandidateLifecycleLock $CandidateLifecycleLock

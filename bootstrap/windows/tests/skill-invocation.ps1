@@ -13,8 +13,8 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'core\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'core\contract.ps1')
 . (Join-Path $WindowsRoot 'core\module-publication.ps1')
-. (Join-Path $WindowsRoot 'entry\candidate-build.ps1')
-. (Join-Path $WindowsRoot 'entry.manager\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'user\candidate-build.ps1')
+. (Join-Path $WindowsRoot 'frontend\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
@@ -58,15 +58,15 @@ try {
             -EnvironmentVariables $Plan.EnvironmentVariables `
             -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables
     )
-    $EntryCandidateRoot = Invoke-SwawHarnessWindowsEntryCandidateBuild `
+    $UserCliCandidateRoot = Invoke-SwawHarnessWindowsUserCliCandidateBuild `
         -Context $Context `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables |
         Select-Object -Last 1
-    $EntryManagerCandidateRoots = @(
-        Invoke-SwawHarnessWindowsEntryManagerCandidateBuild `
+    $FrontendCandidateRoots = @(
+        Invoke-SwawHarnessWindowsFrontendCandidateBuild `
             -Context $Context `
             -CargoPath $Plan.CargoPath `
             -EnvironmentVariables $Plan.EnvironmentVariables `
@@ -75,8 +75,8 @@ try {
     $Releases = @(Publish-SwawHarnessWindowsProducts `
         -Context $Context `
         -CoreCandidateRoots ([string[]]$CoreCandidateRoots) `
-        -EntryCandidateRoot ([string]$EntryCandidateRoot) `
-        -EntryManagerCandidateRoots ([string[]]$EntryManagerCandidateRoots))
+        -UserCliCandidateRoot ([string]$UserCliCandidateRoot) `
+        -FrontendCandidateRoots ([string[]]$FrontendCandidateRoots))
     if ($Releases.Count -ne 1) {
         throw 'Skill invocation test requires one Bootstrap Release.'
     }

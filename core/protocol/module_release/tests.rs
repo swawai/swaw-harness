@@ -370,11 +370,11 @@ fn isolated_installed_dev_skill_runs_and_writes_export() {
         .unwrap();
     assert_eq!(selected.version().to_string(), expected_version);
 
-    let entry_root = temporary_entry_root("installed-skill");
+    let user_home = temporary_user_home("installed-skill");
     let output = std::process::Command::new(selected.executable_path())
         .args(declaration.arguments())
         .arg("managed")
-        .env(crate::ENTRY_ROOT_ENVIRONMENT_VARIABLE, &entry_root)
+        .env(crate::USER_HOME_ENVIRONMENT_VARIABLE, &user_home)
         .current_dir(selected.root())
         .output()
         .unwrap();
@@ -385,7 +385,7 @@ fn isolated_installed_dev_skill_runs_and_writes_export() {
     );
     assert_eq!(String::from_utf8(output.stdout).unwrap(), "managed\n");
     assert_eq!(
-        fs::read_to_string(entry_root.join("export/dev/bun/mode/mode.json")).unwrap(),
+        fs::read_to_string(user_home.join("export/dev/bun/mode/mode.json")).unwrap(),
         concat!(
             "{\n",
             "  \"schema\": \"swaw.harness.dev-bun-mode/v1\",\n",
@@ -394,7 +394,7 @@ fn isolated_installed_dev_skill_runs_and_writes_export() {
         )
     );
 
-    fs::remove_dir_all(entry_root).unwrap();
+    fs::remove_dir_all(user_home).unwrap();
 }
 
 fn temporary_data_home(label: &str) -> PathBuf {
@@ -410,17 +410,17 @@ fn temporary_data_home(label: &str) -> PathBuf {
     data_home
 }
 
-fn temporary_entry_root(label: &str) -> PathBuf {
+fn temporary_user_home(label: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let entry_root = std::env::temp_dir().join(format!(
-        "swaw-harness-entry-{label}-{}-{unique}",
+    let user_home = std::env::temp_dir().join(format!(
+        "swaw-harness-user-home-{label}-{}-{unique}",
         std::process::id()
     ));
-    fs::create_dir(&entry_root).unwrap();
-    entry_root
+    fs::create_dir(&user_home).unwrap();
+    user_home
 }
 
 fn write_release(

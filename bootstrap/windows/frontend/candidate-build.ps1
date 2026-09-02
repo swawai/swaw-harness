@@ -7,9 +7,9 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot '..\builder\build\candidate.ps1')
 . (Join-Path $PSScriptRoot 'contract.ps1')
 
-$script:SwawHarnessWindowsEntryManagerRoot = $PSScriptRoot
+$script:SwawHarnessWindowsFrontendRoot = $PSScriptRoot
 
-function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
+function Invoke-SwawHarnessWindowsFrontendCandidateBuild {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]$Context,
@@ -19,34 +19,34 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
         [IO.FileStream]$CandidateLifecycleLock = $null
     )
 
-    $EntryManagerRoot = $script:SwawHarnessWindowsEntryManagerRoot
+    $FrontendRoot = $script:SwawHarnessWindowsFrontendRoot
     [void](Assert-SwawHarnessRepositoryRootPathBudget `
-        -RepositoryRoot (Join-Path $EntryManagerRoot '..\..\..'))
+        -RepositoryRoot (Join-Path $FrontendRoot '..\..\..'))
     $PlatformContract = Read-SwawHarnessWindowsBootstrapContract `
-        -Path (Join-Path $EntryManagerRoot '..\contract.json')
-    $Contracts = @(Read-SwawHarnessWindowsEntryManagerContracts `
-        -Path (Join-Path $EntryManagerRoot 'contract.json') `
+        -Path (Join-Path $FrontendRoot '..\contract.json')
+    $Contracts = @(Read-SwawHarnessWindowsFrontendContracts `
+        -Path (Join-Path $FrontendRoot 'contract.json') `
         -PlatformTargetId $PlatformContract.PlatformTargetId)
-    $BuildRoot = Join-Path $Context.BuildRoot 'manager'
+    $BuildRoot = Join-Path $Context.BuildRoot 'frontend'
     $BuildRoot = Assert-SwawHarnessPathInsideRoot `
         -Path $BuildRoot `
         -Root $Context.BuildRoot `
-        -Activity 'building the Windows Entry Manager candidate'
+        -Activity 'building the Windows frontend candidate'
     [void][IO.Directory]::CreateDirectory($BuildRoot)
 
     $CargoPath = Get-SwawHarnessFullPath -Path $CargoPath
     [void](Assert-SwawHarnessRegularFile `
         -Path $CargoPath `
         -Description 'Cargo executable')
-    $ManifestPath = Join-Path $EntryManagerRoot 'Cargo.toml'
-    $LockPath = Join-Path $EntryManagerRoot 'Cargo.lock'
+    $ManifestPath = Join-Path $FrontendRoot 'Cargo.toml'
+    $LockPath = Join-Path $FrontendRoot 'Cargo.lock'
     [void](Assert-SwawHarnessRegularFile `
         -Path $ManifestPath `
-        -Description 'Entry Manager Cargo manifest' `
+        -Description 'Windows frontend Cargo manifest' `
         -MaximumBytes 1MB)
     [void](Assert-SwawHarnessRegularFile `
         -Path $LockPath `
-        -Description 'Entry Manager Cargo lock' `
+        -Description 'Windows frontend Cargo lock' `
         -MaximumBytes 1MB)
 
     $LifecycleLock = Enter-SwawHarnessCandidateLifecycleLock `
@@ -57,7 +57,7 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
     try {
         $BuildLock = Enter-SwawHarnessFileLock `
             -Path (Join-Path $Context.LockRoot (
-                "build-entry-manager-$($Contracts[0].PlatformTargetId).lock"
+                "build-frontend-$($Contracts[0].PlatformTargetId).lock"
             )) `
             -ControlledRoot $Context.DataRepo `
             -TimeoutSeconds 1800
@@ -67,7 +67,7 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
             -Contract $Contracts[0] `
             -CargoPath $CargoPath `
             -ManifestPath $ManifestPath `
-            -WorkingDirectory $EntryManagerRoot
+            -WorkingDirectory $FrontendRoot
         $RustTargetConfiguration = (
             "target.$($Contracts[0].PlatformTargetId).rustflags=" +
             '["-C","target-feature=+crt-static",' +
@@ -91,19 +91,19 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
         $Result = Invoke-SwawHarnessCapturedProcess `
             -Executable $CargoPath `
             -Arguments $Arguments `
-            -WorkingDirectory $EntryManagerRoot `
+            -WorkingDirectory $FrontendRoot `
             -EnvironmentVariables $EnvironmentVariables `
             -UnsetEnvironmentVariables $UnsetEnvironmentVariables `
             -TimeoutSeconds 1800
         if ($Result.ExitCode -ne 0) {
             throw (
-                'Entry Manager Cargo build failed with exit code ' +
+                'Windows frontend Cargo build failed with exit code ' +
                 "$($Result.ExitCode). $($Result.Error) $($Result.Output)"
             ).Trim()
         }
         [void](Assert-SwawHarnessNativeTreePathBudget `
             -Root $CargoTargetRoot `
-            -Description 'Entry Manager Cargo output path')
+            -Description 'Windows frontend Cargo output path')
 
         foreach ($Contract in $Contracts) {
             $ArtifactPath = Join-Path $CargoTargetRoot (
@@ -111,10 +111,10 @@ function Invoke-SwawHarnessWindowsEntryManagerCandidateBuild {
             )
             $Artifact = Assert-SwawHarnessRegularFile `
                 -Path $ArtifactPath `
-                -Description "Built Windows Entry Manager $($Contract.Role)" `
+                -Description "Built Windows frontend $($Contract.Role)" `
                 -MaximumBytes $Contract.MaximumBytes
             if ([long]$Artifact.Length -le 0) {
-                throw "Built Windows Entry Manager $($Contract.Role) is empty."
+                throw "Built Windows frontend $($Contract.Role) is empty."
             }
             $CandidateRoot = Publish-SwawHarnessBootstrapCandidate `
                 -ArtifactPath $ArtifactPath `

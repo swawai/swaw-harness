@@ -38,7 +38,7 @@ $ModuleManifestPaths = @($CoreContracts | ForEach-Object {
             "\" + $_.ModuleVersion + '\swaw-harness.module.json')
 })
 $FirstCandidateMembers = @(
-    foreach ($Product in @('core', 'entry', 'manager')) {
+    foreach ($Product in @('core', 'user', 'frontend')) {
         $CandidatesRoot = Join-Path `
             $DataRepo `
             "windows.build\$Product\candidates"
@@ -65,7 +65,7 @@ Assert-MainTest `
         }).Count -eq $CoreContracts.Count -and
         -not [IO.File]::Exists((Join-Path `
             $HarnessRoot `
-            'data\admin\entry.json')) -and
+            'data\admin\user.json')) -and
         -not [IO.Directory]::Exists((Join-Path `
             $HarnessRoot `
             'data\admin\runtime')) -and
@@ -87,7 +87,7 @@ Assert-MainTest `
     -Message 'second invocation did not return exactly one Bootstrap Release'
 $Second = $SecondResults[0]
 $SecondCandidateMembers = @(
-    foreach ($Product in @('core', 'entry', 'manager')) {
+    foreach ($Product in @('core', 'user', 'frontend')) {
         $CandidatesRoot = Join-Path `
             $DataRepo `
             "windows.build\$Product\candidates"

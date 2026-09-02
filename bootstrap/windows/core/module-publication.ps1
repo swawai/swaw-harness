@@ -195,7 +195,7 @@ function Publish-SwawHarnessWindowsCoreModules {
         -Description 'DataHome'
     $AdminRoot = Assert-SwawHarnessModuleDirectory `
         -Path (Join-Path $DataHome 'admin') `
-        -Description 'Admin EntryRoot'
+        -Description 'Admin UserHome'
     $SkillMapRoot = Assert-SwawHarnessModuleDirectory `
         -Path (Join-Path $AdminRoot 'map') `
         -Description 'Admin Skill Map root'

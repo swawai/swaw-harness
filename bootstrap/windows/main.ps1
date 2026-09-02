@@ -45,37 +45,37 @@ try {
         }).Count -ne 0) {
         throw 'Core build must return every immutable Candidate root.'
     }
-    $EntryBuildResults = @(& (Join-Path $PSScriptRoot 'entry\build.ps1') `
+    $UserCliBuildResults = @(& (Join-Path $PSScriptRoot 'user\build.ps1') `
         -CompilerPath $Plan.CompilerPath `
         -LinkerPath $Plan.LinkerPath `
         -EnvironmentVariables $Plan.EnvironmentVariables `
         -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables `
         -CandidateLifecycleLock $LifecycleLock.Stream)
-    if ($EntryBuildResults.Count -ne 1 -or
-        [string]::IsNullOrWhiteSpace([string]$EntryBuildResults[0])) {
-        throw 'Entry executable build must return one immutable Candidate root.'
+    if ($UserCliBuildResults.Count -ne 1 -or
+        [string]::IsNullOrWhiteSpace([string]$UserCliBuildResults[0])) {
+        throw 'User CLI executable build must return one immutable Candidate root.'
     }
-    $EntryManagerBuildResults = @(
-        & (Join-Path $PSScriptRoot 'entry.manager\build.ps1') `
+    $FrontendBuildResults = @(
+        & (Join-Path $PSScriptRoot 'frontend\build.ps1') `
             -CargoPath $Plan.CargoPath `
             -EnvironmentVariables $Plan.EnvironmentVariables `
             -UnsetEnvironmentVariables $Plan.UnsetEnvironmentVariables `
             -CandidateLifecycleLock $LifecycleLock.Stream
     )
-    if ($EntryManagerBuildResults.Count -ne 2 -or
-        @($EntryManagerBuildResults | Where-Object {
+    if ($FrontendBuildResults.Count -ne 2 -or
+        @($FrontendBuildResults | Where-Object {
             [string]::IsNullOrWhiteSpace([string]$_)
         }).Count -ne 0) {
-        throw 'Entry Manager build must return two immutable Candidate roots.'
+        throw 'Windows frontend build must return two immutable Candidate roots.'
     }
 
     $PublicationResults = @(Publish-SwawHarnessWindowsProducts `
         -Context $Context `
         -CoreCandidateRoots ([string[]]$CoreBuildResults) `
-        -EntryCandidateRoot ([string]$EntryBuildResults[0]) `
-        -EntryManagerCandidateRoots @(
-            [string]$EntryManagerBuildResults[0],
-            [string]$EntryManagerBuildResults[1]
+        -UserCliCandidateRoot ([string]$UserCliBuildResults[0]) `
+        -FrontendCandidateRoots @(
+            [string]$FrontendBuildResults[0],
+            [string]$FrontendBuildResults[1]
         ) `
         -CandidateLifecycleLock $LifecycleLock.Stream)
     if ($PublicationResults.Count -ne 1) {
