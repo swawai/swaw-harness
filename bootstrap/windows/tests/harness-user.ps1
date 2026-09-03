@@ -48,7 +48,7 @@ function Test-SwawHarnessUserCreation {
         [IO.File]::ReadAllText($AlicePointerPath).TrimEnd("`r", "`n") -cne
             $HostModuleVersion -or
         -not [IO.File]::Exists((Join-Path $AliceHome `
-            'map\core\admin\user\create\skill.json')) -or
+            'map\core\admin\user\create\skill.toml')) -or
         -not [IO.File]::Exists((Join-Path $ModuleAdminRoot 'user.lock'))) {
         throw 'Admin User creation did not publish a complete active Alice.'
     }

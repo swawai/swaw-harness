@@ -6,14 +6,14 @@ use std::time::Duration;
 use sha2::{Digest, Sha256};
 use swaw_harness_core_protocol::{SkillMap, UserLifecycle, UserRecord};
 
+use super::UserId;
 use super::create::create;
 use super::layout::user_home_stage;
 use super::lock::UserLock;
 use super::publication::{publication_stage, replace_record};
-use super::UserId;
 
 const PLATFORM_TARGET_ID: &str = "x86_64-pc-windows-msvc";
-const HOST_VERSION: &str = "1.0.5";
+const HOST_VERSION: &str = "1.0.7";
 
 static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
 
@@ -321,8 +321,8 @@ impl Drop for Fixture {
 fn write_skill(directory: &Path) {
     fs::create_dir_all(directory).unwrap();
     fs::write(
-        directory.join("skill.json"),
-        b"{\"schema\":\"swaw.harness.skill/v1\",\"module\":\"swaw/templates/helloworld\",\"version\":\"1.*\",\"executable\":\"helloworld.exe\",\"arguments\":[]}\n",
+        directory.join("skill.toml"),
+        b"schema = \"swaw.harness.skill/v2\"\nmodule = \"swaw/templates/helloworld\"\nversion = \"1.*\"\nexecutable = \"helloworld.exe\"\narguments = []\n",
     )
     .unwrap();
 }

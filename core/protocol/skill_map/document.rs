@@ -6,9 +6,9 @@ use serde::Deserialize;
 
 use super::{assert_safe_segment, metadata_is_reparse};
 
-pub const SKILL_DOCUMENT_NAME: &str = "skill.json";
+pub const SKILL_DOCUMENT_NAME: &str = "skill.toml";
 
-const SKILL_SCHEMA: &str = "swaw.harness.skill/v1";
+const SKILL_SCHEMA: &str = "swaw.harness.skill/v2";
 const MAXIMUM_ARGUMENTS: usize = 64;
 const MAXIMUM_ARGUMENT_BYTES: usize = 4096;
 const MAXIMUM_DOCUMENT_BYTES: u64 = 16 * 1024;
@@ -246,6 +246,12 @@ fn parse_document<T: for<'de> Deserialize<'de>>(
     }
     let encoded = fs::read(path)
         .map_err(|error| format!("cannot read {description} '{}': {error}", path.display()))?;
-    serde_json::from_slice(&encoded)
+    let document = std::str::from_utf8(&encoded).map_err(|error| {
+        format!(
+            "cannot parse {description} '{}' as UTF-8: {error}",
+            path.display()
+        )
+    })?;
+    toml::from_str(document)
         .map_err(|error| format!("cannot parse {description} '{}': {error}", path.display()))
 }

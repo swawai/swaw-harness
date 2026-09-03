@@ -1,0 +1,5 @@
+schema = "swaw.harness.skill/v2"
+module = "swaw/core/dev"
+version = "1.*"
+executable = "swaw-harness-dev.exe"
+arguments = ["dev/bun/mode"]

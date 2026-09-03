@@ -26,10 +26,10 @@
 - **技能图根（Skill Map Root）**：一个 Harness 用户中固定在 `<UserHome>/map/`、容纳多棵具名技能图的目录；Admin 用户的技能图根固定为 `data/admin/map/`。技能图根本身不是一棵技能图，不保存 Module Release 或 Resource 的事实数据，也不属于资源空间。
 - **SkillMapId**：技能图根下一个技能图的目录名；必须是规范小写 ASCII 文件系统安全名称。`core` 固定保留给 Core 技能图，其他 SkillMapId 留给用户或领域技能图。
 - **技能图（Skill Map）**：固定在 `<UserHome>/map/<SkillMapId>/`、使用真实文件系统目录树保存技能描述、模块选择指针和寻址索引的可查看、可修改实例。当前只有 Core 技能图成为仓库实体；其他技能图的创建、协议和执行方式尚未实现。
-- **Core 技能图**：SkillMapId 为 `core` 的内置技能图；仓库纳入 Git 的唯一默认实例及 Admin 用户当前实例固定为 `data/admin/map/core/`，普通 Harness 用户创建时把当时的 Admin Core 技能图完整复制为 `<UserHome>/map/core/` 独立快照，后续双方修改互不自动同步。当前 v1 只实现 SkillPath 到 Module Release executable 的绑定；节点依赖、子树安装与整树执行尚未实现。
+- **Core 技能图**：SkillMapId 为 `core` 的内置技能图；仓库纳入 Git 的唯一默认实例及 Admin 用户当前实例固定为 `data/admin/map/core/`，普通 Harness 用户创建时把当时的 Admin Core 技能图完整复制为 `<UserHome>/map/core/` 独立快照，后续双方修改互不自动同步。当前只实现 SkillPath 到 Module Release executable 的绑定；节点依赖、子树安装与整树执行尚未实现。
 - **SkillPath**：一个技能节点目录相对其技能图根的规范化文件系统路径；每个路径段必须是规范小写 ASCII 文件系统安全名称。SkillPath 独立于 ModuleId、模块作者目录与资源空间中的 Resource 路径。
-- **技能节点（Skill Node）**：技能图中的一个真实目录；目录包含 `skill.json` 时该 SkillPath 可调用，不包含时只是分类节点。可调用节点可以继续包含子节点，不要求位于叶目录；技能图根本身当前不得包含 `skill.json`。
-- **技能声明（Skill declaration）**：技能节点目录中名为 `skill.json` 的版本化 JSON 文件；它使用 `module`、`version`、`executable` 和 `arguments` 直接声明该节点的模块选择与固定命令参数，不使用 Resource 声明文件、Facet 层或可继承 executable binding。
+- **技能节点（Skill Node）**：技能图中的一个真实目录；目录包含 `skill.toml` 时该 SkillPath 可调用，不包含时只是分类节点。可调用节点可以继续包含子节点，不要求位于叶目录；技能图根本身当前不得包含 `skill.toml`。
+- **技能声明（Skill declaration）**：技能节点目录中规范名为 `skill.toml`、由人类维护的严格版本化 TOML 文件；当前 schema 为 `swaw.harness.skill/v2`，使用 `module`、`version`、`executable` 和 `arguments` 直接声明该节点的模块选择与固定命令参数，不使用 Resource 声明文件、Facet 层或可继承 executable binding。旧 `skill.json` 不构成技能声明，也不得与 `skill.toml` 共存。
 - **ModuleId**：由规范小写文件系统名称 `<Publisher>/<Group>/<Module>` 组成的三段模块身份，例如 `swaw/core/admin`；它独立于源码仓库地址、Resource 路径和 executable 文件名。
 - **Module Release**：安装在 `<DataHome>/admin/modules/<Publisher>/<Group>/<Module>/<PlatformTargetId>/<Version>/` 的模块平台发布目录；`Version` 是不含预发布或构建后缀的 `MAJOR.MINOR.PATCH` 语义化版本。当前 `swaw.harness.module/v1` 发布目录只允许包含一个不可变 executable 与 `swaw-harness.module.json`，不得放入未由清单声明和验证的私有运行文件；私有运行文件的清单字段、目录成员规则与完整性验证留待首个真实需求确定。Core Host 也以固定 ModuleId `swaw/core/host` 使用这一发布布局，不另建 Core Host 专用发布格式。Windows Bootstrap 负责从完整且已验证的 Bootstrap Release 初始物化本次构建的 Module Release；运行时安装目标由 Admin Core module executable 拥有。
 - **Resource**：在一个资源空间内通过目录树寻址找到、由技能读取或写入的对象。
@@ -53,6 +53,7 @@
 - **REPO-008 — 不可变发布只前进。** Bootstrap Release 与 Runtime Release 使用 ReleaseId 内容身份发布；包括 Core Host 在内的 Module Release 使用 ModuleId、PlatformTargetId 与精确语义化版本定位。所有发布物必须先在暂存区完整生成并验证，再原子发布到尚不存在的不可变目标，不得覆盖或合并写入已发布目标。技能声明只允许选择已经验证的 Module Release；Core Host 版本指针只允许选择已经验证的 `swaw/core/host` Module Release。本规则不规定用户如何批量修改或切换 `<UserHome>/map/core/` Core 技能图实例。
 - **REPO-009 — data.repo 仅属仓库。** data.repo 固定为 `<repository>/data.repo`，只保存不随 DataHome 复制发布的仓库本地数据；各宿主平台在其中使用明确的平台领域根，不得让 data.repo 成为运行时依赖。
 - **REPO-010 — 普通 Harness 用户初始发布边界。** `admin/user/create` 为普通 Harness 用户安装与 Admin 用户 CLI 相同字节的 `<DataHome>/<UserId>.exe`，复制当时的 `data/admin/map/core/` 为独立 `<UserHome>/map/core/` 快照，并复制 Admin 用户的精确 Core Host 版本号为该用户自己的版本指针；它不复制共享 Module Release、不建立 Runtime Release 或基础资源空间。重复创建只验证完整 `active` 实例并成功返回，不同步后来变化的 Admin 技能图或用户 CLI。
+- **REPO-012 — DataHome 结构化文档格式按维护者划分。** DataHome 中由 Harness 使用者直接维护的结构化声明使用 TOML，当前具体实体为 Core 技能图中的 `skill.toml`；未来权限或检查配置只有在定义为使用者维护声明时才沿用 TOML。由程序生成或持有的事实记录与发布清单继续使用 JSON，当前具体实体包括 `user.json`、`swaw-harness.module.json`、Bootstrap Release 的 `manifest.json` 与模块运行状态 JSON；不得为了统一扩展名而把程序事实改作使用者配置。源码仓库内部的 Bootstrap 构建 Contract 由对应平台领域决定格式，Markdown 等非结构化文档也不属于本规则。
 
 ## Open
 
