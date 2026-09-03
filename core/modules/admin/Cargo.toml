@@ -7,6 +7,13 @@ publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+swaw-harness-core-protocol.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Storage_FileSystem",
+] }
 
 [lib]
 name = "swaw_harness_admin"

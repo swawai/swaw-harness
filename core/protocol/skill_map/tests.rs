@@ -20,6 +20,12 @@ fn repository_skill_map_is_valid_and_skills_select_modules_directly() {
             "swaw-harness-dev.exe",
             &["dev/bun/mode"][..],
         ),
+        (
+            "admin/user/create",
+            "swaw/core/admin",
+            "swaw-harness-admin.exe",
+            &["user", "create"][..],
+        ),
     ] {
         let node = skill_map.find(skill_path).unwrap();
         assert_eq!(node.path(), skill_path);

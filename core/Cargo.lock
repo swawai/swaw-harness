@@ -151,12 +151,16 @@ name = "swaw-harness-admin"
 version = "1.0.0"
 dependencies = [
  "serde",
+ "sha2",
+ "swaw-harness-core-protocol",
+ "windows-sys",
 ]
 
 [[package]]
 name = "swaw-harness-core"
 version = "1.0.0"
 dependencies = [
+ "sha2",
  "swaw-harness-core-protocol",
  "windows-sys",
 ]
