@@ -6,11 +6,11 @@ use std::time::Duration;
 use sha2::{Digest, Sha256};
 use swaw_harness_core_protocol::{SkillMap, UserLifecycle, UserRecord};
 
-use super::UserId;
 use super::create::create;
 use super::layout::user_home_stage;
 use super::lock::UserLock;
 use super::publication::{publication_stage, replace_record};
+use super::UserId;
 
 const PLATFORM_TARGET_ID: &str = "x86_64-pc-windows-msvc";
 const HOST_VERSION: &str = "1.0.5";
@@ -172,6 +172,48 @@ fn removes_fixed_stages_before_new_and_resumed_creation() {
 }
 
 #[test]
+fn active_user_rejects_reserved_stages_without_removing_them() {
+    let fixture = Fixture::new("active-stages");
+    let user_id = UserId::parse("alice").unwrap();
+    create(&fixture.admin_home, &user_id).unwrap();
+    let user_home = fixture.data_home.join("alice");
+    let stages = [
+        (user_home_stage(&fixture.data_home, &user_id), true),
+        (
+            publication_stage(&fixture.data_home.join("alice.exe")).unwrap(),
+            false,
+        ),
+        (
+            publication_stage(&user_home.join("user.json")).unwrap(),
+            false,
+        ),
+    ];
+
+    for (stage, is_directory) in stages {
+        if is_directory {
+            fs::create_dir(&stage).unwrap();
+        } else {
+            fs::write(&stage, b"stale").unwrap();
+        }
+        let error = create(&fixture.admin_home, &user_id).unwrap_err();
+        assert!(
+            error.contains("active Harness User has a reserved"),
+            "{error}"
+        );
+        assert!(
+            stage.exists(),
+            "reserved stage was modified: {}",
+            stage.display()
+        );
+        if is_directory {
+            fs::remove_dir(&stage).unwrap();
+        } else {
+            fs::remove_file(&stage).unwrap();
+        }
+    }
+}
+
+#[test]
 fn rejects_a_reserved_stage_with_the_wrong_entity_type() {
     let fixture = Fixture::new("invalid-stage");
     let user_id = UserId::parse("alice").unwrap();
@@ -196,6 +238,23 @@ fn rejects_a_noncanonical_lifecycle_lock_name() {
         .err()
         .expect("noncanonical lifecycle lock must be rejected");
     assert!(error.contains("non-canonical name 'User.lock'"), "{error}");
+}
+
+#[cfg(windows)]
+#[test]
+fn active_user_rejects_a_stage_case_alias_without_removing_it() {
+    let fixture = Fixture::new("active-stage-case");
+    let user_id = UserId::parse("alice").unwrap();
+    create(&fixture.admin_home, &user_id).unwrap();
+    let alias = fixture.data_home.join(".Alice.exe.tmp");
+    fs::write(&alias, b"stale").unwrap();
+
+    let error = create(&fixture.admin_home, &user_id).unwrap_err();
+    assert!(
+        error.contains("non-canonical name '.Alice.exe.tmp'"),
+        "{error}"
+    );
+    assert!(alias.exists());
 }
 
 #[cfg(windows)]

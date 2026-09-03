@@ -3,17 +3,17 @@ use std::path::{Path, PathBuf};
 
 use swaw_harness_core_protocol::{UserLifecycle, UserRecord, Version};
 
-use super::UserId;
 use super::layout::{
-    Layout, copy_tree, find_named_entry, host_pointer_name, remove_stage,
-    remove_stale_user_home_stage, require_exact_path, require_regular_directory, user_home_stage,
-    validate_core_map, validate_host_pointer,
+    copy_tree, find_named_entry, host_pointer_name, remove_stage, remove_stale_user_home_stage,
+    require_exact_path, require_regular_directory, user_home_stage, validate_core_map,
+    validate_host_pointer, Layout,
 };
 use super::lock::UserLock;
 use super::publication::{
-    UserCliArtifact, remove_stale_publication_stage, replace_record, verify_identity,
-    write_new_synced, write_record_new,
+    publication_stage, remove_stale_publication_stage, replace_record, verify_identity,
+    write_new_synced, write_record_new, UserCliArtifact,
 };
+use super::UserId;
 
 pub(crate) fn create(invocation_user_home: &Path, user_id: &UserId) -> Result<(), String> {
     let layout = Layout::discover(invocation_user_home, user_id)?;
@@ -88,6 +88,7 @@ fn resume_or_verify(
 
     match record.lifecycle() {
         UserLifecycle::Active => {
+            require_no_reserved_creation_stages(layout, user_id, user_home)?;
             let user_cli = user_cli.ok_or_else(|| {
                 format!(
                     "active Harness User is missing its User CLI executable: {}",
@@ -122,6 +123,43 @@ fn remove_stale_creation_stages(
     remove_stale_publication_stage(&layout.user_cli, "staged User CLI executable")?;
     if let Some(user_home) = user_home {
         remove_stale_publication_stage(&user_home.join("user.json"), "staged Harness User record")?;
+    }
+    Ok(())
+}
+
+fn require_no_reserved_creation_stages(
+    layout: &Layout,
+    user_id: &UserId,
+    user_home: &Path,
+) -> Result<(), String> {
+    let stages = [
+        (
+            user_home_stage(&layout.data_home, user_id),
+            "staged UserHome",
+        ),
+        (
+            publication_stage(&layout.user_cli)?,
+            "staged User CLI executable",
+        ),
+        (
+            publication_stage(&user_home.join("user.json"))?,
+            "staged Harness User record",
+        ),
+    ];
+    for (expected, description) in stages {
+        let parent = expected
+            .parent()
+            .ok_or_else(|| format!("{description} has no parent directory"))?;
+        let name = expected
+            .file_name()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| format!("{description} name is not Unicode"))?;
+        if let Some(actual) = find_named_entry(parent, name)? {
+            return Err(format!(
+                "active Harness User has a reserved {description}: {}",
+                actual.display()
+            ));
+        }
     }
     Ok(())
 }
