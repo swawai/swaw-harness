@@ -1,0 +1,5 @@
+schema = "swaw.harness.skill/v2"
+module = "swaw/templates/helloworld"
+version = "1.*"
+executable = "helloworld.exe"
+arguments = []

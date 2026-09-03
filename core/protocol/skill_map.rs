@@ -70,6 +70,7 @@ impl SkillMap {
         let declaration_path =
             find_exact_regular_file(&skill_directory, SKILL_DOCUMENT_NAME, "Skill declaration")?;
         let declaration = parse_skill_declaration(&declaration_path)?;
+        validate_directory_entries(&self.root, &skill_directory)?;
 
         Ok(SkillNode {
             path: skill_path.to_owned(),
@@ -96,6 +97,14 @@ fn validate_directory(root: &Path, directory: &Path, depth: usize) -> Result<(),
         parse_skill_declaration(&skill_document)?;
     }
 
+    for child_directory in validate_directory_entries(root, directory)? {
+        validate_directory(root, &child_directory, depth + 1)?;
+    }
+    Ok(())
+}
+
+fn validate_directory_entries(root: &Path, directory: &Path) -> Result<Vec<PathBuf>, String> {
+    let mut child_directories = Vec::new();
     for entry in fs::read_dir(directory).map_err(|error| {
         format!(
             "cannot enumerate Skill Map directory '{}': {error}",
@@ -120,7 +129,7 @@ fn validate_directory(root: &Path, directory: &Path, depth: usize) -> Result<(),
                     .ok_or_else(|| "Skill Map directory name is not Unicode".to_owned())?,
                 "Skill Map directory name",
             )?;
-            validate_directory(root, &entry_path, depth + 1)?;
+            child_directories.push(entry_path);
         } else if metadata.is_file() {
             let name = entry.file_name();
             let name = name
@@ -141,7 +150,7 @@ fn validate_directory(root: &Path, directory: &Path, depth: usize) -> Result<(),
             ));
         }
     }
-    Ok(())
+    Ok(child_directories)
 }
 
 fn regular_file_exists(path: &Path) -> Result<bool, String> {

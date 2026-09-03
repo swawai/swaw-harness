@@ -116,7 +116,23 @@ fn unsafe_paths_and_skill_documents_are_rejected() {
 
     fs::write(
         root.join("dev/setup").join(SKILL_DOCUMENT_NAME),
-        "{\"schema\":\"swaw.harness.skill/v1\",\"module\":\"swaw/core/dev\",\"version\":\"1.*\",\"executable\":\"dev.exe\",\"arguments\":[],\"extra\":true}\n",
+        "schema = \"swaw.harness.skill/v2\"\nmodule = \"swaw/core/dev\"\nversion = \"1.*\"\nexecutable = \"dev.exe\"\narguments = []\nextra = true\n",
+    )
+    .unwrap();
+    let skill_map = SkillMap::open(&root).unwrap();
+    assert!(skill_map.find("dev/setup").is_err());
+
+    fs::write(
+        root.join("dev/setup").join(SKILL_DOCUMENT_NAME),
+        "schema = \"swaw.harness.skill/v1\"\nmodule = \"swaw/core/dev\"\nversion = \"1.*\"\nexecutable = \"dev.exe\"\narguments = []\n",
+    )
+    .unwrap();
+    let skill_map = SkillMap::open(&root).unwrap();
+    assert!(skill_map.find("dev/setup").is_err());
+
+    fs::write(
+        root.join("dev/setup").join(SKILL_DOCUMENT_NAME),
+        "schema = [\n",
     )
     .unwrap();
     let skill_map = SkillMap::open(&root).unwrap();
@@ -148,6 +164,7 @@ fn executable_skill_nodes_can_contain_child_skills() {
     skill_map.find("dev/setup/check").unwrap();
 
     for legacy_name in [
+        "skill.json",
         "swaw-harness.facet.json",
         "swaw-harness.resource.json",
         "swaw-harness.executable.json",
@@ -155,8 +172,26 @@ fn executable_skill_nodes_can_contain_child_skills() {
         let legacy_path = root.join("dev/setup").join(legacy_name);
         fs::write(&legacy_path, "{}\n").unwrap();
         assert!(skill_map.validate().is_err(), "{legacy_name}");
+        assert!(skill_map.find("dev/setup").is_err(), "{legacy_name}");
         fs::remove_file(legacy_path).unwrap();
     }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn legacy_json_does_not_declare_a_skill() {
+    let root = temporary_map("legacy-json");
+    let skill_directory = root.join("dev/setup");
+    fs::create_dir_all(&skill_directory).unwrap();
+    fs::write(
+        skill_directory.join("skill.json"),
+        "{\"schema\":\"swaw.harness.skill/v1\",\"module\":\"swaw/core/dev\",\"version\":\"1.*\",\"executable\":\"dev.exe\",\"arguments\":[]}\n",
+    )
+    .unwrap();
+
+    let skill_map = SkillMap::open(&root).unwrap();
+    assert!(skill_map.validate().is_err());
+    assert!(skill_map.find("dev/setup").is_err());
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -221,13 +256,13 @@ fn direct_resolution_rejects_noncanonical_disk_spelling() {
     let skill_directory = document_root.join("dev/setup");
     fs::create_dir_all(&skill_directory).unwrap();
     fs::write(
-        skill_directory.join("Skill.json"),
-        "{\"schema\":\"swaw.harness.skill/v1\",\"module\":\"swaw/core/dev\",\"version\":\"1.*\",\"executable\":\"dev.exe\",\"arguments\":[]}\n",
+        skill_directory.join("Skill.toml"),
+        "schema = \"swaw.harness.skill/v2\"\nmodule = \"swaw/core/dev\"\nversion = \"1.*\"\nexecutable = \"dev.exe\"\narguments = []\n",
     )
     .unwrap();
     let skill_map = SkillMap::open(&document_root).unwrap();
     let error = skill_map.find("dev/setup").unwrap_err();
-    assert!(error.contains("non-canonical Skill declaration name 'Skill.json'"));
+    assert!(error.contains("non-canonical Skill declaration name 'Skill.toml'"));
     fs::remove_dir_all(document_root).unwrap();
 }
 
@@ -256,11 +291,11 @@ fn write_skill(
         .iter()
         .map(|argument| format!("\"{argument}\""))
         .collect::<Vec<_>>()
-        .join(",");
+        .join(", ");
     fs::write(
         directory.join(SKILL_DOCUMENT_NAME),
         format!(
-            "{{\"schema\":\"swaw.harness.skill/v1\",\"module\":\"{module}\",\"version\":\"{version}\",\"executable\":\"{executable}\",\"arguments\":[{arguments}]}}\n"
+            "schema = \"swaw.harness.skill/v2\"\nmodule = \"{module}\"\nversion = \"{version}\"\nexecutable = \"{executable}\"\narguments = [{arguments}]\n"
         ),
     )
     .unwrap();
