@@ -1,9 +1,13 @@
-use std::fs;
+use std::fs::{self, File};
+use std::io::Read;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
-use swaw_harness_core_protocol::{InstalledModules, ModuleId, Version, VersionSelector};
+use sha2::{Digest, Sha256};
+use swaw_harness_core_protocol::{
+    InstalledModules, ModuleId, UserLifecycle, UserRecord, Version, VersionSelector,
+};
 
 const REPARSE_POINT: u32 = 0x400;
 const HOST_MODULE_ID: &str = "swaw/core/host";
@@ -64,8 +68,9 @@ impl HostIdentity {
             ));
         }
 
-        let user_home = find_exact_user_home(&data_home, &user_id)?;
+        let user_home = find_exact_data_entry(&data_home, &user_id, "UserHome")?;
         assert_regular_directory(&user_home, "UserHome")?;
+        validate_user_lifecycle(&data_home, &user_home, &user_id)?;
         let suffix = endpoint_suffix(&harness_root, &user_id);
 
         Ok(Self {
@@ -102,6 +107,35 @@ impl HostIdentity {
     }
 }
 
+fn validate_user_lifecycle(
+    data_home: &Path,
+    user_home: &Path,
+    user_id: &str,
+) -> Result<(), String> {
+    if user_id == "admin" {
+        return Ok(());
+    }
+    let record = UserRecord::read(user_home, user_id)?;
+    if record.lifecycle() != UserLifecycle::Active {
+        return Err(format!(
+            "Harness User is not active: {}",
+            user_home.display()
+        ));
+    }
+    let cli_name = format!("{user_id}.exe");
+    let user_cli = find_exact_data_entry(data_home, &cli_name, "User CLI executable")?;
+    let metadata = assert_regular_file(&user_cli, "User CLI executable")?;
+    if metadata.len() != record.user_cli().length()
+        || sha256_file(&user_cli)? != record.user_cli().sha256()
+    {
+        return Err(format!(
+            "Harness User CLI executable does not match user.json: {}",
+            user_cli.display()
+        ));
+    }
+    Ok(())
+}
+
 fn discover_user_id() -> Result<String, String> {
     let mut arguments = std::env::args_os();
     let _ = arguments.next();
@@ -129,7 +163,11 @@ fn named_parent<'a>(path: &'a Path, expected: &str, description: &str) -> Result
     Ok(result)
 }
 
-fn find_exact_user_home(data_home: &Path, user_id: &str) -> Result<PathBuf, String> {
+fn find_exact_data_entry(
+    data_home: &Path,
+    expected_name: &str,
+    description: &str,
+) -> Result<PathBuf, String> {
     let mut matching = Vec::new();
     for entry in fs::read_dir(data_home).map_err(|error| {
         format!(
@@ -142,21 +180,45 @@ fn find_exact_user_home(data_home: &Path, user_id: &str) -> Result<PathBuf, Stri
             .file_name()
             .into_string()
             .map_err(|_| "DataHome contains a non-Unicode name".to_owned())?;
-        if name.eq_ignore_ascii_case(user_id) {
+        if name.eq_ignore_ascii_case(expected_name) {
             matching.push((name, entry.path()));
         }
     }
     match matching.as_slice() {
-        [(name, path)] if name == user_id => Ok(path.clone()),
+        [(name, path)] if name == expected_name => Ok(path.clone()),
         [(name, path)] => Err(format!(
-            "UserHome has non-canonical name '{name}'; expected '{user_id}': {}",
+            "{description} has non-canonical name '{name}'; expected '{expected_name}': {}",
             path.display()
         )),
-        [] => Err(format!("UserHome does not exist: {user_id}")),
+        [] => Err(format!("{description} does not exist: {expected_name}")),
         _ => Err(format!(
-            "DataHome contains ambiguous UserHome names for: {user_id}"
+            "DataHome contains ambiguous {description} names for: {expected_name}"
         )),
     }
+}
+
+fn sha256_file(path: &Path) -> Result<String, String> {
+    let mut file = File::open(path).map_err(|error| {
+        format!(
+            "cannot open User CLI executable '{}': {error}",
+            path.display()
+        )
+    })?;
+    let mut digest = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let count = file.read(&mut buffer).map_err(|error| {
+            format!(
+                "cannot hash User CLI executable '{}': {error}",
+                path.display()
+            )
+        })?;
+        if count == 0 {
+            break;
+        }
+        digest.update(&buffer[..count]);
+    }
+    Ok(format!("{:x}", digest.finalize()))
 }
 
 fn parent<'a>(path: &'a Path, description: &str) -> Result<&'a Path, String> {
@@ -177,7 +239,7 @@ fn assert_regular_directory(path: &Path, description: &str) -> Result<(), String
     }
 }
 
-fn assert_regular_file(path: &Path, description: &str) -> Result<(), String> {
+fn assert_regular_file(path: &Path, description: &str) -> Result<fs::Metadata, String> {
     let metadata = fs::symlink_metadata(path)
         .map_err(|error| format!("cannot inspect {description} '{}': {error}", path.display()))?;
     if !metadata.is_file() || metadata.file_attributes() & REPARSE_POINT != 0 {
@@ -186,7 +248,7 @@ fn assert_regular_file(path: &Path, description: &str) -> Result<(), String> {
             path.display()
         ))
     } else {
-        Ok(())
+        Ok(metadata)
     }
 }
 
@@ -252,9 +314,17 @@ fn wide_null(value: &str) -> Vec<u16> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::Path;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
-    use super::{endpoint_suffix, normalized_path_units, validate_user_id};
+    use swaw_harness_core_protocol::{UserCliIdentity, UserLifecycle, UserRecord};
+
+    use super::{
+        endpoint_suffix, normalized_path_units, validate_user_id, validate_user_lifecycle,
+    };
+
+    static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
 
     #[test]
     fn endpoint_is_stable_across_ascii_path_case_and_separators() {
@@ -280,5 +350,54 @@ mod tests {
         assert!(validate_user_id("user_name").is_err());
         assert!(validate_user_id("com1").is_err());
         assert!(validate_user_id("a2345678901234567").is_err());
+    }
+
+    #[test]
+    fn admin_does_not_require_a_managed_user_record() {
+        let missing = std::env::temp_dir().join("swaw-harness-missing-admin-home");
+        assert!(validate_user_lifecycle(&missing, &missing, "admin").is_ok());
+    }
+
+    #[test]
+    fn ordinary_user_requires_an_active_strict_record() {
+        let user_home = temporary_user_home("lifecycle");
+        let data_home = user_home.parent().unwrap();
+        let user_cli = data_home.join("alice.exe");
+        fs::write(&user_cli, b"cli").unwrap();
+        let creating = UserRecord::new(
+            "alice",
+            UserLifecycle::Creating,
+            UserCliIdentity::new(3, super::sha256_file(&user_cli).unwrap()).unwrap(),
+        )
+        .unwrap();
+        fs::write(user_home.join("user.json"), creating.encode().unwrap()).unwrap();
+        assert!(validate_user_lifecycle(data_home, &user_home, "alice").is_err());
+
+        fs::write(
+            user_home.join("user.json"),
+            creating
+                .with_lifecycle(UserLifecycle::Active)
+                .encode()
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(validate_user_lifecycle(data_home, &user_home, "alice").is_ok());
+        fs::write(&user_cli, b"bad").unwrap();
+        assert!(validate_user_lifecycle(data_home, &user_home, "alice").is_err());
+        assert!(validate_user_lifecycle(data_home, &user_home, "bob").is_err());
+
+        fs::remove_dir_all(data_home).unwrap();
+    }
+
+    fn temporary_user_home(label: &str) -> std::path::PathBuf {
+        let sequence = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!(
+            "swaw-harness-host-{label}-{}-{sequence}",
+            std::process::id()
+        ));
+        let path = root.join("alice");
+        fs::create_dir(&root).unwrap();
+        fs::create_dir(&path).unwrap();
+        path
     }
 }

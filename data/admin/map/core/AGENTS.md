@@ -14,9 +14,9 @@
 
 ## Open
 
-- **ADMIN-CORE-MAP-006 — 资源参数与授权。** Core Host 已把用户 CLI 在 SkillPath 之后的参数作为动态参数原样追加；资源空间及 Resource 路径如何显式传递，以及普通 Harness 用户选择 Admin 安装技能时如何拒绝 Admin 专用操作，仍待真实样例确定。SkillPath 与 Resource 路径不要求相同，目录位置不得被当作授权凭据。
+- **ADMIN-CORE-MAP-006 — 资源参数与授权。** Core Host 已把用户 CLI 在 SkillPath 之后的参数作为动态参数原样追加；资源空间及 Resource 路径如何显式传递仍待真实样例确定。当前普通 Harness 用户复制的 Core 技能图包含 `admin/user/create` 且调用不会被特殊拒绝；未来授权由 Issue #55 处理，SkillPath 和目录位置不得被当作授权凭据。
 - **ADMIN-CORE-MAP-007 — 技能节点组合。** 相对依赖、技能图子树的模块发布与安装、按子树执行及运行记录，留待第一个真实组合样例确定，不得先用另一套 Playbook 目录或宽泛声明文件占位。
 
 ## Maintainer Notes
 
-- `helloworld` 已形成用户 CLI → Core Host → Module Release 的批处理调用样例；计划中的 `dev/setup` 等涉及资源空间或管理副作用的节点必须逐项实现和验证后才能加入 Core 技能图，不得由 Helloworld 样例推断为已完成。
+- `helloworld` 已形成用户 CLI → Core Host → Module Release 的批处理调用样例，`admin/user/create` 已形成普通 Harness 用户创建样例；计划中的其他管理操作及涉及资源空间的节点必须逐项实现和验证后才能加入 Core 技能图，不得由现有样例推断为已完成。

@@ -18,6 +18,7 @@ $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $WindowsRoot '..\..'))
 . (Join-Path $WindowsRoot 'user\candidate-build.ps1')
 . (Join-Path $WindowsRoot 'toolchain\environment.ps1')
 . (Join-Path $WindowsRoot 'toolchain\lifecycle.ps1')
+. (Join-Path $PSScriptRoot 'harness-user.ps1')
 . (Join-Path $PSScriptRoot 'paths.ps1')
 
 $DataRepo = Resolve-SwawHarnessWindowsTestDataRepo `
@@ -34,8 +35,12 @@ $HelloworldContracts = @($CoreContracts | Where-Object {
 $DevContracts = @($CoreContracts | Where-Object {
     $_.ModuleId -ceq 'swaw/core/dev'
 })
-if ($HelloworldContracts.Count -ne 1 -or $DevContracts.Count -ne 1) {
-    throw 'Skill invocation test requires one Helloworld and one Dev contract.'
+$AdminContracts = @($CoreContracts | Where-Object {
+    $_.ModuleId -ceq 'swaw/core/admin'
+})
+if ($HelloworldContracts.Count -ne 1 -or $DevContracts.Count -ne 1 -or
+    $AdminContracts.Count -ne 1) {
+    throw 'Skill invocation test requires Helloworld, Dev, and Admin contracts.'
 }
 $HelloworldContract = $HelloworldContracts[0]
 $DevContract = $DevContracts[0]
@@ -244,6 +249,13 @@ try {
         $InvalidInvocation.Error -cne 'usage: helloworld [recipient]') {
         throw 'Admin User CLI did not preserve module stderr and exit code 2.'
     }
+
+    Test-SwawHarnessUserCreation `
+        -TestRoot $TestRoot `
+        -ModuleAdminRoot $ModuleAdminRoot `
+        -AdminHost $AdminHost `
+        -PlatformTargetId $PlatformContract.PlatformTargetId `
+        -HostModuleVersion $HostContract.ModuleVersion
 
     $TestEnvironment = [ordered]@{}
     foreach ($Entry in $Plan.EnvironmentVariables.GetEnumerator()) {

@@ -26,7 +26,7 @@ function Read-SwawHarnessWindowsCoreHostContract {
     }
     if ([string]$Contract.package -cne 'swaw-harness-core' -or
         [string]$Contract.module -cne 'swaw/core/host' -or
-        [string]$Contract.version -cne '1.0.2' -or
+        [string]$Contract.version -cne '1.0.5' -or
         [string]$Contract.buildArtifact -cne 'swaw-harness-core.exe' -or
         [string]$Contract.artifact -cne 'swaw-harness-core.exe' -or
         $Contract.staticCrt -isnot [bool] -or

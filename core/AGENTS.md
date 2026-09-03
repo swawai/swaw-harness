@@ -20,4 +20,4 @@
 ## Maintainer Notes
 
 - 待办：迁移旧实现时 hard cut `Collection Facet`、`Operation`/`Projection` kind、`ResourceListing` 投影及逻辑 Route 模型，统一改为“资源空间目录树寻址 + SkillPath 调用”；完成前不得声称旧实现已符合本规则。
-- `core/host/` 已通过 Windows 命名管道接收一次批处理调用，并由 `core/protocol` 验证 SkillPath、技能声明和同一 DataHome 的已安装 Module Release；资源空间 Resource 验证、运行记录与其他 Harness 用户的技能图复制尚未实现。
+- `core/host/` 已通过 Windows 命名管道接收一次批处理调用，并由 `core/protocol` 验证普通 Harness 用户的 `active user.json`、SkillPath、技能声明和同一 DataHome 的已安装 Module Release；`admin/user/create` 已复制普通用户的独立 Core 技能图快照。资源空间 Resource 验证与运行记录尚未实现。
