@@ -8,7 +8,7 @@ use super::UserId;
 const ADMIN_USER_ID: &str = "admin";
 const HOST_MODULE_ID: &str = "swaw/core/host";
 const HOST_EXECUTABLE: &str = "swaw-harness-core.exe";
-const MINIMUM_MANAGED_USER_HOST_VERSION: &str = "1.0.7";
+const MINIMUM_MANAGED_USER_HOST_VERSION: &str = "1.0.8";
 const PLATFORM_TARGET_ID: &str = "x86_64-pc-windows-msvc";
 const MAXIMUM_TREE_DEPTH: usize = 64;
 

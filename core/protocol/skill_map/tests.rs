@@ -172,6 +172,7 @@ fn executable_skill_nodes_can_contain_child_skills() {
         let legacy_path = root.join("dev/setup").join(legacy_name);
         fs::write(&legacy_path, "{}\n").unwrap();
         assert!(skill_map.validate().is_err(), "{legacy_name}");
+        assert!(skill_map.find("dev/setup").is_err(), "{legacy_name}");
         fs::remove_file(legacy_path).unwrap();
     }
     fs::remove_dir_all(root).unwrap();
