@@ -5,7 +5,10 @@ mod resource_space;
 mod skill_map;
 mod user_record;
 
-pub use invocation::{InvocationContext, USER_HOME_ENVIRONMENT_VARIABLE};
+pub use invocation::{
+    InvocationContext, SkillInvocationTarget, SkillNodeMethod, TreeStructureMode,
+    USER_HOME_ENVIRONMENT_VARIABLE,
+};
 pub use module_release::{InstalledModules, MODULE_MANIFEST_NAME, ResolvedModuleRelease};
 pub use resource_space::BaseResourceSpace;
 pub use skill_map::{

@@ -194,7 +194,10 @@ fn metadata_is_reparse(metadata: &fs::Metadata) -> bool {
     }
 }
 
-fn parse_relative_path<'a>(value: &'a str, description: &str) -> Result<Vec<&'a str>, String> {
+pub(crate) fn parse_relative_path<'a>(
+    value: &'a str,
+    description: &str,
+) -> Result<Vec<&'a str>, String> {
     if value.is_empty() || value.contains('\\') {
         return Err(format!(
             "{description} must be a canonical relative path: {value}"
@@ -207,7 +210,7 @@ fn parse_relative_path<'a>(value: &'a str, description: &str) -> Result<Vec<&'a 
     Ok(segments)
 }
 
-fn assert_safe_segment(value: &str, description: &str) -> Result<(), String> {
+pub(crate) fn assert_safe_segment(value: &str, description: &str) -> Result<(), String> {
     let bytes = value.as_bytes();
     let valid = bytes
         .first()

@@ -161,7 +161,7 @@ try {
     [IO.File]::Delete($PointerPath)
     $MissingPointer = Invoke-SwawHarnessCapturedProcess `
         -Executable $AdminHost.UserCliPath `
-        -Arguments @('helloworld') `
+        -Arguments @('core/helloworld') `
         -WorkingDirectory (Join-Path $TestRoot 'data')
     if ($MissingPointer.ExitCode -ne 1 -or
         $MissingPointer.Error -cnotmatch '^\[ERROR\] Cannot connect') {
@@ -174,7 +174,7 @@ try {
     )
     $InvalidPointer = Invoke-SwawHarnessCapturedProcess `
         -Executable $AdminHost.UserCliPath `
-        -Arguments @('helloworld') `
+        -Arguments @('core/helloworld') `
         -WorkingDirectory (Join-Path $TestRoot 'data')
     if ($InvalidPointer.ExitCode -ne 1 -or
         $InvalidPointer.Error -cnotmatch '^\[ERROR\] Cannot connect') {
@@ -191,7 +191,7 @@ try {
     try {
         $MissingHostExecutable = Invoke-SwawHarnessCapturedProcess `
             -Executable $AdminHost.UserCliPath `
-            -Arguments @('helloworld') `
+            -Arguments @('core/helloworld') `
             -WorkingDirectory (Join-Path $TestRoot 'data')
         if ($MissingHostExecutable.ExitCode -ne 1 -or
             $MissingHostExecutable.Error -cnotmatch '^\[ERROR\] Cannot connect') {
@@ -203,7 +203,7 @@ try {
     $ConcurrentCalls = @('Swaw', 'One', 'Two', 'Three') | ForEach-Object {
         $Info = [Diagnostics.ProcessStartInfo]::new()
         $Info.FileName = [string]$AdminHost.UserCliPath
-        $Info.Arguments = "helloworld $_"
+        $Info.Arguments = "core/helloworld $_"
         $Info.WorkingDirectory = Join-Path $TestRoot 'data'
         $Info.UseShellExecute = $false
         $Info.CreateNoWindow = $true
@@ -224,13 +224,57 @@ try {
             throw 'Concurrent Admin User CLI invocation timed out.'
         }
         $Process.WaitForExit()
+        $ErrorText = ([string]$Process.ErrorTask.Result).Trim()
+        $RunMatch = [regex]::Match(
+            $ErrorText,
+            '^\[RUN\] (?<id>[a-f0-9]{32})$'
+        )
         if ($Process.ExitCode -ne 0 -or
             ([string]$Process.OutputTask.Result).TrimEnd("`r", "`n") -cne
                 [string]$Process.ExpectedOutput -or
-            -not [string]::IsNullOrEmpty([string]$Process.ErrorTask.Result)) {
+            -not $RunMatch.Success) {
             throw 'Concurrent Admin User CLI invocation returned a bad result.'
         }
+        $Process | Add-Member -NotePropertyName RunId `
+            -NotePropertyValue $RunMatch.Groups['id'].Value
         $Process.Dispose()
+    }
+    $AdminRunsRoot = Join-Path $ModuleAdminRoot 'runs'
+    $ConcurrentRuns = @(Get-ChildItem `
+        -LiteralPath $AdminRunsRoot `
+        -Directory `
+        -Force)
+    $ReturnedRunIds = @($ConcurrentCalls | ForEach-Object {
+        [string]$_.RunId
+    })
+    if ($ConcurrentRuns.Count -ne $ConcurrentCalls.Count -or
+        @($ReturnedRunIds | Select-Object -Unique).Count -ne
+            $ConcurrentCalls.Count) {
+        throw 'Concurrent Skill invocations did not create one Run per call.'
+    }
+    foreach ($Run in $ConcurrentRuns) {
+        $RunRecordPath = Join-Path $Run.FullName 'run.json'
+        $RunNodePath = Join-Path $Run.FullName 'core\helloworld'
+        $RunRecord = Get-Content `
+            -LiteralPath $RunRecordPath `
+            -Raw | ConvertFrom-Json
+        if ([string]$Run.Name -cnotmatch '^[a-f0-9]{32}$' -or
+            [string]$RunRecord.schema -cne 'swaw.harness.run/v1' -or
+            [string]$RunRecord.runId -cne [string]$Run.Name -or
+            [string]$RunRecord.target.skillMapId -cne 'core' -or
+            [string]$RunRecord.target.skillPath -cne 'helloworld' -or
+            [string]$RunRecord.target.method -cne 'node' -or
+            [string]$RunRecord.moduleRelease.module -cne
+                'swaw/templates/helloworld' -or
+            [string]$RunRecord.moduleRelease.version -cne
+                [string]$HelloworldContract.ModuleVersion -or
+            [string]$RunRecord.result.state -cne 'completed' -or
+            [int]$RunRecord.result.exitCode -ne 0 -or
+            @($RunRecord.argumentsUtf16).Count -ne 1 -or
+            -not [IO.Directory]::Exists($RunNodePath) -or
+            $ReturnedRunIds -cnotcontains [string]$Run.Name) {
+            throw "Run record or node working directory is invalid: $($Run.FullName)"
+        }
     }
     $FixtureHosts = @(Get-Process swaw-harness-core -ErrorAction SilentlyContinue |
         Where-Object {
@@ -239,15 +283,51 @@ try {
     if ($FixtureHosts.Count -ne 1) {
         throw 'Concurrent cold start did not leave exactly one Admin Core Host.'
     }
-    $InvalidInvocation = Invoke-SwawHarnessCapturedProcess `
+    $ReservedTreeInvocation = Invoke-SwawHarnessCapturedProcess `
         -Executable $AdminHost.UserCliPath `
-        -Arguments @('helloworld', 'one', 'two') `
+        -Arguments @('core/helloworld/.tree') `
         -WorkingDirectory (Join-Path $TestRoot 'data') `
         -TimeoutSeconds 30
+    $RunsAfterReservedTree = @(Get-ChildItem `
+        -LiteralPath $AdminRunsRoot `
+        -Directory `
+        -Force)
+    if ($ReservedTreeInvocation.ExitCode -ne 1 -or
+        -not [string]::IsNullOrEmpty($ReservedTreeInvocation.Output) -or
+        $ReservedTreeInvocation.Error -cne
+            "[ERROR] Core Host node method '/.tree' is not implemented" -or
+        $RunsAfterReservedTree.Count -ne $ConcurrentRuns.Count) {
+        throw 'Reserved tree method was not rejected before creating a Run.'
+    }
+    $InvalidInvocation = Invoke-SwawHarnessCapturedProcess `
+        -Executable $AdminHost.UserCliPath `
+        -Arguments @('core/helloworld', 'one', 'two') `
+        -WorkingDirectory (Join-Path $TestRoot 'data') `
+        -TimeoutSeconds 30
+    $InvalidRunMatch = [regex]::Match(
+        $InvalidInvocation.Error,
+        '^\[RUN\] (?<id>[a-f0-9]{32})\r?\nusage: helloworld \[recipient\]$'
+    )
     if ($InvalidInvocation.ExitCode -ne 2 -or
         -not [string]::IsNullOrEmpty($InvalidInvocation.Output) -or
-        $InvalidInvocation.Error -cne 'usage: helloworld [recipient]') {
+        -not $InvalidRunMatch.Success) {
         throw 'Admin User CLI did not preserve module stderr and exit code 2.'
+    }
+    $CompletedRuns = @(Get-ChildItem `
+        -LiteralPath $AdminRunsRoot `
+        -Directory `
+        -Force | ForEach-Object {
+            Get-Content `
+                -LiteralPath (Join-Path $_.FullName 'run.json') `
+                -Raw | ConvertFrom-Json
+        })
+    if ($CompletedRuns.Count -ne ($ConcurrentCalls.Count + 1) -or
+        @($CompletedRuns | Where-Object {
+            [string]$_.result.state -ceq 'completed' -and
+            [int]$_.result.exitCode -eq 2 -and
+            [string]$_.runId -ceq $InvalidRunMatch.Groups['id'].Value
+        }).Count -ne 1) {
+        throw 'Nonzero module exit was not preserved in its Run record.'
     }
 
     Test-SwawHarnessUserCreation `

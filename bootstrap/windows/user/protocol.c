@@ -172,6 +172,23 @@ static DWORD swaw_u32(const BYTE *value)
         ((DWORD)value[3] << 24U);
 }
 
+static BOOL swaw_is_run_id(const BYTE *value, DWORD length)
+{
+    DWORD index;
+    if (length != 32U || value[12] != (BYTE)'7' ||
+        (value[16] != (BYTE)'8' && value[16] != (BYTE)'9' &&
+         value[16] != (BYTE)'a' && value[16] != (BYTE)'b')) {
+        return FALSE;
+    }
+    for (index = 0U; index < length; ++index) {
+        if (!((value[index] >= (BYTE)'0' && value[index] <= (BYTE)'9') ||
+              (value[index] >= (BYTE)'a' && value[index] <= (BYTE)'f'))) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
 __declspec(noreturn) void swaw_receive(HANDLE pipe)
 {
     BYTE header[SWAW_HEADER_BYTES];
@@ -192,7 +209,8 @@ __declspec(noreturn) void swaw_receive(HANDLE pipe)
         kind = (DWORD)header[6] | ((DWORD)header[7] << 8U);
         length = swaw_u32(header + 8U);
         if (length > SWAW_MAX_PAYLOAD_BYTES ||
-            (kind == SWAW_KIND_RESULT && length != 4U)) {
+            (kind == SWAW_KIND_RESULT && length != 4U) ||
+            (kind == SWAW_KIND_RUN_ID && length != 32U)) {
             CloseHandle(pipe);
             SWAW_FAIL("[ERROR] Core Host returned an invalid frame.\r\n");
         }
@@ -223,6 +241,30 @@ __declspec(noreturn) void swaw_receive(HANDLE pipe)
                     CloseHandle(pipe);
                     ExitProcess(1U);
                 }
+            }
+        } else if (kind == SWAW_KIND_RUN_ID) {
+            static const BYTE prefix[] = "[RUN] ";
+            static const BYTE suffix[] = "\r\n";
+            if (!swaw_is_run_id(payload, length)) {
+                HeapFree(GetProcessHeap(), 0U, payload);
+                CloseHandle(pipe);
+                SWAW_FAIL("[ERROR] Core Host returned an invalid RunId.\r\n");
+            }
+            if (error != NULL && error != INVALID_HANDLE_VALUE &&
+                (!swaw_write_all(
+                    error,
+                    prefix,
+                    (DWORD)(sizeof(prefix) - 1U)
+                ) ||
+                 !swaw_write_all(error, payload, length) ||
+                 !swaw_write_all(
+                    error,
+                    suffix,
+                    (DWORD)(sizeof(suffix) - 1U)
+                ))) {
+                HeapFree(GetProcessHeap(), 0U, payload);
+                CloseHandle(pipe);
+                ExitProcess(1U);
             }
         } else if (kind == SWAW_KIND_RESULT) {
             DWORD exit_code = swaw_u32(payload);
