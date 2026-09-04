@@ -25,10 +25,14 @@
 - **Runtime Release**：旧 seed 流程曾安装在 `<UserHome>/runtime/<ReleaseId>/` 的完整 executable 集合；改由 Core 技能图选择独立 Module Release 后，当前 Admin 用户初始化与普通 Harness 用户创建均不建立 Runtime Release。未来领域若出现独立运行发布需求，必须以新的具体实体和需求重新定义，不得恢复旧 seed 作为默认用户布局。
 - **技能图根（Skill Map Root）**：一个 Harness 用户中固定在 `<UserHome>/map/`、容纳多棵具名技能图的目录；Admin 用户的技能图根固定为 `data/admin/map/`。技能图根本身不是一棵技能图，不保存 Module Release 或 Resource 的事实数据，也不属于资源空间。
 - **SkillMapId**：技能图根下一个技能图的目录名；必须是规范小写 ASCII 文件系统安全名称。`core` 固定保留给 Core 技能图，其他 SkillMapId 留给用户或领域技能图。
-- **技能图（Skill Map）**：固定在 `<UserHome>/map/<SkillMapId>/`、使用真实文件系统目录树保存技能描述、模块选择指针和寻址索引的可查看、可修改实例。当前只有 Core 技能图成为仓库实体；其他技能图的创建、协议和执行方式尚未实现。
-- **Core 技能图**：SkillMapId 为 `core` 的内置技能图；仓库纳入 Git 的唯一默认实例及 Admin 用户当前实例固定为 `data/admin/map/core/`，普通 Harness 用户创建时把当时的 Admin Core 技能图完整复制为 `<UserHome>/map/core/` 独立快照，后续双方修改互不自动同步。当前只实现 SkillPath 到 Module Release executable 的绑定；节点依赖、子树安装与整树执行尚未实现。
+- **技能图（Skill Map）**：固定在 `<UserHome>/map/<SkillMapId>/`、使用真实文件系统目录树保存技能描述、模块选择指针和寻址索引的可查看、可修改实例。技能图目录父子关系首先表达分类、SkillPath 包含和技能子树选择范围，本身不自动构成执行顺序或显式依赖。当前只有 Core 技能图成为仓库实体；其他技能图的创建、协议和执行方式尚未实现。
+- **Core 技能图**：SkillMapId 为 `core` 的内置技能图；仓库纳入 Git 的唯一默认实例及 Admin 用户当前实例固定为 `data/admin/map/core/`，普通 Harness 用户创建时把当时的 Admin Core 技能图完整复制为 `<UserHome>/map/core/` 独立快照，后续双方修改互不自动同步。当前只实现 SkillPath 到 Module Release executable 的绑定和单节点执行；技能子树执行、节点依赖、子树安装及运行计划尚未实现。
 - **SkillPath**：一个技能节点目录相对其技能图根的规范化文件系统路径；每个路径段必须是规范小写 ASCII 文件系统安全名称。SkillPath 独立于 ModuleId、模块作者目录与资源空间中的 Resource 路径。
 - **技能节点（Skill Node）**：技能图中的一个真实目录；目录包含 `skill.toml` 时该 SkillPath 可调用，不包含时只是分类节点。可调用节点可以继续包含子节点，不要求位于叶目录；技能图根本身当前不得包含 `skill.toml`。
+- **技能子树（Skill subtree）**：技能图中一个目录及其全部后代目录形成的真实目录范围，可以同时包含可调用技能节点和只用于分类的节点；技能子树只确定一次子树操作的选择范围，普通选择本身不会使其自动成为编排或产生父子执行依赖。
+- **技能执行范围**：技能调用的目标范围。当前已实现的节点执行只调用目标 SkillPath 的 `skill.toml`；尚未实现的子树执行以一个技能子树为范围，并规划普通、强父子顺序和无父子顺序三种模式，普通模式是默认模式。普通模式只采用子树中明确声明的父子顺序；强父子顺序模式把所选范围的可调用父节点成功作为后代运行前提；无父子顺序模式忽略所选范围内普通或已声明的结构顺序。后两种模式只能增加或忽略目录产生的结构顺序，不得绕过显式依赖；影响执行正确性的前置条件必须声明为显式依赖，不能只依赖可被忽略的结构顺序。
+- **编排子树（Playbook）**：对父子执行顺序或节点显式依赖作出明确声明的技能子树，是同一技能图实例中的使用者称呼，不是独立协议实体、技能节点类型、目录根或 Module Release 类型；其声明文件、schema、执行计划和运行记录尚未确定和实现。
+- **技能执行依赖**：计划中的技能子树执行关系，分为由子树执行模式或编排声明产生、可被执行模式收紧或忽略的结构顺序，以及任何执行模式都不得绕过的显式依赖；显式依赖可以要求前置节点在本次运行中成功，也可以进一步要求其特定产物。目录分类关系、文件路径相邻或共同祖先均不得自行升级为显式依赖。
 - **技能声明（Skill declaration）**：技能节点目录中规范名为 `skill.toml`、由人类维护的严格版本化 TOML 文件；当前 schema 为 `swaw.harness.skill/v2`，使用 `module`、`version`、`executable` 和 `arguments` 直接声明该节点的模块选择与固定命令参数，不使用 Resource 声明文件、Facet 层或可继承 executable binding。旧 `skill.json` 不构成技能声明，也不得与 `skill.toml` 共存。
 - **ModuleId**：由规范小写文件系统名称 `<Publisher>/<Group>/<Module>` 组成的三段模块身份，例如 `swaw/core/admin`；它独立于源码仓库地址、Resource 路径和 executable 文件名。
 - **Module Release**：安装在 `<DataHome>/admin/modules/<Publisher>/<Group>/<Module>/<PlatformTargetId>/<Version>/` 的模块平台发布目录；`Version` 是不含预发布或构建后缀的 `MAJOR.MINOR.PATCH` 语义化版本。当前 `swaw.harness.module/v1` 发布目录只允许包含一个不可变 executable 与 `swaw-harness.module.json`，不得放入未由清单声明和验证的私有运行文件；私有运行文件的清单字段、目录成员规则与完整性验证留待首个真实需求确定。Core Host 也以固定 ModuleId `swaw/core/host` 使用这一发布布局，不另建 Core Host 专用发布格式。Windows Bootstrap 负责从完整且已验证的 Bootstrap Release 初始物化本次构建的 Module Release；运行时安装目标由 Admin Core module executable 拥有。
