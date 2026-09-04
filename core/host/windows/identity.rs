@@ -9,6 +9,8 @@ use swaw_harness_core_protocol::{
     InstalledModules, ModuleId, UserLifecycle, UserRecord, Version, VersionSelector,
 };
 
+use crate::wire::VERSION;
+
 const REPARSE_POINT: u32 = 0x400;
 const HOST_MODULE_ID: &str = "swaw/core/host";
 const HOST_EXECUTABLE: &str = "swaw-harness-core.exe";
@@ -77,8 +79,8 @@ impl HostIdentity {
             user_id,
             user_home,
             data_home,
-            pipe_name: wide_null(&format!(r"\\.\pipe\swaw-harness-v2-{suffix}")),
-            mutex_name: wide_null(&format!(r"Local\swaw-harness-core-v2-{suffix}")),
+            pipe_name: wide_null(&format!(r"\\.\pipe\swaw-harness-v{VERSION}-{suffix}")),
+            mutex_name: wide_null(&format!(r"Local\swaw-harness-core-v{VERSION}-{suffix}")),
         })
     }
 

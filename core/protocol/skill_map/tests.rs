@@ -1,6 +1,8 @@
 use super::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+mod help_tests;
+
 #[test]
 fn repository_skill_map_is_valid_and_skills_select_modules_directly() {
     let user_home = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/admin");

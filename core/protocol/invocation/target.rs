@@ -31,7 +31,7 @@ impl SkillNodeMethod {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SkillInvocationTarget {
     skill_map_id: String,
-    skill_path: String,
+    skill_path: Option<String>,
     method: SkillNodeMethod,
 }
 
@@ -43,11 +43,6 @@ impl SkillInvocationTarget {
             ));
         }
         let mut segments: Vec<_> = value.split('/').collect();
-        if segments.len() < 2 {
-            return Err(format!(
-                "Skill invocation target must contain SkillMapId/SkillPath: {value}"
-            ));
-        }
 
         let method = match segments.last().copied() {
             Some(".tree") => {
@@ -77,7 +72,12 @@ impl SkillInvocationTarget {
             }
             _ => SkillNodeMethod::Node,
         };
-        if segments.len() < 2 {
+        if segments.is_empty() {
+            return Err(format!(
+                "Skill invocation target must contain a SkillMapId: {value}"
+            ));
+        }
+        if segments.len() < 2 && method != SkillNodeMethod::Help {
             return Err(format!(
                 "Skill invocation target must contain a non-empty SkillPath: {value}"
             ));
@@ -85,8 +85,13 @@ impl SkillInvocationTarget {
 
         let skill_map_id = segments.remove(0);
         assert_safe_segment(skill_map_id, "SkillMapId")?;
-        let skill_path = segments.join("/");
-        parse_relative_path(&skill_path, "SkillPath")?;
+        let skill_path = if segments.is_empty() {
+            None
+        } else {
+            let skill_path = segments.join("/");
+            parse_relative_path(&skill_path, "SkillPath")?;
+            Some(skill_path)
+        };
 
         Ok(Self {
             skill_map_id: skill_map_id.to_owned(),
@@ -99,8 +104,8 @@ impl SkillInvocationTarget {
         &self.skill_map_id
     }
 
-    pub fn skill_path(&self) -> &str {
-        &self.skill_path
+    pub fn skill_path(&self) -> Option<&str> {
+        self.skill_path.as_deref()
     }
 
     pub fn method(&self) -> SkillNodeMethod {
@@ -115,24 +120,33 @@ mod tests {
     #[test]
     fn target_separates_map_path_and_virtual_method() {
         for (source, path, method) in [
-            ("core/helloworld", "helloworld", SkillNodeMethod::Node),
+            ("core/helloworld", Some("helloworld"), SkillNodeMethod::Node),
             (
                 "core/release/publish/.tree",
-                "release/publish",
+                Some("release/publish"),
                 SkillNodeMethod::Tree(TreeStructureMode::Declared),
             ),
             (
                 "core/release/publish/.tree.parent-success",
-                "release/publish",
+                Some("release/publish"),
                 SkillNodeMethod::Tree(TreeStructureMode::ParentSuccess),
             ),
             (
                 "core/release/publish/.tree.no-structure",
-                "release/publish",
+                Some("release/publish"),
                 SkillNodeMethod::Tree(TreeStructureMode::NoStructure),
             ),
-            ("core/helloworld/.help", "helloworld", SkillNodeMethod::Help),
-            ("core/helloworld/.plan", "helloworld", SkillNodeMethod::Plan),
+            (
+                "core/helloworld/.help",
+                Some("helloworld"),
+                SkillNodeMethod::Help,
+            ),
+            ("core/.help", None, SkillNodeMethod::Help),
+            (
+                "core/helloworld/.plan",
+                Some("helloworld"),
+                SkillNodeMethod::Plan,
+            ),
         ] {
             let target = SkillInvocationTarget::parse(source).unwrap();
             assert_eq!(target.skill_map_id(), "core");
@@ -147,7 +161,8 @@ mod tests {
             "",
             "helloworld",
             "core",
-            "core/.help",
+            "core/.tree",
+            "core/.plan",
             "Core/helloworld",
             "core/Hello",
             "core//helloworld",

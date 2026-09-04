@@ -6,11 +6,12 @@ pub(crate) const KIND_STDERR: u16 = 3;
 pub(crate) const KIND_RESULT: u16 = 4;
 pub(crate) const KIND_ERROR: u16 = 5;
 pub(crate) const KIND_RUN_ID: u16 = 6;
+const KIND_UTF8_STDOUT: u16 = 7;
 
 const MAGIC: [u8; 4] = *b"SWAH";
-const VERSION: u16 = 2;
+pub(crate) const VERSION: u16 = 3;
 const HEADER_BYTES: usize = 12;
-const MAXIMUM_PAYLOAD_BYTES: usize = 256 * 1024;
+pub(crate) const MAXIMUM_PAYLOAD_BYTES: usize = 256 * 1024;
 const MAXIMUM_ARGUMENTS: usize = 64;
 const MAXIMUM_STRING_UNITS: usize = 32 * 1024;
 
@@ -54,7 +55,7 @@ pub(crate) fn write_frame(
 ) -> Result<(), String> {
     if !matches!(
         kind,
-        KIND_STDOUT | KIND_STDERR | KIND_RESULT | KIND_ERROR | KIND_RUN_ID
+        KIND_STDOUT | KIND_STDERR | KIND_RESULT | KIND_ERROR | KIND_RUN_ID | KIND_UTF8_STDOUT
     ) {
         return Err(format!("invalid Core Host response frame kind {kind}"));
     }
@@ -70,6 +71,10 @@ pub(crate) fn write_frame(
         .write_all(&header)
         .and_then(|_| writer.write_all(payload))
         .map_err(|error| format!("cannot write Core Host response: {error}"))
+}
+
+pub(crate) fn write_utf8_stdout(writer: &mut impl Write, text: &str) -> Result<(), String> {
+    write_frame(writer, KIND_UTF8_STDOUT, text.as_bytes())
 }
 
 pub(crate) fn write_run_id(writer: &mut impl Write, run_id: &str) -> Result<(), String> {
@@ -167,7 +172,10 @@ impl<'a> PayloadCursor<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{KIND_REQUEST, KIND_RUN_ID, MAGIC, Request, VERSION, read_request, write_run_id};
+    use super::{
+        KIND_REQUEST, KIND_RUN_ID, KIND_UTF8_STDOUT, MAGIC, Request, VERSION, read_request,
+        write_run_id, write_utf8_stdout,
+    };
 
     fn append_utf16(payload: &mut Vec<u8>, value: &str) {
         let units: Vec<_> = value.encode_utf16().collect();
@@ -209,6 +217,11 @@ mod tests {
                 ],
             }
         );
+    }
+
+    #[test]
+    fn protocol_generation_is_three() {
+        assert_eq!(VERSION, 3);
     }
 
     #[test]
@@ -255,5 +268,17 @@ mod tests {
         assert_eq!(u16::from_le_bytes([frame[6], frame[7]]), KIND_RUN_ID);
         assert_eq!(&frame[12..], run_id.as_bytes());
         assert!(write_run_id(&mut Vec::new(), "not-a-run-id").is_err());
+    }
+
+    #[test]
+    fn utf8_stdout_uses_a_distinct_response_frame() {
+        let mut frame = Vec::new();
+
+        write_utf8_stdout(&mut frame, "技能帮助。\n").unwrap();
+
+        assert_eq!(&frame[0..4], &MAGIC);
+        assert_eq!(u16::from_le_bytes([frame[4], frame[5]]), VERSION);
+        assert_eq!(u16::from_le_bytes([frame[6], frame[7]]), KIND_UTF8_STDOUT);
+        assert_eq!(&frame[12..], "技能帮助。\n".as_bytes());
     }
 }

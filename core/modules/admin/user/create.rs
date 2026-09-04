@@ -3,17 +3,17 @@ use std::path::{Path, PathBuf};
 
 use swaw_harness_core_protocol::{UserLifecycle, UserRecord, Version};
 
+use super::UserId;
 use super::layout::{
-    copy_tree, find_named_entry, host_pointer_name, remove_stage, remove_stale_user_home_stage,
-    require_exact_path, require_regular_directory, user_home_stage, validate_core_map,
-    validate_host_pointer, Layout,
+    Layout, copy_tree, find_named_entry, host_pointer_name, remove_stage,
+    remove_stale_user_home_stage, require_exact_path, require_regular_directory, user_home_stage,
+    validate_core_map, validate_host_pointer,
 };
 use super::lock::UserLock;
 use super::publication::{
-    publication_stage, remove_stale_publication_stage, replace_record, verify_identity,
-    write_new_synced, write_record_new, UserCliArtifact,
+    UserCliArtifact, publication_stage, remove_stale_publication_stage, replace_record,
+    verify_identity, write_new_synced, write_record_new,
 };
-use super::UserId;
 
 pub(crate) fn create(invocation_user_home: &Path, user_id: &UserId) -> Result<(), String> {
     let layout = Layout::discover(invocation_user_home, user_id)?;
