@@ -22,8 +22,16 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $syntaxErrors = [System.Collections.Generic.List[string]]::new()
-          $powerShellFiles = @(git ls-files -- '*.ps1' '*.psm1')
+          $powerShellFiles = @(git ls-files -- '*.ps1' '*.psm1' '*.psd1')
           foreach ($path in $powerShellFiles) {
+            [byte[]]$encoded = [IO.File]::ReadAllBytes((Join-Path $PWD $path))
+            if ($encoded.Length -lt 3 -or
+                $encoded[0] -ne 0xEF -or
+                $encoded[1] -ne 0xBB -or
+                $encoded[2] -ne 0xBF) {
+              [void]$syntaxErrors.Add("${path}: expected UTF-8 BOM")
+              continue
+            }
             $tokens = $null
             $errors = $null
             [void][Management.Automation.Language.Parser]::ParseFile(

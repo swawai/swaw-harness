@@ -1,4 +1,4 @@
-Set-StrictMode -Version 2.0
+﻿Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot 'install-store.ps1')
 . (Join-Path $PSScriptRoot 'locator.ps1')
