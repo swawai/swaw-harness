@@ -2,6 +2,9 @@ mod dispatch;
 mod wire;
 
 #[cfg(windows)]
+mod run;
+
+#[cfg(windows)]
 mod windows;
 
 #[cfg(windows)]

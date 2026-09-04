@@ -77,8 +77,8 @@ impl HostIdentity {
             user_id,
             user_home,
             data_home,
-            pipe_name: wide_null(&format!(r"\\.\pipe\swaw-harness-v1-{suffix}")),
-            mutex_name: wide_null(&format!(r"Local\swaw-harness-core-v1-{suffix}")),
+            pipe_name: wide_null(&format!(r"\\.\pipe\swaw-harness-v2-{suffix}")),
+            mutex_name: wide_null(&format!(r"Local\swaw-harness-core-v2-{suffix}")),
         })
     }
 

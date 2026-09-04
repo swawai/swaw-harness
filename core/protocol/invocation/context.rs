@@ -39,7 +39,7 @@ impl InvocationContext {
 
 #[cfg(test)]
 mod tests {
-    use super::{USER_HOME_ENVIRONMENT_VARIABLE, InvocationContext};
+    use super::{InvocationContext, USER_HOME_ENVIRONMENT_VARIABLE};
 
     #[test]
     fn relative_user_home_is_rejected() {

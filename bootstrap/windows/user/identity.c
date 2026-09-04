@@ -101,7 +101,7 @@ static ULONGLONG swaw_endpoint_hash(const SwawUserIdentity *identity)
 
 static void swaw_initialize_pipe_name(SwawUserIdentity *identity)
 {
-    static const WCHAR prefix[] = L"\\\\.\\pipe\\swaw-harness-v1-";
+    static const WCHAR prefix[] = L"\\\\.\\pipe\\swaw-harness-v2-";
     static const WCHAR digits[] = L"0123456789abcdef";
     ULONGLONG hash = swaw_endpoint_hash(identity);
     DWORD position = 0U;

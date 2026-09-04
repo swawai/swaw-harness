@@ -1,5 +1,11 @@
 Set-StrictMode -Version 2.0
 
+function Test-SwawHarnessRunAnnouncement {
+    param([Parameter(Mandatory = $true)][string]$Value)
+
+    return $Value -cmatch '^\[RUN\] [a-f0-9]{32}$'
+}
+
 function Test-SwawHarnessUserCreation {
     param(
         [Parameter(Mandatory = $true)][string]$TestRoot,
@@ -12,7 +18,7 @@ function Test-SwawHarnessUserCreation {
     $DataHome = Join-Path $TestRoot 'data'
     $CreateAlice = Invoke-SwawHarnessCapturedProcess `
         -Executable $AdminHost.UserCliPath `
-        -Arguments @('admin/user/create', 'alice') `
+        -Arguments @('core/admin/user/create', 'alice') `
         -WorkingDirectory $DataHome `
         -TimeoutSeconds 30
     $AliceHome = Join-Path $DataHome 'alice'
@@ -34,7 +40,7 @@ function Test-SwawHarnessUserCreation {
     )
     if ($CreateAlice.ExitCode -ne 0 -or
         -not [string]::IsNullOrEmpty($CreateAlice.Output) -or
-        -not [string]::IsNullOrEmpty($CreateAlice.Error) -or
+        -not (Test-SwawHarnessRunAnnouncement -Value $CreateAlice.Error) -or
         [string]$AliceRecord.schema -cne 'swaw.harness.user/v1' -or
         [string]$AliceRecord.userId -cne 'alice' -or
         [string]$AliceRecord.lifecycle -cne 'active' -or
@@ -54,12 +60,12 @@ function Test-SwawHarnessUserCreation {
     }
     $AliceHello = Invoke-SwawHarnessCapturedProcess `
         -Executable $AliceCli `
-        -Arguments @('helloworld', 'Alice') `
+        -Arguments @('core/helloworld', 'Alice') `
         -WorkingDirectory $DataHome `
         -TimeoutSeconds 30
     if ($AliceHello.ExitCode -ne 0 -or
         $AliceHello.Output -cne 'Hello, Alice!' -or
-        -not [string]::IsNullOrEmpty($AliceHello.Error)) {
+        -not (Test-SwawHarnessRunAnnouncement -Value $AliceHello.Error)) {
         throw 'Alice User CLI did not invoke her copied Core Skill Map.'
     }
 
@@ -69,12 +75,12 @@ function Test-SwawHarnessUserCreation {
     $AliceRecordHash = Get-SwawHarnessFileSha256 -Path $AliceRecordPath
     $RepeatAlice = Invoke-SwawHarnessCapturedProcess `
         -Executable $AdminHost.UserCliPath `
-        -Arguments @('admin/user/create', 'alice') `
+        -Arguments @('core/admin/user/create', 'alice') `
         -WorkingDirectory $DataHome `
         -TimeoutSeconds 30
     if ($RepeatAlice.ExitCode -ne 0 -or
         -not [string]::IsNullOrEmpty($RepeatAlice.Output) -or
-        -not [string]::IsNullOrEmpty($RepeatAlice.Error) -or
+        -not (Test-SwawHarnessRunAnnouncement -Value $RepeatAlice.Error) -or
         (Get-SwawHarnessFileSha256 -Path $AliceRecordPath) -cne
             $AliceRecordHash -or
         [IO.Directory]::Exists((Join-Path $AliceHome 'map\core\later'))) {
@@ -83,7 +89,7 @@ function Test-SwawHarnessUserCreation {
 
     $CreateRecover = Invoke-SwawHarnessCapturedProcess `
         -Executable $AdminHost.UserCliPath `
-        -Arguments @('admin/user/create', 'recover') `
+        -Arguments @('core/admin/user/create', 'recover') `
         -WorkingDirectory $DataHome `
         -TimeoutSeconds 30
     $RecoverHome = Join-Path $DataHome 'recover'
@@ -100,13 +106,13 @@ function Test-SwawHarnessUserCreation {
     )
     $InactiveRecover = Invoke-SwawHarnessCapturedProcess `
         -Executable $RecoverCli `
-        -Arguments @('helloworld') `
+        -Arguments @('core/helloworld') `
         -WorkingDirectory $DataHome `
         -TimeoutSeconds 30
     [IO.File]::Delete($RecoverCli)
     $ResumeRecover = Invoke-SwawHarnessCapturedProcess `
         -Executable $AdminHost.UserCliPath `
-        -Arguments @('admin/user/create', 'recover') `
+        -Arguments @('core/admin/user/create', 'recover') `
         -WorkingDirectory $DataHome `
         -TimeoutSeconds 30
     $RecoveredRecord = Read-SwawHarnessJsonFile `
@@ -123,7 +129,7 @@ function Test-SwawHarnessUserCreation {
 
     $CreateBob = Invoke-SwawHarnessCapturedProcess `
         -Executable $AliceCli `
-        -Arguments @('admin/user/create', 'bob') `
+        -Arguments @('core/admin/user/create', 'bob') `
         -WorkingDirectory $DataHome `
         -TimeoutSeconds 30
     $BobRecord = Read-SwawHarnessJsonFile `

@@ -13,7 +13,7 @@ use super::lock::UserLock;
 use super::publication::{publication_stage, replace_record};
 
 const PLATFORM_TARGET_ID: &str = "x86_64-pc-windows-msvc";
-const HOST_VERSION: &str = "1.0.8";
+const HOST_VERSION: &str = "1.0.9";
 
 static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
 

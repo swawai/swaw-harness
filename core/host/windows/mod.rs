@@ -2,6 +2,7 @@ use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 
 mod identity;
+mod invocation;
 mod process;
 mod security;
 mod server;

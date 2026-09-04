@@ -15,11 +15,11 @@ use windows_sys::Win32::System::Pipes::{
 use windows_sys::Win32::System::Threading::CreateMutexW;
 
 use super::identity::HostIdentity;
+use super::invocation;
 use super::os_string;
-use super::process;
 use super::security::LocalSecurity;
-use crate::dispatch::prepare_call;
 use crate::wire::{self, KIND_ERROR, KIND_RESULT};
+use swaw_harness_core_protocol::SkillInvocationTarget;
 
 const PIPE_BUFFER_BYTES: u32 = 64 * 1024;
 
@@ -91,22 +91,19 @@ fn invoke(pipe: &mut File, identity: &HostIdentity) -> Result<(), String> {
     }
 
     let mut arguments = request.arguments.into_iter();
-    let skill_units = arguments
+    let target_units = arguments
         .next()
-        .ok_or_else(|| "Core Host request has no SkillPath".to_owned())?;
-    let skill_path = String::from_utf16(&skill_units)
-        .map_err(|_| "Core Host SkillPath is not valid UTF-16".to_owned())?;
-    let dynamic_arguments = arguments
-        .map(|value| os_string(&value, "dynamic argument"))
-        .collect::<Result<Vec<_>, _>>()?;
-    let call = prepare_call(
-        identity.data_home(),
-        identity.user_home(),
-        &skill_path,
-        dynamic_arguments,
-    )?;
-    let exit_code = process::execute(&call, pipe)?;
-    wire::write_frame(pipe, KIND_RESULT, &exit_code.to_le_bytes())
+        .ok_or_else(|| "Core Host request has no Skill invocation target".to_owned())?;
+    let target_text = String::from_utf16(&target_units)
+        .map_err(|_| "Core Host Skill invocation target is not valid UTF-16".to_owned())?;
+    let target = SkillInvocationTarget::parse(&target_text)?;
+    if target.skill_map_id() != "core" {
+        return Err(format!(
+            "Core Host currently supports only SkillMapId 'core': {}",
+            target.skill_map_id()
+        ));
+    }
+    invocation::invoke(pipe, identity, &target, arguments)
 }
 
 fn last_error(activity: &str) -> String {

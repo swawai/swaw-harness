@@ -10,6 +10,12 @@ pub(crate) struct PreparedCall {
     executable: PathBuf,
     arguments: Vec<OsString>,
     working_directory: PathBuf,
+    module: String,
+    version: String,
+    platform_target_id: String,
+    executable_name: String,
+    executable_length: u64,
+    executable_sha256: String,
 }
 
 impl PreparedCall {
@@ -23,6 +29,12 @@ impl PreparedCall {
             executable,
             arguments,
             working_directory,
+            module: "swaw/test/probe".to_owned(),
+            version: "1.0.0".to_owned(),
+            platform_target_id: PLATFORM_TARGET_ID.to_owned(),
+            executable_name: "probe.exe".to_owned(),
+            executable_length: 0,
+            executable_sha256: "0".repeat(64),
         }
     }
 
@@ -36,6 +48,34 @@ impl PreparedCall {
 
     pub(crate) fn working_directory(&self) -> &Path {
         &self.working_directory
+    }
+
+    pub(crate) fn set_working_directory(&mut self, value: PathBuf) {
+        self.working_directory = value;
+    }
+
+    pub(crate) fn module(&self) -> &str {
+        &self.module
+    }
+
+    pub(crate) fn version(&self) -> &str {
+        &self.version
+    }
+
+    pub(crate) fn platform_target_id(&self) -> &str {
+        &self.platform_target_id
+    }
+
+    pub(crate) fn executable_name(&self) -> &str {
+        &self.executable_name
+    }
+
+    pub(crate) fn executable_length(&self) -> u64 {
+        self.executable_length
+    }
+
+    pub(crate) fn executable_sha256(&self) -> &str {
+        &self.executable_sha256
     }
 }
 
@@ -58,9 +98,16 @@ pub(crate) fn prepare_call(
 
     let mut arguments: Vec<OsString> = declaration.arguments().iter().map(OsString::from).collect();
     arguments.extend(dynamic_arguments);
+    let executable_name = declaration.executable().to_owned();
     Ok(PreparedCall {
         executable: release.executable_path().to_owned(),
         arguments,
         working_directory: release.root().to_owned(),
+        module: release.module().to_string(),
+        version: release.version().to_string(),
+        platform_target_id: release.platform_target_id().to_owned(),
+        executable_name,
+        executable_length: release.executable_length(),
+        executable_sha256: release.executable_sha256().to_owned(),
     })
 }

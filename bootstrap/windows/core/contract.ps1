@@ -45,7 +45,7 @@ function Read-SwawHarnessWindowsCoreContracts {
         [pscustomobject][ordered]@{
             Package = 'swaw-harness-admin'
             ModuleId = 'swaw/core/admin'
-            Version = '1.0.10'
+            Version = '1.0.11'
             BuildArtifact = 'swaw-harness-admin.exe'
             Artifact = 'swaw-harness-admin.exe'
         }

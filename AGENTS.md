@@ -14,10 +14,10 @@
 - **UserId**：Admin Core module executable 为一个普通 Harness 用户验证的文件系统名称，最多 16 个字符；目标中同时用作 `<DataHome>/<UserId>.exe` 的文件名和 `<DataHome>/<UserId>/` UserHome 的目录名。`admin` 固定属于 Admin 用户，不得作为普通 UserId。
 - **UserHome**：与一个 Harness 用户唯一绑定的目录根，固定为 `<DataHome>/<UserId>/`。普通 Harness 用户的初始 UserHome 由 Admin Core module executable 建立，包含 `user.json`、创建时复制的 `map/core/` Core 技能图快照和 `host/` Core Host 版本指针根；基础资源空间仍按需建立。
 - **Harness 用户记录**：普通 Harness 用户 UserHome 根下固定名为 `user.json` 的严格版本化 JSON 文件；当前 schema 为 `swaw.harness.user/v1`，绑定规范 UserId、用户 CLI executable 长度与 SHA-256，并以 `creating` 或 `active` 表示创建生命周期。未知 schema、未知字段、身份不匹配或非 `active` 状态不得作为已创建用户启动 Core Host。固定 Admin 用户由 Bootstrap 初始化，不使用该记录。
-- **用户 CLI executable**：Bootstrap Release 中通用文件名为 `user.exe`、安装后位于 `<DataHome>/<UserId>.exe` 的小型 console executable；它从自身文件名确定 UserId，读取该用户的 Core Host 版本指针，冷启动 Admin 用户共享的 Core Host Module Release，并以本机命名管道转发一次批处理技能调用。它不解析技能图或模块清单；除固定身份 `swaw/core/host` 外不得选择或启动其他模块。Windows Bootstrap 把它初始安装为 `<DataHome>/admin.exe`，Admin Core module executable 在创建普通用户时以相同字节安装对应 `<UserId>.exe`。
-- **Core Host executable**：名为 `swaw-harness-core.exe`、ModuleId 固定为 `swaw/core/host` 的独立 Module Release executable；同一不可变 executable 可由多个 Harness 用户共享，但每个运行中的 Core Host 进程只服务一个 Harness 用户。它从该用户的 Core 技能图解析 SkillPath、验证 Admin 用户共享的 Module Release、以批处理方式监督模块进程并返回 stdout、stderr 与退出码。固定 Admin 用户不需要 Harness 用户记录；普通 Harness 用户只有在 `user.json` 严格有效、生命周期为 `active` 且同名用户 CLI 匹配记录的长度和 SHA-256 时才可冷启动 Host。Windows v1 不监听 TCP/回环地址，只接受同一 Windows 登录会话通过本机命名管道发起的调用。
+- **用户 CLI executable**：Bootstrap Release 中通用文件名为 `user.exe`、安装后位于 `<DataHome>/<UserId>.exe` 的小型 console executable；它从自身文件名确定 UserId，读取该用户的 Core Host 版本指针，冷启动 Admin 用户共享的 Core Host Module Release，并以本机命名管道转发一次批处理技能调用。它不解析技能图或模块清单；除固定身份 `swaw/core/host` 外不得选择或启动其他模块。对已建立 Run 的调用，它把 Core Host 的独立 RunId 响应帧显示为标准错误上的 `[RUN] <RunId>`，不把该行混入模块标准输出。Windows Bootstrap 把它初始安装为 `<DataHome>/admin.exe`，Admin Core module executable 在创建普通用户时以相同字节安装对应 `<UserId>.exe`。
+- **Core Host executable**：名为 `swaw-harness-core.exe`、ModuleId 固定为 `swaw/core/host` 的独立 Module Release executable；同一不可变 executable 可由多个 Harness 用户共享，但每个运行中的 Core Host 进程只服务一个 Harness 用户。它解析技能调用目标，从该用户的技能图解析 SkillPath、验证 Admin 用户共享的 Module Release、建立 Run 和运行节点目录、以批处理方式监督模块进程，并分别返回 RunId 元数据、模块 stdout、模块 stderr 与退出码。固定 Admin 用户不需要 Harness 用户记录；普通 Harness 用户只有在 `user.json` 严格有效、生命周期为 `active` 且同名用户 CLI 匹配记录的长度和 SHA-256 时才可冷启动 Host。当前 Windows 实现不监听 TCP/回环地址，只接受同一 Windows 登录会话通过本机命名管道发起的调用。
 - **Core Host 版本指针**：位于 `<UserHome>/host/current.<PlatformTargetId>` 的普通 UTF-8 文本文件，只保存一个无预发布或构建后缀的精确 `MAJOR.MINOR.PATCH` 版本号并以换行结尾；它只选择同一 DataHome 中固定 ModuleId `swaw/core/host`、固定 PlatformTargetId 与固定 executable 名称的已验证 Module Release，不保存路径、不解析技能图、不允许模糊版本。原子替换该文件只影响后续冷启动，已经运行的 Core Host 进程继续使用启动时的版本。
-- **批处理技能调用**：用户 CLI 向对应 Core Host 提交一个 SkillPath 与动态参数的一次性调用；一个命名管道连接只承载一个命令，模块 stdin 固定关闭，stdout、stderr 和退出码分别返回，不建立交互会话。
+- **批处理技能调用**：用户 CLI 向对应 Core Host 提交一个技能调用目标与动态参数的一次性调用；一个命名管道连接只承载一个命令，模块 stdin 固定关闭。建立 Run 后 Core Host 先返回独立 RunId 元数据，再分别返回模块 stdout、模块 stderr 和退出码；用户 CLI 把 RunId 显示到自身 stderr，不建立交互会话。
 - **Admin 用户（Admin User）**：DataHome 中固定且最先存在的管理 Harness 用户；其 UserId 固定为 `admin`，UserHome 固定为 `<DataHome>/admin/`，当前直接包含 `map/` 技能图根、`modules/` 共享模块发布根、`host/` Core Host 版本指针根，并在管理其他 Harness 用户时使用 `user.lock`。Admin UserHome 持续存在，不得整体替换或删除。
 - **Bootstrap**：无需已编译 Harness 即可运行，自动准备宿主平台声明的便携构建环境，并在无需用户预装、配置或交互干预的情况下编译出 Harness 核心的启动构建流程。
 - **PlatformTargetId**：Bootstrap 平台目标的文件系统安全标识；当前 Windows Bootstrap 使用 Rust 平台目标三元组 `x86_64-pc-windows-msvc` 作为 PlatformTargetId。
@@ -26,19 +26,24 @@
 - **技能图根（Skill Map Root）**：一个 Harness 用户中固定在 `<UserHome>/map/`、容纳多棵具名技能图的目录；Admin 用户的技能图根固定为 `data/admin/map/`。技能图根本身不是一棵技能图，不保存 Module Release 或 Resource 的事实数据，也不属于资源空间。
 - **SkillMapId**：技能图根下一个技能图的目录名；必须是规范小写 ASCII 文件系统安全名称。`core` 固定保留给 Core 技能图，其他 SkillMapId 留给用户或领域技能图。
 - **技能图（Skill Map）**：固定在 `<UserHome>/map/<SkillMapId>/`、使用真实文件系统目录树保存技能描述、模块选择指针和寻址索引的可查看、可修改实例。技能图目录父子关系首先表达分类、SkillPath 包含和技能子树选择范围，本身不自动构成执行顺序或显式依赖。当前只有 Core 技能图成为仓库实体；其他技能图的创建、协议和执行方式尚未实现。
-- **Core 技能图**：SkillMapId 为 `core` 的内置技能图；仓库纳入 Git 的唯一默认实例及 Admin 用户当前实例固定为 `data/admin/map/core/`，普通 Harness 用户创建时把当时的 Admin Core 技能图完整复制为 `<UserHome>/map/core/` 独立快照，后续双方修改互不自动同步。当前只实现 SkillPath 到 Module Release executable 的绑定和单节点执行；技能子树执行、节点依赖、子树安装及运行计划尚未实现。
+- **Core 技能图**：SkillMapId 为 `core` 的内置技能图；仓库纳入 Git 的唯一默认实例及 Admin 用户当前实例固定为 `data/admin/map/core/`，普通 Harness 用户创建时把当时的 Admin Core 技能图完整复制为 `<UserHome>/map/core/` 独立快照，后续双方修改互不自动同步。当前只实现技能调用目标到 Core 技能图 SkillPath、Module Release executable 和单节点 Run 的绑定；技能子树执行、节点依赖、子树安装及运行计划尚未实现。
 - **SkillPath**：一个技能节点目录相对其技能图根的规范化文件系统路径；每个路径段必须是规范小写 ASCII 文件系统安全名称。SkillPath 独立于 ModuleId、模块作者目录与资源空间中的 Resource 路径。
 - **技能节点（Skill Node）**：技能图中的一个真实目录；目录包含 `skill.toml` 时该 SkillPath 可调用，不包含时只是分类节点。可调用节点可以继续包含子节点，不要求位于叶目录；技能图根本身当前不得包含 `skill.toml`。
 - **技能子树（Skill subtree）**：技能图中一个目录及其全部后代目录形成的真实目录范围，可以同时包含可调用技能节点和只用于分类的节点；技能子树只确定一次子树操作的选择范围，普通选择本身不会使其自动成为编排或产生父子执行依赖。
 - **技能执行范围**：技能调用的目标范围。当前已实现的节点执行只调用目标 SkillPath 的 `skill.toml`；尚未实现的子树执行以一个技能子树为范围，并规划普通、强父子顺序和无父子顺序三种模式，普通模式是默认模式。普通模式只采用子树中明确声明的父子顺序；强父子顺序模式把所选范围的可调用父节点成功作为后代运行前提；无父子顺序模式忽略所选范围内普通或已声明的结构顺序。后两种模式只能增加或忽略目录产生的结构顺序，不得绕过显式依赖；影响执行正确性的前置条件必须声明为显式依赖，不能只依赖可被忽略的结构顺序。
 - **编排子树（Playbook）**：对父子执行顺序或节点显式依赖作出明确声明的技能子树，是同一技能图实例中的使用者称呼，不是独立协议实体、技能节点类型、目录根或 Module Release 类型；其声明文件、schema、执行计划和运行记录尚未确定和实现。
 - **技能执行依赖**：计划中的技能子树执行关系，分为由子树执行模式或编排声明产生、可被执行模式收紧或忽略的结构顺序，以及任何执行模式都不得绕过的显式依赖；显式依赖可以要求前置节点在本次运行中成功，也可以进一步要求其特定产物。目录分类关系、文件路径相邻或共同祖先均不得自行升级为显式依赖。
+- **技能调用目标（Skill invocation target）**：用户 CLI 提交给 Core Host 的规范相对路径，形式为 `<SkillMapId>/<SkillPath>` 或 `<SkillMapId>/<SkillPath>/<显式 NodeMethod 选择器>`；当前只支持 SkillMapId `core`。省略选择器时使用隐式 `node` 方法执行目标技能节点；显式选择器由 Core Host 在最后一个路径段识别，不属于 SkillPath，也不对应技能图中的真实目录。
+- **节点方法（Node method）**：Core Host 对技能调用目标提供的封闭控制面方法。当前方法集合是省略选择器时使用的 `node`，以及显式保留的 `/.tree`、`/.tree.parent-success`、`/.tree.no-structure`、`/.help` 和 `/.plan`；它们分别表示单节点执行、普通子树、强父子顺序子树、无父子顺序子树、能力说明和计划预检，不得通过 `.node-facet`、真实点号目录或 `skill.toml` 选择 executable。当前 Core Host 只实现 `node`，显式保留方法必须明确报告尚未实现。
 - **技能声明（Skill declaration）**：技能节点目录中规范名为 `skill.toml`、由人类维护的严格版本化 TOML 文件；当前 schema 为 `swaw.harness.skill/v2`，使用 `module`、`version`、`executable` 和 `arguments` 直接声明该节点的模块选择与固定命令参数，不使用 Resource 声明文件、Facet 层或可继承 executable binding。旧 `skill.json` 不构成技能声明，也不得与 `skill.toml` 共存。
 - **ModuleId**：由规范小写文件系统名称 `<Publisher>/<Group>/<Module>` 组成的三段模块身份，例如 `swaw/core/admin`；它独立于源码仓库地址、Resource 路径和 executable 文件名。
 - **Module Release**：安装在 `<DataHome>/admin/modules/<Publisher>/<Group>/<Module>/<PlatformTargetId>/<Version>/` 的模块平台发布目录；`Version` 是不含预发布或构建后缀的 `MAJOR.MINOR.PATCH` 语义化版本。当前 `swaw.harness.module/v1` 发布目录只允许包含一个不可变 executable 与 `swaw-harness.module.json`，不得放入未由清单声明和验证的私有运行文件；私有运行文件的清单字段、目录成员规则与完整性验证留待首个真实需求确定。Core Host 也以固定 ModuleId `swaw/core/host` 使用这一发布布局，不另建 Core Host 专用发布格式。Windows Bootstrap 负责从完整且已验证的 Bootstrap Release 初始物化本次构建的 Module Release；运行时安装目标由 Admin Core module executable 拥有。
 - **Resource**：在一个资源空间内通过目录树寻址找到、由技能读取或写入的对象。
 - **资源空间**：一个 Harness 用户中具有独立文件系统根、事实来源、生命周期与写入权限边界的一组 Resource；不得简称为含义过宽的 `Space`。资源空间保存被模块读取或写入的数据，不保存 executable 绑定；技能图根、技能图与 Module Release 根均不属于资源空间。
-- **基础资源空间**：Core 协议保留规范名称 `author` 的作者（源代码）、`runtime` 的运行（发布）、`runs` 的 logs、`export` 和 `context` 模块专用上下文记录空间；对应根分别为 `<UserHome>/author/`、`<UserHome>/runtime/`、`<UserHome>/runs/`、`<UserHome>/export/` 和 `<UserHome>/context/`，需要时才建立。`map` 不是基础资源空间。
+- **基础资源空间**：Core 协议保留规范名称 `author` 的作者（源代码）、`runtime` 的运行（发布）、`runs` 的运行记录和节点工作目录、`export` 和 `context` 模块专用上下文记录空间；对应根分别为 `<UserHome>/author/`、`<UserHome>/runtime/`、`<UserHome>/runs/`、`<UserHome>/export/` 和 `<UserHome>/context/`，需要时才建立。结构化日志预计归入对应 Run，但其通道和落盘协议尚未定义；`map` 不是基础资源空间。
+- **RunId**：Core Host 为一次顶层技能执行生成的规范小写 32 位十六进制 UUIDv7 文本，在所属 UserHome 的 `runs` 资源空间内唯一；未来一次技能子树执行中的全部节点共享同一个 RunId，重播或重试必须建立新的 RunId 并另行引用来源 Run。
+- **技能运行（Run）**：Core Host 对一次顶层技能执行建立的运行事实与工作目录集合，固定根为 `<UserHome>/runs/<RunId>/`。当前单节点执行在该根写入严格版本化 JSON `run.json`，并按 `<SkillMapId>/<SkillPath>/` 建立运行节点目录；未来子树执行继续在同一 Run 根中展开全部参与节点，不把每个节点分配成独立 Run。
+- **运行节点目录（Run node directory）**：一个 Run 中对应某技能节点的目录，固定为 `<UserHome>/runs/<RunId>/<SkillMapId>/<SkillPath>/`；Core Host 在启动模块前建立它并把它作为该模块进程的当前工作目录。目录层级镜像本次运行所选技能节点的 SkillMapId 与 SkillPath，只属于该 Run 的运行事实和文件边界，不把资源空间路径反向升级为 SkillPath 声明。
 - **派生资源空间**：由领域或用户机制通过某技能建立的资源空间；它具有自己的文件系统根，并使用与基础资源空间相同的目录树寻址模型。
 - **目录树寻址**：每个资源空间以其文件系统目录树作为 Resource 地址域，每棵技能图以自己的文件系统目录树作为 SkillPath 地址域；两者分别使用各自根下规范化的相对路径，不要求镜像，也不另建逻辑 Route 或其他地址模型。技能如何接收资源空间及 Resource 路径留待首次调用协议实现确定。
 - **ReleaseId**：发布根下 `<ReleaseId>/` 不可变发布目录的名称，由发布目标与目录内全部发布物内容的哈希确定；发布目标与全部内容均相同时复用同一目录。
@@ -51,13 +56,14 @@
 - **REPO-003 — 规则就近归属。** 全仓规则写入根 `AGENTS.md`，领域规则写入最近领域目录的 `AGENTS.md`；修改路径时从根向下依次读取并叠加，不得在多个文件重复维护同一规则。
 - **REPO-004 — 代码就近归属。** 代码应归入最近的稳定领域目录；允许父领域承载多个相关模块，但必须保持领域边界，不得长期堆积在总入口或总 dispatcher。
 - **REPO-005 — DataHome 可独立复制运行。** DataHome 必须位于 `<HarnessRoot>/data`，其用户 CLI executable、Core Host 版本指针、Admin 用户、普通 Harness 用户、Module Release 及其他发布运行资源不得依赖 data.repo 的绝对路径；仓库本地 Bootstrap 工具链、构建、缓存与日志不得写入 DataHome，只有面向 DataHome 最终发布的同目录暂存可以在完成或失败后立即清理。`<DataHome>/admin/` 是持续存在的 Admin UserHome，不得整体替换；模块原子发布只作用于其 `modules/` 下具体 `<Version>/`，Core Host 版本切换只原子替换目标用户 `host/` 下的 Core Host 版本指针。
-- **REPO-006 — Harness 用户由 Admin 模块创建。** 目标中只有 Admin Core module executable 可以实现普通 Harness 用户创建与生命周期写入；当前 `admin/user/create <UserId>` 不区分调用方 Harness 用户，授权另由 Issue #55 处理。创建必须在 `data/admin/user.lock` 协调下，先完整暂存并验证 `<DataHome>/<UserId>/`，再提交 `<DataHome>/<UserId>.exe`，最后以原子文件替换把 Harness 用户记录从 `creating` 切换为 `active`；中断状态可恢复但不得被 Core Host 视作已创建用户。用户 CLI executable 与 Core Host executable 均不得自行实现该生命周期。
+- **REPO-006 — Harness 用户由 Admin 模块创建。** 目标中只有 Admin Core module executable 可以实现普通 Harness 用户创建与生命周期写入；当前技能调用目标 `core/admin/user/create <UserId>` 不区分调用方 Harness 用户，授权另由 Issue #55 处理。创建必须在 `data/admin/user.lock` 协调下，先完整暂存并验证 `<DataHome>/<UserId>/`，再提交 `<DataHome>/<UserId>.exe`，最后以原子文件替换把 Harness 用户记录从 `creating` 切换为 `active`；中断状态可恢复但不得被 Core Host 视作已创建用户。用户 CLI executable 与 Core Host executable 均不得自行实现该生命周期。
 
 - **REPO-007 — 核心术语统一。** 本文件的“核心术语”是全仓 `AGENTS.md` 的统一用语源；新增或改变核心高频术语必须先更新该段落，下级 `AGENTS.md` 不得自行创造同义词或改变既有含义。
 - **REPO-008 — 不可变发布只前进。** Bootstrap Release 与 Runtime Release 使用 ReleaseId 内容身份发布；包括 Core Host 在内的 Module Release 使用 ModuleId、PlatformTargetId 与精确语义化版本定位。所有发布物必须先在暂存区完整生成并验证，再原子发布到尚不存在的不可变目标，不得覆盖或合并写入已发布目标。技能声明只允许选择已经验证的 Module Release；Core Host 版本指针只允许选择已经验证的 `swaw/core/host` Module Release。本规则不规定用户如何批量修改或切换 `<UserHome>/map/core/` Core 技能图实例。
 - **REPO-009 — data.repo 仅属仓库。** data.repo 固定为 `<repository>/data.repo`，只保存不随 DataHome 复制发布的仓库本地数据；各宿主平台在其中使用明确的平台领域根，不得让 data.repo 成为运行时依赖。
 - **REPO-010 — 普通 Harness 用户初始发布边界。** `admin/user/create` 为普通 Harness 用户安装与 Admin 用户 CLI 相同字节的 `<DataHome>/<UserId>.exe`，复制当时的 `data/admin/map/core/` 为独立 `<UserHome>/map/core/` 快照，并复制 Admin 用户的精确 Core Host 版本号为该用户自己的版本指针；它不复制共享 Module Release、不建立 Runtime Release 或基础资源空间。重复创建只验证完整 `active` 实例并成功返回，不同步后来变化的 Admin 技能图或用户 CLI。
-- **REPO-012 — DataHome 结构化文档格式按维护者划分。** DataHome 中由 Harness 使用者直接维护的结构化声明使用 TOML，当前具体实体为 Core 技能图中的 `skill.toml`；未来权限或检查配置只有在定义为使用者维护声明时才沿用 TOML。由程序生成或持有的事实记录与发布清单继续使用 JSON，当前具体实体包括 `user.json`、`swaw-harness.module.json`、Bootstrap Release 的 `manifest.json` 与模块运行状态 JSON；不得为了统一扩展名而把程序事实改作使用者配置。源码仓库内部的 Bootstrap 构建 Contract 由对应平台领域决定格式，Markdown 等非结构化文档也不属于本规则。
+- **REPO-012 — DataHome 结构化文档格式按维护者划分。** DataHome 中由 Harness 使用者直接维护的结构化声明使用 TOML，当前具体实体为 Core 技能图中的 `skill.toml`；未来权限或检查配置只有在定义为使用者维护声明时才沿用 TOML。由程序生成或持有的事实记录与发布清单继续使用 JSON，当前具体实体包括 `user.json`、`run.json`、`swaw-harness.module.json`、Bootstrap Release 的 `manifest.json` 与模块运行状态 JSON；不得为了统一扩展名而把程序事实改作使用者配置。源码仓库内部的 Bootstrap 构建 Contract 由对应平台领域决定格式，Markdown 等非结构化文档也不属于本规则。
+- **REPO-013 — 单节点 Run 由 Core Host 固化并返回身份。** Core Host 必须在验证技能声明和 Module Release 后、启动模块前生成 RunId，按需建立 `<UserHome>/runs/`、Run 根及运行节点目录，并先写入 schema 为 `swaw.harness.run/v1` 的 `run.json`。该记录必须固化 RunId、开始时间、技能调用目标、`node` 节点方法、解析后的 ModuleId、精确版本、PlatformTargetId、executable 名称、长度和 SHA-256，以及按 Windows UTF-16 code unit 无损编码的固定与动态参数；初始结果为 `running`，取得模块退出码后原子替换为 `completed` 和该退出码，Host 监督失败则原子替换为 `failed` 和错误。Run 建立后、模块启动前，Core Host 必须通过独立响应帧返回同一个 RunId；stdout、stderr 继续只通过各自调用帧返回，不构成尚未定义的结构化日志通道。
 
 ## Open
 
@@ -66,7 +72,7 @@
 ## Maintainer Notes
 
 - 待办：验证并实现 `swaw-harness` 脱离 `swaw-kit` 父目录和源码树后仍可独立构建、测试、打包与发布；完成前不得将其表述为当前能力。
-- `data/admin.exe admin/user/create alice` 与随后 `data/alice.exe helloworld [recipient]` 已形成普通 Harness 用户创建及调用闭环；这只证明 UserHome、用户 CLI、Core Host 版本指针和 Core 技能图快照可被原子建立、恢复与执行。资源空间 Resource 验证、Harness 用户授权、模块安装、技能组合及用户删除、升级仍未实现，不得由该样例外推为完整系统。
+- `data/admin.exe core/admin/user/create alice` 与随后 `data/alice.exe core/helloworld [recipient]` 已形成普通 Harness 用户创建及单节点 Run 调用闭环；这只证明 UserHome、用户 CLI、Core Host 版本指针、Core 技能图快照、单节点运行记录和工作目录可被建立、恢复与执行。结构化日志、重播、资源空间 Resource 验证、Harness 用户授权、模块安装、技能组合及用户删除、升级仍未实现，不得由该样例外推为完整系统。
 - swaw-kit 中对应本项目的旧代码在： D:/2026.7/swaw-kit/_lib\proj，迁移注意参考
 
 ## Agent 工作约束

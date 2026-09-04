@@ -58,7 +58,7 @@ fn module_process_is_batch_only_and_inherits_only_its_standard_handles() {
             OsString::from("--ignored"),
             OsString::from("--nocapture"),
         ],
-        working_directory,
+        working_directory.clone(),
     );
     let mut child = ChildProcess::spawn(&call).unwrap();
     drop(unrelated_write);
@@ -88,14 +88,19 @@ fn module_process_is_batch_only_and_inherits_only_its_standard_handles() {
     let reader = thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
             if let Some(value) = line.strip_prefix(PROBE_MARKER) {
-                let _ = sender.send(value.parse::<u32>().unwrap());
+                let (process_id, working_directory) = value.split_once('\t').unwrap();
+                let _ = sender.send((
+                    process_id.parse::<u32>().unwrap(),
+                    std::path::PathBuf::from(working_directory),
+                ));
                 break;
             }
         }
     });
-    let descendant_id = receiver
+    let (descendant_id, child_working_directory) = receiver
         .recv_timeout(Duration::from_secs(10))
         .expect("module probe did not observe stdin EOF or start its descendant");
+    assert_eq!(child_working_directory, working_directory);
     let descendant = unsafe {
         OpenProcess(
             PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE_PROCESS,
@@ -131,7 +136,11 @@ fn module_process_probe() {
         .args(["/d", "/s", "/c", "ping -n 30 127.0.0.1 >nul"])
         .spawn()
         .unwrap();
-    println!("{PROBE_MARKER}{}", descendant.id());
+    println!(
+        "{PROBE_MARKER}{}\t{}",
+        descendant.id(),
+        std::env::current_dir().unwrap().display()
+    );
     std::io::stdout().flush().unwrap();
     thread::sleep(Duration::from_secs(30));
 }
