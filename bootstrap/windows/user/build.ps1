@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$CompilerPath,
     [Parameter(Mandatory = $true)][string]$LinkerPath,

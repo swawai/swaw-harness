@@ -1,4 +1,4 @@
-Set-StrictMode -Version 2.0
+﻿Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot '..\builder\foundation.ps1')
 . (Join-Path $PSScriptRoot '..\builder\filesystem.ps1')

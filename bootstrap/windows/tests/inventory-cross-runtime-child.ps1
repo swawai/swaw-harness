@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$ControlledRoot,
     [Parameter(Mandatory = $true)][string]$RustRoot,

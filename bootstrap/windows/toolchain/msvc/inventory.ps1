@@ -1,4 +1,4 @@
-Set-StrictMode -Version 2.0
+﻿Set-StrictMode -Version 2.0
 
 . (Join-Path $PSScriptRoot '..\inventory.ps1')
 . (Join-Path $PSScriptRoot 'payload.ps1')
