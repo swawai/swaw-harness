@@ -1,5 +1,7 @@
 #include "user.h"
 
+#include <limits.h>
+
 static DWORD swaw_length(const WCHAR *value)
 {
     DWORD length = 0;
@@ -25,6 +27,111 @@ static BOOL swaw_write_all(HANDLE handle, const BYTE *buffer, DWORD length)
         }
         position += written;
     }
+    return TRUE;
+}
+
+static BOOL swaw_write_utf8_text(
+    HANDLE handle,
+    const BYTE *buffer,
+    DWORD length
+)
+{
+    DWORD console_mode;
+    int required_units;
+    int converted_units;
+    int additional_units = 0;
+    WCHAR *text;
+    DWORD position = 0U;
+
+    if (!GetConsoleMode(handle, &console_mode)) {
+        return swaw_write_all(handle, buffer, length);
+    }
+    if (length == 0U) {
+        return TRUE;
+    }
+    required_units = MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        (const char *)buffer,
+        (int)length,
+        NULL,
+        0
+    );
+    if (required_units <= 0) {
+        return FALSE;
+    }
+    text = (WCHAR *)HeapAlloc(
+        GetProcessHeap(),
+        0U,
+        (SIZE_T)required_units * sizeof(WCHAR)
+    );
+    if (text == NULL) {
+        return FALSE;
+    }
+    converted_units = MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        (const char *)buffer,
+        (int)length,
+        text,
+        required_units
+    );
+    if (converted_units != required_units) {
+        HeapFree(GetProcessHeap(), 0U, text);
+        return FALSE;
+    }
+    for (converted_units = 0; converted_units < required_units; ++converted_units) {
+        if (text[converted_units] == L'\n' &&
+            (converted_units == 0 || text[converted_units - 1] != L'\r')) {
+            ++additional_units;
+        }
+    }
+    if (additional_units > 0) {
+        int source = required_units;
+        int destination;
+        WCHAR *expanded;
+        if (additional_units > INT_MAX - required_units) {
+            HeapFree(GetProcessHeap(), 0U, text);
+            return FALSE;
+        }
+        converted_units = required_units + additional_units;
+        expanded = (WCHAR *)HeapReAlloc(
+            GetProcessHeap(),
+            0U,
+            text,
+            (SIZE_T)converted_units * sizeof(WCHAR)
+        );
+        if (expanded == NULL) {
+            HeapFree(GetProcessHeap(), 0U, text);
+            return FALSE;
+        }
+        text = expanded;
+        destination = converted_units;
+        while (source > 0) {
+            WCHAR unit = text[--source];
+            text[--destination] = unit;
+            if (unit == L'\n' && (source == 0 || text[source - 1] != L'\r')) {
+                text[--destination] = L'\r';
+            }
+        }
+    } else {
+        converted_units = required_units;
+    }
+    while (position < (DWORD)converted_units) {
+        DWORD written = 0U;
+        if (!WriteConsoleW(
+                handle,
+                text + position,
+                (DWORD)converted_units - position,
+                &written,
+                NULL
+            ) || written == 0U) {
+            HeapFree(GetProcessHeap(), 0U, text);
+            return FALSE;
+        }
+        position += written;
+    }
+    HeapFree(GetProcessHeap(), 0U, text);
     return TRUE;
 }
 
@@ -229,6 +336,14 @@ __declspec(noreturn) void swaw_receive(HANDLE pipe)
         if (kind == SWAW_KIND_STDOUT) {
             if (output != NULL && output != INVALID_HANDLE_VALUE) {
                 if (!swaw_write_all(output, payload, length)) {
+                    HeapFree(GetProcessHeap(), 0U, payload);
+                    CloseHandle(pipe);
+                    ExitProcess(1U);
+                }
+            }
+        } else if (kind == SWAW_KIND_UTF8_STDOUT) {
+            if (output != NULL && output != INVALID_HANDLE_VALUE) {
+                if (!swaw_write_utf8_text(output, payload, length)) {
                     HeapFree(GetProcessHeap(), 0U, payload);
                     CloseHandle(pipe);
                     ExitProcess(1U);

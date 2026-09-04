@@ -3,13 +3,15 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 mod document;
+mod help;
 
 use crate::filesystem::find_exact_child;
 use document::parse_skill_declaration;
 pub use document::{ModuleId, SKILL_DOCUMENT_NAME, SkillDeclaration, Version, VersionSelector};
+pub use help::{HelpLanguage, SkillHelpNode};
 
 const AGENT_DOCUMENT_NAME: &str = "AGENTS.md";
-const MAXIMUM_TREE_DEPTH: usize = 64;
+pub(crate) const MAXIMUM_TREE_DEPTH: usize = 64;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SkillNode {
@@ -70,7 +72,7 @@ impl SkillMap {
         let declaration_path =
             find_exact_regular_file(&skill_directory, SKILL_DOCUMENT_NAME, "Skill declaration")?;
         let declaration = parse_skill_declaration(&declaration_path)?;
-        validate_directory_entries(&self.root, &skill_directory)?;
+        validate_directory_entries(&self.root, &skill_directory, true, |_| Ok(()))?;
 
         Ok(SkillNode {
             path: skill_path.to_owned(),
@@ -89,21 +91,27 @@ fn validate_directory(root: &Path, directory: &Path, depth: usize) -> Result<(),
     assert_regular_directory(directory, "Skill Map directory")?;
 
     let skill_document = directory.join(SKILL_DOCUMENT_NAME);
-    let has_skill = regular_file_exists(&skill_document)?;
+    let has_skill = regular_file_exists(&skill_document, "Skill declaration")?;
     if has_skill {
         if directory == root {
             return Err("Skill Map root cannot declare a Skill".to_owned());
         }
         parse_skill_declaration(&skill_document)?;
     }
+    help::validate_help_documents(directory)?;
 
-    for child_directory in validate_directory_entries(root, directory)? {
+    for child_directory in validate_directory_entries(root, directory, true, |_| Ok(()))? {
         validate_directory(root, &child_directory, depth + 1)?;
     }
     Ok(())
 }
 
-fn validate_directory_entries(root: &Path, directory: &Path) -> Result<Vec<PathBuf>, String> {
+fn validate_directory_entries(
+    root: &Path,
+    directory: &Path,
+    include_child_directories: bool,
+    mut inspect_child_directory: impl FnMut(&Path) -> Result<(), String>,
+) -> Result<Vec<PathBuf>, String> {
     let mut child_directories = Vec::new();
     for entry in fs::read_dir(directory).map_err(|error| {
         format!(
@@ -115,28 +123,38 @@ fn validate_directory_entries(root: &Path, directory: &Path) -> Result<Vec<PathB
         let entry_path = entry.path();
         let metadata = fs::symlink_metadata(&entry_path)
             .map_err(|error| format!("cannot inspect '{}': {error}", entry_path.display()))?;
+        let is_directory = metadata_is_directory_entry(&metadata);
+        if is_directory {
+            inspect_child_directory(&entry_path)?;
+        }
         if metadata_is_reparse(&metadata) {
+            if !include_child_directories && is_directory {
+                continue;
+            }
             return Err(format!(
                 "Skill Map cannot contain a symbolic link or reparse point: {}",
                 entry_path.display()
             ));
         }
-        if metadata.is_dir() {
-            assert_safe_segment(
-                entry
-                    .file_name()
-                    .to_str()
-                    .ok_or_else(|| "Skill Map directory name is not Unicode".to_owned())?,
-                "Skill Map directory name",
-            )?;
-            child_directories.push(entry_path);
+        if is_directory {
+            if include_child_directories {
+                assert_safe_segment(
+                    entry
+                        .file_name()
+                        .to_str()
+                        .ok_or_else(|| "Skill Map directory name is not Unicode".to_owned())?,
+                    "Skill Map directory name",
+                )?;
+                child_directories.push(entry_path);
+            }
         } else if metadata.is_file() {
             let name = entry.file_name();
             let name = name
                 .to_str()
                 .ok_or_else(|| "Skill Map file name is not Unicode".to_owned())?;
-            let allowed =
-                name == SKILL_DOCUMENT_NAME || (directory == root && name == AGENT_DOCUMENT_NAME);
+            let allowed = name == SKILL_DOCUMENT_NAME
+                || help::is_help_document_name(name)
+                || (directory == root && name == AGENT_DOCUMENT_NAME);
             if !allowed {
                 return Err(format!(
                     "unexpected Skill Map file: {}",
@@ -153,13 +171,31 @@ fn validate_directory_entries(root: &Path, directory: &Path) -> Result<Vec<PathB
     Ok(child_directories)
 }
 
-fn regular_file_exists(path: &Path) -> Result<bool, String> {
+fn regular_file_exists(path: &Path, description: &str) -> Result<bool, String> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata_is_reparse(&metadata) || !metadata.is_file() => Err(format!(
-            "expected a regular non-reparse file when Skill declaration exists: {}",
+            "expected a regular non-reparse file when {description} exists: {}",
             path.display()
         )),
-        Ok(_) => Ok(true),
+        Ok(_) => {
+            let canonical = fs::canonicalize(path).map_err(|error| {
+                format!("cannot resolve {description} '{}': {error}", path.display())
+            })?;
+            if canonical.file_name() != path.file_name() {
+                return Err(format!(
+                    "non-canonical {description} name '{}'; expected '{}': {}",
+                    canonical
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("<non-Unicode>"),
+                    path.file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("<non-Unicode>"),
+                    canonical.display()
+                ));
+            }
+            Ok(true)
+        }
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(false),
         Err(error) => Err(format!("cannot inspect '{}': {error}", path.display())),
     }
@@ -191,6 +227,19 @@ fn metadata_is_reparse(metadata: &fs::Metadata) -> bool {
     #[cfg(not(windows))]
     {
         false
+    }
+}
+
+fn metadata_is_directory_entry(metadata: &fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_DIRECTORY: u32 = 0x10;
+        metadata.file_attributes() & FILE_ATTRIBUTE_DIRECTORY != 0
+    }
+    #[cfg(not(windows))]
+    {
+        metadata.is_dir()
     }
 }
 
@@ -240,8 +289,18 @@ fn join_exact_regular_directories(
     segments: &[&str],
     description: &str,
 ) -> Result<PathBuf, String> {
+    join_exact_regular_directories_inspecting(root, segments, description, |_| Ok(()))
+}
+
+fn join_exact_regular_directories_inspecting(
+    root: &Path,
+    segments: &[&str],
+    description: &str,
+    mut inspect_directory: impl FnMut(&Path) -> Result<(), String>,
+) -> Result<PathBuf, String> {
     let mut path = root.to_path_buf();
     for segment in segments {
+        inspect_directory(&path.join(segment))?;
         path = find_exact_child(&path, segment, description)?;
         assert_regular_directory(&path, description)?;
     }

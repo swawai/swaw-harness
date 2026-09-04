@@ -2,7 +2,7 @@
   "schema": "swaw.harness.core-host-build/v2",
   "package": "swaw-harness-core",
   "module": "swaw/core/host",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "staticCrt": true,
   "buildArtifact": "swaw-harness-core.exe",
   "artifact": "swaw-harness-core.exe",

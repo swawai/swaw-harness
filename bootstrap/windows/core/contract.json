@@ -13,7 +13,7 @@
     {
       "package": "swaw-harness-dev",
       "module": "swaw/core/dev",
-      "version": "1.0.7",
+      "version": "1.0.8",
       "buildArtifact": "swaw-harness-dev.exe",
       "artifact": "swaw-harness-dev.exe",
       "maximumBytes": 16777216
@@ -21,7 +21,7 @@
     {
       "package": "swaw-harness-admin",
       "module": "swaw/core/admin",
-      "version": "1.0.11",
+      "version": "1.0.12",
       "buildArtifact": "swaw-harness-admin.exe",
       "artifact": "swaw-harness-admin.exe",
       "maximumBytes": 16777216

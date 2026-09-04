@@ -283,6 +283,73 @@ try {
     if ($FixtureHosts.Count -ne 1) {
         throw 'Concurrent cold start did not leave exactly one Admin Core Host.'
     }
+    $EnglishHelp = Invoke-SwawHarnessCapturedProcess `
+        -Executable $AdminHost.UserCliPath `
+        -Arguments @('core/.help') `
+        -WorkingDirectory (Join-Path $TestRoot 'data') `
+        -TimeoutSeconds 30
+    $ExpectedEnglishHelp = @(
+        ('core'.PadRight(16) + '# Browse the built-in Core skills.'),
+        ('core/admin'.PadRight(16) + '# Administer the Harness.'),
+        ('core/dev'.PadRight(16) + '# Manage development tools.'),
+        ('core/helloworld'.PadRight(16) + '# [run] Print a greeting.')
+    ) -join "`n"
+    if ($EnglishHelp.ExitCode -ne 0 -or
+        $EnglishHelp.Output -cne $ExpectedEnglishHelp -or
+        -not [string]::IsNullOrEmpty($EnglishHelp.Error)) {
+        throw 'Core Skill Map root Help did not return the default English path list.'
+    }
+    $ChineseHelp = Invoke-SwawHarnessCapturedProcess `
+        -Executable $AdminHost.UserCliPath `
+        -Arguments @('core/.help', '3', '--language', 'zh-CN') `
+        -WorkingDirectory (Join-Path $TestRoot 'data') `
+        -TimeoutSeconds 30
+    $ExpectedChineseHelp = @(
+        ('core'.PadRight(16) + '# 浏览内置 Core 技能。'),
+        ('core/admin'.PadRight(16) + '# 管理 Harness。'),
+        ('core/admin/user'.PadRight(16) + '# 管理 Harness 用户。'),
+        ('core/admin/user/create'.PadRight(32) + '# [run] 创建 Harness 用户。'),
+        ('core/dev'.PadRight(16) + '# 管理开发工具。'),
+        ('core/dev/bun'.PadRight(16) + '# 管理 Bun 运行时。'),
+        ('core/dev/bun/mode'.PadRight(32) + '# [run] 查看或更改 Bun 模式。'),
+        ('core/helloworld'.PadRight(16) + '# [run] 输出问候语。')
+    ) -join "`n"
+    if ($ChineseHelp.ExitCode -ne 0 -or
+        $ChineseHelp.Output -cne $ExpectedChineseHelp -or
+        -not [string]::IsNullOrEmpty($ChineseHelp.Error)) {
+        throw 'Core Skill Map root Help did not return the requested Chinese path list.'
+    }
+    $CategoryHelp = Invoke-SwawHarnessCapturedProcess `
+        -Executable $AdminHost.UserCliPath `
+        -Arguments @('core/dev/.help', '2') `
+        -WorkingDirectory (Join-Path $TestRoot 'data') `
+        -TimeoutSeconds 30
+    $ExpectedCategoryHelp = @(
+        ('core/dev'.PadRight(16) + '# Manage development tools.'),
+        ('core/dev/bun'.PadRight(16) + '# Manage the Bun runtime.'),
+        ('core/dev/bun/mode'.PadRight(32) + '# [run] Read or change the Bun mode.')
+    ) -join "`n"
+    if ($CategoryHelp.ExitCode -ne 0 -or
+        $CategoryHelp.Output -cne $ExpectedCategoryHelp -or
+        -not [string]::IsNullOrEmpty($CategoryHelp.Error)) {
+        throw 'Category Help did not return the selected bounded path list.'
+    }
+    $VerboseHelp = Invoke-SwawHarnessCapturedProcess `
+        -Executable $AdminHost.UserCliPath `
+        -Arguments @('core/.help', '-v') `
+        -WorkingDirectory (Join-Path $TestRoot 'data') `
+        -TimeoutSeconds 30
+    $RunsAfterHelp = @(Get-ChildItem `
+        -LiteralPath $AdminRunsRoot `
+        -Directory `
+        -Force)
+    if ($VerboseHelp.ExitCode -ne 1 -or
+        -not [string]::IsNullOrEmpty($VerboseHelp.Output) -or
+        $VerboseHelp.Error -cne
+            '[ERROR] usage: /.help [depth] [--language en|zh|zh-CN]' -or
+        $RunsAfterHelp.Count -ne $ConcurrentRuns.Count) {
+        throw 'Help options or no-Run boundary are invalid.'
+    }
     $ReservedTreeInvocation = Invoke-SwawHarnessCapturedProcess `
         -Executable $AdminHost.UserCliPath `
         -Arguments @('core/helloworld/.tree') `

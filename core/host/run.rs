@@ -32,10 +32,13 @@ impl RunWorkspace {
         target: &SkillInvocationTarget,
         call: &mut PreparedCall,
     ) -> Result<Self, String> {
+        let skill_path = target
+            .skill_path()
+            .ok_or_else(|| "Run target requires a non-empty SkillPath".to_owned())?;
         let runs_root = user_home.join(BaseResourceSpace::Runs.name());
         ensure_runs_root(&runs_root)?;
         let (run_id, root) = create_run_root(&runs_root)?;
-        let node_directory = match create_node_directory(&root, target) {
+        let node_directory = match create_node_directory(&root, target.skill_map_id(), skill_path) {
             Ok(directory) => directory,
             Err(error) => {
                 let _ = fs::remove_dir_all(&root);
@@ -45,7 +48,7 @@ impl RunWorkspace {
         call.set_working_directory(node_directory);
 
         let document_path = root.join(RUN_DOCUMENT_NAME);
-        let document = match RunDocument::started(&run_id, target, call) {
+        let document = match RunDocument::started(&run_id, target, skill_path, call) {
             Ok(document) => document,
             Err(error) => {
                 let _ = fs::remove_dir_all(&root);
@@ -117,6 +120,7 @@ impl RunDocument {
     fn started(
         run_id: &str,
         target: &SkillInvocationTarget,
+        skill_path: &str,
         call: &PreparedCall,
     ) -> Result<Self, String> {
         Ok(Self {
@@ -125,7 +129,7 @@ impl RunDocument {
             started_at_unix_ms: unix_milliseconds()?,
             target: RunTarget {
                 skill_map_id: target.skill_map_id().to_owned(),
-                skill_path: target.skill_path().to_owned(),
+                skill_path: skill_path.to_owned(),
                 method: target.method().name(),
             },
             module_release: RunModuleRelease {
@@ -275,10 +279,11 @@ fn create_run_root(runs_root: &Path) -> Result<(String, PathBuf), String> {
 
 fn create_node_directory(
     run_root: &Path,
-    target: &SkillInvocationTarget,
+    skill_map_id: &str,
+    skill_path: &str,
 ) -> Result<PathBuf, String> {
     let mut directory = run_root.to_owned();
-    for segment in std::iter::once(target.skill_map_id()).chain(target.skill_path().split('/')) {
+    for segment in std::iter::once(skill_map_id).chain(skill_path.split('/')) {
         directory.push(segment);
         fs::create_dir(&directory).map_err(|error| {
             format!(

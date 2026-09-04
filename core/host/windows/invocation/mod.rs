@@ -1,3 +1,4 @@
+mod help;
 mod node;
 
 use std::fs::File;
@@ -14,6 +15,7 @@ pub(super) fn invoke(
 ) -> Result<(), String> {
     match target.method() {
         SkillNodeMethod::Node => node::invoke(pipe, identity, target, arguments),
+        SkillNodeMethod::Help => help::invoke(pipe, identity, target, arguments),
         method => Err(format!(
             "Core Host node method '/.{}' is not implemented",
             method.name()

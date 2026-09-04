@@ -13,6 +13,9 @@ pub(super) fn invoke(
     target: &SkillInvocationTarget,
     arguments: impl IntoIterator<Item = Vec<u16>>,
 ) -> Result<(), String> {
+    let skill_path = target
+        .skill_path()
+        .ok_or_else(|| "node invocation requires a non-empty SkillPath".to_owned())?;
     let dynamic_arguments = arguments
         .into_iter()
         .map(|value| os_string(&value, "dynamic argument"))
@@ -20,7 +23,7 @@ pub(super) fn invoke(
     let mut call = prepare_call(
         identity.data_home(),
         identity.user_home(),
-        target.skill_path(),
+        skill_path,
         dynamic_arguments,
     )?;
     let run = RunWorkspace::start(identity.user_home(), target, &mut call)?;
